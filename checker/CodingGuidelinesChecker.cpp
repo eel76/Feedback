@@ -1,3 +1,5 @@
+#include <syncstream>
+
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wtype-limits"
@@ -32,32 +34,6 @@ void print(Stream&& out, std::string_view fmt, Args&&... args)
 {
   fmt::format_to(std::ostream_iterator<char>(out), fmt, std::forward<Args>(args)...);
 }
-
-// will become available in C++ 20
-struct osyncstream : public std::ostringstream
-{
-  explicit osyncstream(std::ostream& output_stream)
-  : output(output_stream)
-  {
-  }
-  ~osyncstream()
-  {
-    emit();
-  }
-
-  void emit()
-  {
-    std::ostringstream const tmp{ std::move(*this) };
-
-    static std::unordered_map<std::ostream*, std::mutex> locks;
-
-    auto const locked = std::scoped_lock{ locks[&output] };
-    output << tmp.str();
-  }
-
-private:
-  std::ostream& output;
-};
 
 template <class T>
 struct duration_scope
@@ -197,16 +173,18 @@ void for_each_line(std::istream& is, Op&& operation)
     operation(line);
 }
 
+namespace format {
 struct as_literal
 {
   std::string_view str;
 };
+} // namespace formatted
 } // namespace
 
 namespace fmt {
 
 template <>
-struct formatter<as_literal>
+struct formatter<format::as_literal>
 {
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx)
@@ -215,7 +193,7 @@ struct formatter<as_literal>
   }
 
   template <typename FormatContext>
-  auto format(as_literal const& text, FormatContext& ctx)
+  auto format(format::as_literal const& text, FormatContext& ctx)
   {
     auto out = ctx.out();
     for (auto it = text.str.begin(); it != text.str.end(); ++it)
@@ -255,8 +233,20 @@ auto count(std::string_view str, char ch)
 
 namespace async {
 
+template <class... Args>
+decltype(auto) launch(Args&&... args)
+{
+  return std::async(std::launch::async, std::forward<Args>(args)...);
+}
+
+template <class... Args>
+auto share(Args&&... args)
+{
+  return async::launch(std::forward<Args>(args)...).share();
+}
+
 template <class Op>
-auto invoked(Op&& operation)
+auto make_task(Op&& operation)
 {
   struct async_tasks : std::vector<std::future<void>>
   {
@@ -277,29 +267,13 @@ auto invoked(Op&& operation)
     }));
   };
 }
-
-template <class... Args>
-decltype(auto) launch(Args&&... args)
-{
-  return std::async(std::launch::async, std::forward<Args>(args)...);
-}
-
-auto coding_guidelines_read_from(std::string const& file_name)
-{
-  return async::launch([=] { return ::coding_guidelines_read_from(file_name); });
-}
-
-auto content_read_from(std::string const& file_name)
-{
-  return async::launch([=]() { return content(read_from(file_name)); });
-}
-}
+} // namespace async
 
 auto check_rule_in(std::string const& file_name)
 {
-  auto const content = async::content_read_from(file_name).share();
+  auto const file_content = async::share([=] { return content(read_from(file_name)); });
 
-  return [file_name, content](coding_guidelines const& guidelines, auto const& id, auto const& rule) {
+  return [=](coding_guidelines const& guidelines, auto const& id, auto const& rule) {
     if (!std::regex_search(file_name, rule.matched_files))
       return fmt::format("\n// rule {} not matched\n", id);
 
@@ -312,7 +286,7 @@ auto check_rule_in(std::string const& file_name)
     ptrdiff_t nr = 0;
 
     std::for_each(
-      std::sregex_iterator{ begin(content.get()), end(content.get()), rule.matched_text },
+      std::sregex_iterator{ begin(file_content.get()), end(file_content.get()), rule.matched_text },
       std::sregex_iterator{},
       [&](auto const& sub_match) {
         auto const prefix = make_string_view(sub_match.prefix());
@@ -367,14 +341,14 @@ auto check_rule_in(std::string const& file_name)
           "indent"_a = indent,
           "marker"_a = marker,
           "nr"_a = nr,
-          "file_name"_a = as_literal{ file_name },
-          "source"_a = as_literal{ source },
-          "id"_a = as_literal{ id },
-          "origin"_a = as_literal{ guidelines.origin },
-          "summary"_a = as_literal{ rule.summary },
-          "severity"_a = as_literal{ rule.severity },
-          "rationale"_a = as_literal{ rule.rationale },
-          "workaround"_a = as_literal{ rule.workaround });
+          "file_name"_a = format::as_literal{ file_name },
+          "source"_a = format::as_literal{ source },
+          "id"_a = format::as_literal{ id },
+          "origin"_a = format::as_literal{ guidelines.origin },
+          "summary"_a = format::as_literal{ rule.summary },
+          "severity"_a = format::as_literal{ rule.severity },
+          "rationale"_a = format::as_literal{ rule.rationale },
+          "workaround"_a = format::as_literal{ rule.workaround });
 
         nr += count(match, '\n');
       });
@@ -501,7 +475,7 @@ int main(int argc, char* argv[])
   {
     auto const parameters = parameters::parse(argc, argv);
 
-    auto const guidelines = async::coding_guidelines_read_from(parameters.coding_guidelines).share();
+    auto const guidelines = async::share([=] { return coding_guidelines_read_from(parameters.coding_guidelines); });
 
     // FIXME: async filter
     auto const filter = filter_read_from(parameters.files_to_check);
@@ -509,7 +483,7 @@ int main(int argc, char* argv[])
     auto const output = redirect_cout_to(parameters.output_file);
 
     print_header();
-    for_each_line(read_from(parameters.source_files), async::invoked(check_file(guidelines, filter)));
+    for_each_line(read_from(parameters.source_files), async::make_task(check_file(guidelines, filter)));
   }
   catch (std::exception const& e)
   {

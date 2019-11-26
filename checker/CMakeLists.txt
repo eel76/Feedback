@@ -27,11 +27,13 @@ FetchContent_Declare(
   )
 FetchContent_MakeAvailable(fmt_content)
 
-add_executable (${PROJECT_NAME} "CodingGuidelinesChecker.cpp")
+add_executable (${PROJECT_NAME} "CodingGuidelinesChecker.cpp" "include/syncstream")
 
-target_link_libraries (${PROJECT_NAME} BFG::Lyra)
-target_link_libraries (${PROJECT_NAME} nlohmann_json::nlohmann_json)
-target_link_libraries (${PROJECT_NAME} fmt::fmt-header-only)
+target_include_directories (${PROJECT_NAME} PRIVATE include)
+
+target_link_libraries (${PROJECT_NAME} PRIVATE BFG::Lyra)
+target_link_libraries (${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries (${PROJECT_NAME} PRIVATE fmt::fmt-header-only)
 
 target_link_options (${PROJECT_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-lpthread>)
 
