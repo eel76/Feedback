@@ -1,62 +1,23 @@
-#include <syncstream>
+#include "async.h"
+#include "benchmark.h"
+#include "format.h"
 
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtype-limits"
-#endif
-
-#include <fmt/format.h>
 #include <lyra/lyra.hpp>
 #include <nlohmann/json.hpp>
 
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
-
-#include <chrono>
 #include <fstream>
-#include <future>
 #include <iostream>
-#include <iterator>
 #include <map>
 #include <optional>
 #include <regex>
 #include <string>
+#include <syncstream>
 #include <unordered_map>
 #include <unordered_set>
 
 using fmt::operator""_a;
 
 namespace {
-
-template <class Stream, class... Args>
-void print(Stream&& out, std::string_view fmt, Args&&... args)
-{
-  fmt::format_to(std::ostream_iterator<char>(out), fmt, std::forward<Args>(args)...);
-}
-
-template <class T>
-struct duration_scope
-{
-  duration_scope(std::string_view format)
-  : format(format)
-  , started(std::chrono::system_clock::now())
-  {
-  }
-
-  duration_scope(duration_scope&&) = delete;
-  duration_scope(duration_scope const&) = delete;
-
-  ~duration_scope()
-  {
-    auto const elapsed = std::chrono::system_clock::now() - started;
-    print(osyncstream{ std::cerr }, format, std::chrono::duration_cast<T>(elapsed).count());
-  }
-
-private:
-  std::string format;
-  std::chrono::system_clock::time_point started;
-};
 
 auto content(std::istream& in)
 {
@@ -173,101 +134,10 @@ void for_each_line(std::istream& is, Op&& operation)
     operation(line);
 }
 
-namespace format {
-struct as_literal
-{
-  std::string_view str;
-};
-} // namespace formatted
-} // namespace
-
-namespace fmt {
-
-template <>
-struct formatter<format::as_literal>
-{
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx)
-  {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(format::as_literal const& text, FormatContext& ctx)
-  {
-    auto out = ctx.out();
-    for (auto it = text.str.begin(); it != text.str.end(); ++it)
-    {
-      switch (*it)
-      {
-      case '\n':
-        out = base.format('\\', ctx);
-        out = base.format('n', ctx);
-        break;
-      case '\\':
-        [[fallthrough]];
-      case '\"':
-        out = base.format('\\', ctx);
-        [[fallthrough]];
-      default:
-        out = base.format(*it, ctx);
-        break;
-      }
-    }
-
-    return out;
-  }
-
-private:
-  formatter<char> base;
-};
-
-} // namespace fmt
-
-namespace {
-
 auto count(std::string_view str, char ch)
 {
   return std::count(begin(str), end(str), ch);
 }
-
-namespace async {
-
-template <class... Args>
-decltype(auto) launch(Args&&... args)
-{
-  return std::async(std::launch::async, std::forward<Args>(args)...);
-}
-
-template <class... Args>
-auto share(Args&&... args)
-{
-  return async::launch(std::forward<Args>(args)...).share();
-}
-
-template <class Op>
-auto make_task(Op&& operation)
-{
-  struct async_tasks : std::vector<std::future<void>>
-  {
-    async_tasks() = default;
-    async_tasks(async_tasks&&) = default;
-    async_tasks& operator=(async_tasks&&) = default;
-
-    ~async_tasks()
-    {
-      for (auto&& f : *this)
-        f.wait();
-    }
-  };
-
-  return [tasks = async_tasks{}, operation = std::forward<Op>(operation)](auto&&... args) mutable {
-    tasks.emplace_back(async::launch([operation, args = std::make_tuple(std::forward<decltype(args)>(args)...)] {
-      std::apply(operation, std::move(args));
-    }));
-  };
-}
-} // namespace async
 
 auto check_rule_in(std::string const& file_name)
 {
@@ -281,7 +151,7 @@ auto check_rule_in(std::string const& file_name)
       return fmt::format("\n// rule {} ignored\n", id);
 
     auto out = std::ostringstream{};
-    print(out, "\n// rule {} checked\n", id);
+    format::print(out, "\n// rule {} checked\n", id);
 
     ptrdiff_t nr = 0;
 
@@ -324,7 +194,7 @@ auto check_rule_in(std::string const& file_name)
 
         nr += count(prefix, '\n');
 
-        print(
+        format::print(
           out,
           R"message(
 {ignored}#if defined(__GNUC__)
@@ -379,8 +249,8 @@ auto check_file(Guidelines&& guidelines, Filter&& filter)
 
     auto messages = async_messages_from(guidelines.get(), file_name);
 
-    auto synchronized_out = osyncstream{ std::cout };
-    print(synchronized_out, "\n// {}\n", file_name);
+    auto synchronized_out = std::osyncstream{ std::cout };
+    format::print(synchronized_out, "\n// {}\n", file_name);
 
     for (auto&& message : messages)
       synchronized_out << message.get();
@@ -467,7 +337,7 @@ auto redirect_cout_to(std::string const& file_name)
 
 int main(int argc, char* argv[])
 {
-  auto const overall_duration = duration_scope<std::chrono::milliseconds>{ "Elapsed time in milliseconds: {}\n" };
+  auto const overall_duration = benchmark::duration_scope<std::chrono::milliseconds>{ "Elapsed time in milliseconds: {}\n" };
 
   std::ios::sync_with_stdio(false);
 

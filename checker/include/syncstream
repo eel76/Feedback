@@ -1,6 +1,10 @@
+#pragma once
+
 #include <mutex>
 #include <sstream>
 #include <unordered_map>
+
+namespace std {
 
 // will become available in C++ 20
 struct osyncstream : public std::ostringstream
@@ -27,3 +31,5 @@ struct osyncstream : public std::ostringstream
 private:
   std::ostream& output;
 };
+
+} // namespace std
