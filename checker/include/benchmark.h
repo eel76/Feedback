@@ -32,5 +32,4 @@ private:
   std::chrono::system_clock::time_point started;
 };
 
-}
-
+} // namespace benchmark

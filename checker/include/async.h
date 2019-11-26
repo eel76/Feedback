@@ -22,7 +22,7 @@ struct waitable_range
 {
   ~waitable_range()
   {
-    for (auto&& f : *static_cast<T*> (this))
+    for (auto&& f : *static_cast<T*>(this))
       f.wait();
   }
 };
@@ -45,4 +45,3 @@ auto make_task(Op&& operation)
 }
 
 } // namespace async
-
