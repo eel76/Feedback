@@ -27,12 +27,6 @@ using fmt::operator""_a;
 
 namespace {
 
-template <class... Args>
-decltype(auto) launch_async(Args&&... args)
-{
-  return std::async(std::launch::async, std::forward<Args>(args)...);
-}
-
 template <class Stream, class... Args>
 void print(Stream&& out, std::string_view fmt, Args&&... args)
 {
@@ -188,7 +182,7 @@ void from_json(nlohmann::json const& json, coding_guidelines::rule& rule)
   rule.marked_text = std::regex{ json.at("marked_text").get<std::string>(), std::regex::optimize };
 }
 
-auto read_coding_guidelines_from(std::string const& file_name)
+auto coding_guidelines_read_from(std::string const& file_name)
 {
   auto json = nlohmann::json{};
   read_from(file_name) >> json;
@@ -196,26 +190,11 @@ auto read_coding_guidelines_from(std::string const& file_name)
   return coding_guidelines{ file_name, json.get<coding_guidelines::rule_map>() };
 }
 
-auto async_coding_guidelines_from(std::string const& file_name)
-{
-  return launch_async([file_name] { return read_coding_guidelines_from(file_name); });
-}
-
 template <class Op>
 void for_each_line(std::istream& is, Op&& operation)
 {
   for (std::string line; std::getline(is, line);)
     operation(line);
-}
-
-template <class Op>
-auto make_async(Op&& operation)
-{
-  return [tasks = std::vector<std::future<void>>{}, operation = std::forward<Op>(operation)](auto&&... args) mutable {
-    tasks.emplace_back(launch_async([operation, args = std::make_tuple(std::forward<decltype(args)>(args)...)] {
-      std::apply(operation, std::move(args));
-    }));
-  };
 }
 
 struct as_literal
@@ -274,14 +253,51 @@ auto count(std::string_view str, char ch)
   return std::count(begin(str), end(str), ch);
 }
 
-auto async_content_from(std::string const& file_name)
+namespace async {
+
+template <class Op>
+auto invoked(Op&& operation)
 {
-  return launch_async([file_name]() { return content(read_from(file_name)); });
+  struct async_tasks : std::vector<std::future<void>>
+  {
+    async_tasks() = default;
+    async_tasks(async_tasks&&) = default;
+    async_tasks& operator=(async_tasks&&) = default;
+
+    ~async_tasks()
+    {
+      for (auto&& f : *this)
+        f.wait();
+    }
+  };
+
+  return [tasks = async_tasks{}, operation = std::forward<Op>(operation)](auto&&... args) mutable {
+    tasks.emplace_back(async::launch([operation, args = std::make_tuple(std::forward<decltype(args)>(args)...)] {
+      std::apply(operation, std::move(args));
+    }));
+  };
+}
+
+template <class... Args>
+decltype(auto) launch(Args&&... args)
+{
+  return std::async(std::launch::async, std::forward<Args>(args)...);
+}
+
+auto coding_guidelines_read_from(std::string const& file_name)
+{
+  return async::launch([=] { return ::coding_guidelines_read_from(file_name); });
+}
+
+auto content_read_from(std::string const& file_name)
+{
+  return async::launch([=]() { return content(read_from(file_name)); });
+}
 }
 
 auto check_rule_in(std::string const& file_name)
 {
-  auto const content = async_content_from(file_name).share();
+  auto const content = async::content_read_from(file_name).share();
 
   return [file_name, content](coding_guidelines const& guidelines, auto const& id, auto const& rule) {
     if (!std::regex_search(file_name, rule.matched_files))
@@ -374,7 +390,7 @@ auto async_messages_from(coding_guidelines const& guidelines, std::string const&
   auto messages = std::vector<std::future<std::string>>{};
 
   for (auto const& [id, rule] : guidelines.rules)
-    messages.push_back(launch_async(check_rule_in_file, guidelines, id, rule));
+    messages.push_back(async::launch(check_rule_in_file, guidelines, id, rule));
 
   return messages;
 }
@@ -382,8 +398,8 @@ auto async_messages_from(coding_guidelines const& guidelines, std::string const&
 template <class Guidelines, class Filter>
 auto check_file(Guidelines&& guidelines, Filter&& filter)
 {
-  return [guidelines=std::forward<Guidelines>(guidelines), filter=std::forward<Filter> (filter)](std::string const& file_name) {
-
+  return [guidelines = std::forward<Guidelines>(guidelines),
+          filter = std::forward<Filter>(filter)](std::string const& file_name) {
     if (!std::invoke(filter, file_name))
       return;
 
@@ -422,7 +438,7 @@ struct parameters
   }
 };
 
-auto read_filter_from(std::string const& files_to_check)
+auto filter_read_from(std::string const& files_to_check)
 {
   auto file_names = std::optional<std::unordered_set<std::string>>{};
 
@@ -485,15 +501,15 @@ int main(int argc, char* argv[])
   {
     auto const parameters = parameters::parse(argc, argv);
 
-    auto const guidelines = async_coding_guidelines_from(parameters.coding_guidelines).share();
+    auto const guidelines = async::coding_guidelines_read_from(parameters.coding_guidelines).share();
 
     // FIXME: async filter
-    auto const filter = read_filter_from(parameters.files_to_check);
+    auto const filter = filter_read_from(parameters.files_to_check);
 
     auto const output = redirect_cout_to(parameters.output_file);
 
     print_header();
-    for_each_line(read_from(parameters.source_files), make_async(check_file(guidelines, filter)));
+    for_each_line(read_from(parameters.source_files), async::invoked(check_file(guidelines, filter)));
   }
   catch (std::exception const& e)
   {
