@@ -1,60 +1,18 @@
 #include "async.h"
 #include "benchmark.h"
 #include "format.h"
-
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtype-limits"
-#endif
-
-#include <lyra/lyra.hpp>
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
+#include "parameter.h"
+#include "stream.h"
 
 #include <nlohmann/json.hpp>
 
-#include <fstream>
-#include <iostream>
 #include <map>
 #include <optional>
 #include <regex>
-#include <string>
 #include <syncstream>
-#include <unordered_map>
 #include <unordered_set>
 
-using fmt::operator""_a;
-
 namespace {
-
-auto content(std::istream& in)
-{
-  std::stringstream sstr;
-  sstr << in.rdbuf();
-  return sstr.str();
-}
-
-auto read_from(std::string const& file_name)
-{
-  struct temporary_stream
-  {
-    explicit temporary_stream(std::string const& file_name)
-    : stream(file_name)
-    {
-    }
-    operator std::istream&() &&
-    {
-      return stream;
-    }
-
-  private:
-    std::ifstream stream;
-  };
-
-  return temporary_stream{ file_name };
-}
 
 auto make_string_view(std::ssub_match const& match)
 {
@@ -132,28 +90,19 @@ void from_json(nlohmann::json const& json, coding_guidelines::rule& rule)
 auto coding_guidelines_read_from(std::string const& file_name)
 {
   auto json = nlohmann::json{};
-  read_from(file_name) >> json;
+  stream::read_from(file_name) >> json;
 
   return coding_guidelines{ file_name, json.get<coding_guidelines::rule_map>() };
 }
 
-template <class Op>
-void for_each_line(std::istream& is, Op&& operation)
-{
-  for (std::string line; std::getline(is, line);)
-    operation(line);
-}
-
-auto count(std::string_view str, char ch)
-{
-  return std::count(begin(str), end(str), ch);
-}
-
 auto check_rule_in(std::string const& file_name)
 {
-  auto const file_content = async::share([=] { return content(read_from(file_name)); });
+  auto const file_content = async::share([=] { return stream::content(stream::read_from(file_name)); });
 
   return [=](coding_guidelines const& guidelines, auto const& id, auto const& rule) {
+
+    using fmt::operator""_a;
+
     if (!std::regex_search(file_name, rule.matched_files))
       return fmt::format("\n// rule {} not matched\n", id);
 
@@ -202,7 +151,7 @@ auto check_rule_in(std::string const& file_name)
 
         // FIXME: marker, wenn match über mehrere zeilen geht
 
-        nr += count(prefix, '\n');
+        nr += count(begin (prefix), end (prefix), '\n');
 
         format::print(
           out,
@@ -230,7 +179,7 @@ auto check_rule_in(std::string const& file_name)
           "rationale"_a = format::as_literal{ rule.rationale },
           "workaround"_a = format::as_literal{ rule.workaround });
 
-        nr += count(match, '\n');
+        nr += count(begin (match), end (match), '\n');
       });
 
     return out.str();
@@ -267,31 +216,6 @@ auto check_file(Guidelines&& guidelines, Filter&& filter)
   };
 }
 
-struct parameters
-{
-  std::string coding_guidelines;
-  std::string source_files;
-  std::string files_to_check;
-  std::string output_file;
-
-  static auto parse(int argc, char* argv[])
-  {
-    parameters p;
-
-    auto const cli =
-      lyra::arg(p.coding_guidelines, "codingGuidelines")("Coding guidelines (JSON file) to check") |
-      lyra::arg(p.source_files, "source files")("File with list of source files to scan") |
-      lyra::opt(p.files_to_check, "files to check")["-f"]["--files-to-check"]("File with list of files to check") |
-      lyra::opt(p.output_file, "output file")["-o"]["--output-file"]("Output file name");
-
-    auto const result = cli.parse({ argc, argv });
-    if (!result)
-      throw std::invalid_argument{ "Error in command line: " + result.errorMessage() };
-
-    return p;
-  }
-};
-
 auto filter_read_from(std::string const& files_to_check)
 {
   auto file_names = std::optional<std::unordered_set<std::string>>{};
@@ -299,7 +223,7 @@ auto filter_read_from(std::string const& files_to_check)
   if (!files_to_check.empty())
   {
     file_names.emplace();
-    for_each_line(read_from(files_to_check), [&file_names](auto const& file_name) { file_names->emplace(file_name); });
+    stream::for_each_line(stream::read_from(files_to_check), [&file_names](auto const& file_name) { file_names->emplace(file_name); });
   }
 
   return [file_names = std::move(file_names)](auto const& file_name) {
@@ -347,13 +271,13 @@ auto redirect_cout_to(std::string const& file_name)
 
 int main(int argc, char* argv[])
 {
-  auto const overall_duration = benchmark::duration_scope<std::chrono::milliseconds>{ "Elapsed time in milliseconds: {}\n" };
+  auto const overall_duration = benchmark::milliseconds_scope{ "Overall duration in milliseconds: {}\n" };
 
   std::ios::sync_with_stdio(false);
 
   try
   {
-    auto const parameters = parameters::parse(argc, argv);
+    auto const parameters = parameter::parse(argc, argv);
 
     auto const guidelines = async::share([=] { return coding_guidelines_read_from(parameters.coding_guidelines); });
 
@@ -363,7 +287,7 @@ int main(int argc, char* argv[])
     auto const output = redirect_cout_to(parameters.output_file);
 
     print_header();
-    for_each_line(read_from(parameters.source_files), async::as_task(check_file(guidelines, filter)));
+    stream::for_each_line(stream::read_from(parameters.source_files), async::as_task(check_file(guidelines, filter)));
   }
   catch (std::exception const& e)
   {

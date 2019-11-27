@@ -33,4 +33,6 @@ private:
   std::chrono::system_clock::time_point started;
 };
 
+using milliseconds_scope = duration_scope<std::chrono::milliseconds>;
+
 } // namespace benchmark

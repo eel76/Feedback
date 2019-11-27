@@ -30,7 +30,7 @@ FetchContent_MakeAvailable(fmt_content)
 add_executable (${PROJECT_NAME})
 
 target_sources (${PROJECT_NAME} PRIVATE "CodingGuidelinesChecker.cpp")
-target_sources (${PROJECT_NAME} PRIVATE "include/async.h" "include/benchmark.h" "include/format.h")
+target_sources (${PROJECT_NAME} PRIVATE "include/async.h" "include/benchmark.h" "include/format.h" "include/parameter.h" "include/stream.h")
 target_sources (${PROJECT_NAME} PRIVATE "include/syncstream")
 
 target_include_directories (${PROJECT_NAME} PRIVATE include)
