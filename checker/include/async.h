@@ -8,7 +8,7 @@ namespace async {
 template <class... Args>
 decltype(auto) launch(Args&&... args)
 {
-  return std::async(std::launch::deferred, std::forward<Args>(args)...);
+  return std::async(/* FIXME */ std::launch::deferred, std::forward<Args>(args)...);
 }
 
 template <class... Args>

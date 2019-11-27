@@ -33,11 +33,17 @@ auto read_from(std::string const& file_name)
   return temporary_stream{ file_name };
 }
 
-template <class Op>
-void for_each_line(std::istream& is, Op&& operation)
+template <class Operation>
+void for_each_line(std::istream& is, Operation&& operation)
 {
   for (std::string line; std::getline(is, line);)
     operation(line);
+}
+
+template <class Operation>
+void for_each_line_read_from(std::string const& file_name, Operation&& operation)
+{
+  for_each_line(read_from(file_name), std::forward<Operation>(operation));
 }
 
 } // namespace stream

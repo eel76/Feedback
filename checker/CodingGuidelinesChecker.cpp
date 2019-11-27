@@ -15,7 +15,7 @@
 
 namespace {
 
-auto make_string_view(std::ssub_match const& match)
+auto as_string_view(std::ssub_match const& match)
 {
   return std::string_view{ &*match.first, static_cast<size_t>(match.length()) };
 }
@@ -33,7 +33,7 @@ struct coding_guidelines
       if (!std::regex_match(origin, match, std::regex{ "^([^\\d]+)(\\d{1,5})$" }))
         return;
 
-      prefix = make_string_view(match[1]);
+      prefix = as_string_view(match[1]);
       nr = std::stoi(match[2].str());
     }
 
@@ -119,8 +119,8 @@ auto check_rule_in(std::string const& file_name)
       std::sregex_iterator{ begin(file_content.get()), end(file_content.get()), rule.matched_text },
       std::sregex_iterator{},
       [&](auto const& sub_match) {
-        auto const prefix = make_string_view(sub_match.prefix());
-        auto const suffix = make_string_view(sub_match.suffix());
+        auto const prefix = as_string_view(sub_match.prefix());
+        auto const suffix = as_string_view(sub_match.suffix());
 
         auto const last_newline_pos = prefix.find_last_of('\n');
         auto const first_newline_pos = suffix.find_first_of('\n');
@@ -200,7 +200,7 @@ auto async_messages_from(coding_guidelines const& guidelines, std::string const&
 }
 
 template <class Guidelines, class Filter>
-auto check_file(Guidelines&& guidelines, Filter&& filter)
+auto print_messages(Guidelines&& guidelines, Filter&& filter)
 {
   return [guidelines = std::forward<Guidelines>(guidelines),
           filter = std::forward<Filter>(filter)](std::string const& file_name) {
@@ -224,7 +224,7 @@ auto filter_read_from(std::string const& files_to_check)
   if (!files_to_check.empty())
   {
     file_names.emplace();
-    stream::for_each_line(stream::read_from(files_to_check), [&file_names](auto const& file_name) { file_names->emplace(file_name); });
+    stream::for_each_line_read_from(files_to_check, [&](auto const& file_name) { file_names->emplace(file_name); });
   }
 
   return [file_names = std::move(file_names)](auto const& file_name) {
@@ -288,7 +288,7 @@ int main(int argc, char* argv[])
     auto const output = redirect_cout_to(parameters.output_file);
 
     print_header();
-    stream::for_each_line(stream::read_from(parameters.source_files), async::as_task(check_file(guidelines, filter)));
+    stream::for_each_line_read_from(parameters.source_files, async::as_task(print_messages(guidelines, filter)));
   }
   catch (std::exception const& e)
   {
