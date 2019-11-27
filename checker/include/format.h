@@ -1,15 +1,6 @@
 #pragma once
 
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtype-limits"
-#endif
-
 #include <fmt/format.h>
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
 
 #include <iterator>
 #include <string_view>

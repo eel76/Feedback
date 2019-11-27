@@ -3,6 +3,7 @@
 #include "format.h"
 
 #include <chrono>
+#include <iostream>
 #include <string>
 #include <string_view>
 #include <syncstream>

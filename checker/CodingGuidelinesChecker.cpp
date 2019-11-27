@@ -2,7 +2,17 @@
 #include "benchmark.h"
 #include "format.h"
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wtype-limits"
+#endif
+
 #include <lyra/lyra.hpp>
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
 #include <nlohmann/json.hpp>
 
 #include <fstream>
