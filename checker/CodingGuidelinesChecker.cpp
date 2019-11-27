@@ -6,6 +6,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <map>
 #include <optional>
 #include <regex>
@@ -151,7 +152,7 @@ auto check_rule_in(std::string const& file_name)
 
         // FIXME: marker, wenn match über mehrere zeilen geht
 
-        nr += count(begin (prefix), end (prefix), '\n');
+        nr += std::count(begin (prefix), end (prefix), '\n');
 
         format::print(
           out,
@@ -179,7 +180,7 @@ auto check_rule_in(std::string const& file_name)
           "rationale"_a = format::as_literal{ rule.rationale },
           "workaround"_a = format::as_literal{ rule.workaround });
 
-        nr += count(begin (match), end (match), '\n');
+        nr += std::count(begin (match), end (match), '\n');
       });
 
     return out.str();
