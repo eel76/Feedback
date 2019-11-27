@@ -17,30 +17,34 @@ auto share(Args&&... args)
   return async::launch(std::forward<Args>(args)...).share();
 }
 
-template <class T>
-struct waitable_range
+struct task
 {
-  ~waitable_range()
+  template <class Callable>
+  explicit task(Callable&& callable)
+  : call(async::launch(std::forward<Callable> (callable)))
   {
-    for (auto&& f : *static_cast<T*>(this))
-      f.wait();
   }
+
+  task(task&&) = default;
+  task& operator=(task&&) = default;
+
+  ~task()
+  {
+    if (call.valid())
+      call.wait();
+  }
+
+ private:
+  std::future<void> call;
 };
 
-template <class T>
-using future_vector = std::vector<std::future<T>>;
-
 template <class Op>
-auto make_task(Op&& operation)
+auto as_task(Op&& operation)
 {
-  struct async_tasks : future_vector<void>, waitable_range<async_tasks>
-  {
-  };
-
-  return [tasks = async_tasks{}, operation = std::forward<Op>(operation)](auto&&... args) mutable {
-    tasks.emplace_back(async::launch([operation, args = std::make_tuple(std::forward<decltype(args)>(args)...)] {
+  return [tasks = std::vector<task>{}, operation = std::forward<Op>(operation)](auto&&... args) mutable {
+    tasks.emplace_back([operation, args = std::make_tuple(std::forward<decltype(args)>(args)...)] {
       std::apply(operation, std::move(args));
-    }));
+    });
   };
 }
 

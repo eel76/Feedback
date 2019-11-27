@@ -353,7 +353,7 @@ int main(int argc, char* argv[])
     auto const output = redirect_cout_to(parameters.output_file);
 
     print_header();
-    for_each_line(read_from(parameters.source_files), async::make_task(check_file(guidelines, filter)));
+    for_each_line(read_from(parameters.source_files), async::as_task(check_file(guidelines, filter)));
   }
   catch (std::exception const& e)
   {
