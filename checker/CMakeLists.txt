@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.11)
 
 project (CodingGuidelinesChecker)
+find_package (Threads REQUIRED)
 
 include(FetchContent)
 
@@ -29,16 +30,23 @@ FetchContent_MakeAvailable(fmt_content)
 
 add_executable (${PROJECT_NAME})
 
-target_sources (${PROJECT_NAME} PRIVATE "CodingGuidelinesChecker.cpp")
-target_sources (${PROJECT_NAME} PRIVATE "include/async.h" "include/benchmark.h" "include/format.h" "include/parameter.h" "include/stream.h")
-target_sources (${PROJECT_NAME} PRIVATE "include/syncstream")
+target_sources (${PROJECT_NAME} PRIVATE
+  "src/main.cpp"
+  "include/async.h"
+  "include/benchmark.h"
+  "include/format.h"
+  "include/parameter.h"
+  "include/stream.h"
+  "include/syncstream"
+  )
 
 target_include_directories (${PROJECT_NAME} PRIVATE include)
 
-target_link_libraries (${PROJECT_NAME} PRIVATE BFG::Lyra)
-target_link_libraries (${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
-target_link_libraries (${PROJECT_NAME} PRIVATE fmt::fmt-header-only)
-
-target_link_options (${PROJECT_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-lpthread>)
+target_link_libraries (${PROJECT_NAME} PRIVATE
+  ${CMAKE_THREAD_LIBS_INIT}
+  BFG::Lyra
+  nlohmann_json::nlohmann_json
+  fmt::fmt-header-only
+  )
 
 set_target_properties (${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)

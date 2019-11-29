@@ -101,7 +101,6 @@ auto check_rule_in(std::string const& file_name)
   auto const file_content = async::share([=] { return stream::content(stream::read_from(file_name)); });
 
   return [=](coding_guidelines const& guidelines, auto const& id, auto const& rule) {
-
     using fmt::operator""_a;
 
     if (!std::regex_search(file_name, rule.matched_files))
@@ -119,6 +118,9 @@ auto check_rule_in(std::string const& file_name)
       std::sregex_iterator{ begin(file_content.get()), end(file_content.get()), rule.matched_text },
       std::sregex_iterator{},
       [&](auto const& sub_match) {
+
+        std::osyncstream{ std::cerr } << "match: " << nr << '\n';
+
         auto const prefix = as_string_view(sub_match.prefix());
         auto const suffix = as_string_view(sub_match.suffix());
 
@@ -152,7 +154,7 @@ auto check_rule_in(std::string const& file_name)
 
         // FIXME: marker, wenn match über mehrere zeilen geht
 
-        nr += std::count(begin (prefix), end (prefix), '\n');
+        nr += std::count(begin(prefix), end(prefix), '\n');
 
         format::print(
           out,
@@ -180,7 +182,7 @@ auto check_rule_in(std::string const& file_name)
           "rationale"_a = format::as_literal{ rule.rationale },
           "workaround"_a = format::as_literal{ rule.workaround });
 
-        nr += std::count(begin (match), end (match), '\n');
+        nr += std::count(begin(match), end(match), '\n');
       });
 
     return out.str();
