@@ -13,7 +13,7 @@ auto content(std::istream& in)
   return sstr.str();
 }
 
-auto read_from(std::string const& file_name)
+auto from(std::string const& file_name)
 {
   struct temporary_stream
   {
@@ -33,17 +33,47 @@ auto read_from(std::string const& file_name)
   return temporary_stream{ file_name };
 }
 
+struct line : public std::string
+{
+  friend std::istream& operator>>(std::istream& is, line& val)
+  {
+    return std::getline(is, val);
+  }
+};
+
+struct all_lines
+{
+  explicit all_lines(std::istream& is)
+  : stream(is)
+  {
+  }
+
+  friend auto begin(all_lines const& lines)
+  {
+    return std::istream_iterator<line>{ lines.stream };
+  }
+
+  friend auto end(all_lines const&)
+  {
+    return std::istream_iterator<line>{};
+  }
+
+private:
+  std::istream& stream;
+};
+
 template <class Operation>
 void for_each_line(std::istream& is, Operation&& operation)
 {
-  for (std::string line; std::getline(is, line);)
+  for (auto&& line : all_lines {is})
     operation(line);
 }
 
-template <class Operation>
-void for_each_line_read_from(std::string const& file_name, Operation&& operation)
-{
-  for_each_line(read_from(file_name), std::forward<Operation>(operation));
-}
+//template <class Operation>
+//void for_each_line(std::istream& is, Operation&& operation)
+//{
+//  for (std::string line; std::getline(is, line);)
+//    operation(line);
+//}
 
 } // namespace stream

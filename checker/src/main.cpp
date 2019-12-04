@@ -5,20 +5,91 @@
 #include "stream.h"
 
 #include <nlohmann/json.hpp>
+#include <re2/re2.h>
 
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <optional>
 #include <regex>
 #include <syncstream>
 #include <unordered_set>
 
-namespace {
+namespace regex {
 
-auto as_string_view(std::ssub_match const& match)
+auto as_string_piece(std::string_view sv)
 {
-  return std::string_view{ &*match.first, static_cast<size_t>(match.length()) };
+  return re2::StringPiece{ sv.data(), sv.length() };
 }
+
+auto as_string_view(re2::StringPiece const& match)
+{
+  return std::string_view{ match.data(), match.length() };
+}
+
+//auto as_string_view(std::ssub_match const& match)
+//{
+//  return std::string_view{ &*match.first, static_cast<size_t>(match.length()) };
+//}
+
+struct precompiled
+{
+  precompiled() = default;
+
+  explicit precompiled(std::string_view pattern)
+  : engine(std::make_shared<re2::RE2>(as_string_piece(pattern), RE2::Quiet))
+  {
+    if (not engine->ok())
+      throw std::invalid_argument{ std::string{ "Invalid regex: " }.append(engine->error()) };
+  }
+
+  friend bool search(std::string_view input, precompiled const& pattern)
+  {
+    return RE2::PartialMatch(as_string_piece(input), *pattern.engine);
+  }
+
+  friend bool search(std::string_view input, std::string_view* match, precompiled const& pattern)
+  {
+    auto re2_match = as_string_piece(*match);
+
+    assert(pattern.engine->NumberOfCapturingGroups() >= 1);
+
+    if (not RE2::PartialMatch(as_string_piece(input), *pattern.engine, &re2_match))
+      return false;
+
+    *match = as_string_view(re2_match);
+
+    return true;
+  }
+
+  friend bool search_next(std::string_view* input, std::string_view* match, precompiled const& pattern)
+  {
+    auto re2_input = as_string_piece(*input);
+    auto re2_match = as_string_piece(*match);
+
+    assert(pattern.engine->NumberOfCapturingGroups() >= 1);
+
+    if (not RE2::FindAndConsume(&re2_input, *pattern.engine, &re2_match))
+      return false;
+
+    *input = as_string_view(re2_input);
+    *match = as_string_view(re2_match);
+
+    return true;
+  }
+
+private:
+  std::shared_ptr<re2::RE2> engine;
+};
+
+auto sub_pattern(std::string_view pattern)
+{
+  return precompiled{ std::string{ "(" }.append(pattern).append(")") };
+}
+
+} // namespace regex
+
+namespace {
 
 struct coding_guidelines
 {
@@ -29,12 +100,14 @@ struct coding_guidelines
     , prefix(origin)
     , nr()
     {
-      std::smatch match;
-      if (!std::regex_match(origin, match, std::regex{ "^([^\\d]+)(\\d{1,5})$" }))
+      re2::StringPiece prefix_match;
+      re2::StringPiece nr_match;
+
+      if (not RE2::FullMatch(origin.c_str(), R"pattern(([^\d]+)(\d{1,5}))pattern", &prefix_match, &nr_match))
         return;
 
-      prefix = as_string_view(match[1]);
-      nr = std::stoi(match[2].str());
+      prefix = regex::as_string_view(prefix_match);
+      nr = std::stoi(nr_match.ToString());
     }
 
     operator std::string_view() const
@@ -62,11 +135,11 @@ struct coding_guidelines
     std::string summary;
     std::string rationale;
     std::string workaround;
-    std::regex matched_files;
-    std::regex ignored_files;
-    std::regex matched_text;
-    std::regex ignored_text;
-    std::regex marked_text;
+    regex::precompiled matched_files;
+    regex::precompiled ignored_files;
+    regex::precompiled matched_text;
+    regex::precompiled ignored_text;
+    regex::precompiled marked_text;
   };
 
   using rule_map = std::map<identifier, rule>;
@@ -81,32 +154,32 @@ void from_json(nlohmann::json const& json, coding_guidelines::rule& rule)
   rule.summary = json.at("summary");
   rule.rationale = json.at("rationale");
   rule.workaround = json.at("workaround");
-  rule.matched_files = std::regex{ json.at("matched_files").get<std::string>(), std::regex::optimize };
-  rule.ignored_files = std::regex{ json.at("ignored_files").get<std::string>(), std::regex::optimize };
-  rule.matched_text = std::regex{ json.at("matched_text").get<std::string>(), std::regex::optimize };
-  rule.ignored_text = std::regex{ json.at("ignored_text").get<std::string>(), std::regex::optimize };
-  rule.marked_text = std::regex{ json.at("marked_text").get<std::string>(), std::regex::optimize };
+  rule.matched_files = regex::sub_pattern(json.at("matched_files").get<std::string>());
+  rule.ignored_files = regex::sub_pattern(json.at("ignored_files").get<std::string>());
+  rule.matched_text = regex::sub_pattern(json.at("matched_text").get<std::string>());
+  rule.ignored_text = regex::sub_pattern(json.at("ignored_text").get<std::string>());
+  rule.marked_text = regex::sub_pattern(json.at("marked_text").get<std::string>());
 }
 
 auto coding_guidelines_read_from(std::string const& file_name)
 {
   auto json = nlohmann::json{};
-  stream::read_from(file_name) >> json;
+  stream::from(file_name) >> json;
 
   return coding_guidelines{ file_name, json.get<coding_guidelines::rule_map>() };
 }
 
 auto check_rule_in(std::string const& file_name)
 {
-  auto const file_content = async::share([=] { return stream::content(stream::read_from(file_name)); });
+  auto const file_content = async::share([=] { return stream::content(stream::from(file_name)); });
 
   return [=](coding_guidelines const& guidelines, auto const& id, auto const& rule) {
     using fmt::operator""_a;
 
-    if (!std::regex_search(file_name, rule.matched_files))
+    if (not search(file_name, rule.matched_files))
       return fmt::format("\n// rule {} not matched\n", id);
 
-    if (std::regex_search(file_name, rule.ignored_files))
+    if (search (file_name, rule.ignored_files))
       return fmt::format("\n// rule {} ignored\n", id);
 
     auto out = std::ostringstream{};
@@ -114,51 +187,50 @@ auto check_rule_in(std::string const& file_name)
 
     ptrdiff_t nr = 0;
 
-    std::for_each(
-      std::sregex_iterator{ begin(file_content.get()), end(file_content.get()), rule.matched_text },
-      std::sregex_iterator{},
-      [&](auto const& sub_match) {
+    auto content = std::string_view{ file_content.get() };
+    auto match = std::string_view{};
 
-        std::osyncstream{ std::cerr } << "match: " << nr << '\n';
+    for (auto last_content = content; search_next(&content, &match, rule.matched_text); last_content = content)
+    {
+      last_content.remove_suffix(match.size() + content.size());
 
-        auto const prefix = as_string_view(sub_match.prefix());
-        auto const suffix = as_string_view(sub_match.suffix());
+      if (match.empty())
+        break;
 
-        auto const last_newline_pos = prefix.find_last_of('\n');
-        auto const first_newline_pos = suffix.find_first_of('\n');
+      auto const last_newline_pos = last_content.find_last_of('\n');
+      auto const first_newline_pos = content.find_first_of('\n');
 
-        auto const match_prefix =
-          (last_newline_pos == std::string_view::npos) ? prefix : prefix.substr(last_newline_pos + 1);
+      auto const match_prefix =
+        (last_newline_pos == std::string_view::npos) ? last_content : last_content.substr(last_newline_pos + 1);
 
-        auto const match_suffix =
-          (first_newline_pos == std::string_view::npos) ? suffix : suffix.substr(0, first_newline_pos);
+      auto const match_suffix =
+        (first_newline_pos == std::string_view::npos) ? content : content.substr(0, first_newline_pos);
 
-        auto const match = std::string_view{ &*(sub_match[0].first), static_cast<size_t>(sub_match.length()) };
+      std::string indent;
+      std::string marker;
+      std::string_view marked;
 
-        std::string indent;
-        std::string marker;
-        std::smatch marked;
+      if (auto markable = match; search_next(&markable, &marked, rule.marked_text))
+      {
+        indent.resize(match_prefix.length() + (match.length() - marked.length() - markable.length()), ' ');
+        marker.resize(marked.length(), '~');
+      }
 
-        if (std::regex_search(sub_match[0].first, sub_match[0].second, marked, rule.marked_text))
-        {
-          indent.resize(match_prefix.length() + marked.prefix().length(), ' ');
-          marker.resize(marked.length(), '~');
-        }
+      std::string source;
 
-        std::string source;
-        source.append(match_prefix);
-        source.append(match);
-        source.append(match_suffix);
+      source.append(match_prefix);
+      source.append(match);
+      source.append(match_suffix);
 
-        auto const ignored = std::regex_search(source, rule.ignored_text) ? "// Ignored: " : "";
+      auto const ignored = search(source, rule.ignored_text) ? "// Ignored: " : "";
 
-        // FIXME: marker, wenn match über mehrere zeilen geht
+      // FIXME: marker, wenn match über mehrere zeilen geht
 
-        nr += std::count(begin(prefix), end(prefix), '\n');
-
-        format::print(
-          out,
-          R"message(
+      nr += std::count(begin(last_content), end(last_content), '\n');
+      
+      format::print(
+        out,
+        R"message(
 {ignored}#if defined(__GNUC__)
 {ignored}# line {nr} "{file_name}"
 {ignored}# pragma GCC warning \
@@ -169,21 +241,21 @@ auto check_rule_in(std::string const& file_name)
 {ignored}# pragma message(__FILE__ "(" STRINGIFY(__LINE__) "): warning: {id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}\n {source}\n {indent}{marker}")
 {ignored}#endif
 )message",
-          "ignored"_a = ignored,
-          "indent"_a = indent,
-          "marker"_a = marker,
-          "nr"_a = nr,
-          "file_name"_a = format::as_literal{ file_name },
-          "source"_a = format::as_literal{ source },
-          "id"_a = format::as_literal{ id },
-          "origin"_a = format::as_literal{ guidelines.origin },
-          "summary"_a = format::as_literal{ rule.summary },
-          "severity"_a = format::as_literal{ rule.severity },
-          "rationale"_a = format::as_literal{ rule.rationale },
-          "workaround"_a = format::as_literal{ rule.workaround });
+        "ignored"_a = ignored,
+        "indent"_a = indent,
+        "marker"_a = marker,
+        "nr"_a = nr,
+        "file_name"_a = format::as_literal{ file_name },
+        "source"_a = format::as_literal{ source },
+        "id"_a = format::as_literal{ id },
+        "origin"_a = format::as_literal{ guidelines.origin },
+        "summary"_a = format::as_literal{ rule.summary },
+        "severity"_a = format::as_literal{ rule.severity },
+        "rationale"_a = format::as_literal{ rule.rationale },
+        "workaround"_a = format::as_literal{ rule.workaround });
 
-        nr += std::count(begin(match), end(match), '\n');
-      });
+      nr += std::count(begin(match), end(match), '\n');
+    }
 
     return out.str();
   };
@@ -206,7 +278,7 @@ auto print_messages(Guidelines&& guidelines, Filter&& filter)
 {
   return [guidelines = std::forward<Guidelines>(guidelines),
           filter = std::forward<Filter>(filter)](std::string const& file_name) {
-    if (!std::invoke(filter, file_name))
+    if (not std::invoke(filter, file_name))
       return;
 
     auto messages = async_messages_from(guidelines.get(), file_name);
@@ -223,10 +295,10 @@ auto filter_read_from(std::string const& files_to_check)
 {
   auto file_names = std::optional<std::unordered_set<std::string>>{};
 
-  if (!files_to_check.empty())
+  if (not files_to_check.empty())
   {
     file_names.emplace();
-    stream::for_each_line_read_from(files_to_check, [&](auto const& file_name) { file_names->emplace(file_name); });
+    stream::for_each_line(stream::from(files_to_check), [&](auto const& file_name) { file_names->emplace(file_name); });
   }
 
   return [file_names = std::move(file_names)](auto const& file_name) {
@@ -290,7 +362,8 @@ int main(int argc, char* argv[])
     auto const output = redirect_cout_to(parameters.output_file);
 
     print_header();
-    stream::for_each_line_read_from(parameters.source_files, async::as_task(print_messages(guidelines, filter)));
+
+    stream::for_each_line(stream::from(parameters.source_files), async::as_task(print_messages(guidelines, filter)));
   }
   catch (std::exception const& e)
   {
