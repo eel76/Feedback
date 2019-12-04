@@ -34,6 +34,7 @@ FetchContent_MakeAvailable(json_content)
 FetchContent_MakeAvailable(fmt_content)
 FetchContent_MakeAvailable(re2_content)
 
+target_compile_options (re2 BEFORE PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:CLANG>>:-Wno-error=unused-parameter>)
 target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${re2_content_SOURCE_DIR}>)
 
 add_executable (${PROJECT_NAME})
@@ -45,6 +46,7 @@ target_sources (${PROJECT_NAME} PRIVATE
   "include/benchmark.h"
   "include/format.h"
   "include/parameter.h"
+  "include/regex.h"
   "include/stream.h"
   "include/syncstream"
   )
