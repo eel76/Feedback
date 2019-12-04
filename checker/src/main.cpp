@@ -27,7 +27,7 @@ struct coding_guidelines
       auto nr_match = std::string_view{};
 
       auto const pattern = regex::precompiled{ R"pattern(^([^\d]+)(\d{1,5})$)pattern" };
-      if (not search(origin, &prefix, &nr_match, pattern))
+      if (not search(origin, pattern, &prefix, &nr_match))
         return;
 
       nr = std::stoi(std::string{ nr_match });
@@ -113,7 +113,7 @@ auto check_rule_in(std::string const& file_name)
     auto content = std::string_view{ file_content.get() };
     auto match = std::string_view{};
 
-    for (auto last_content = content; search_next(&content, &match, rule.matched_text); last_content = content)
+    for (auto last_content = content; search_next(&content, rule.matched_text, &match); last_content = content)
     {
       last_content.remove_suffix(match.size() + content.size());
 
@@ -133,7 +133,7 @@ auto check_rule_in(std::string const& file_name)
       std::string marker;
       std::string_view marked;
 
-      if (auto markable = match; search_next(&markable, &marked, rule.marked_text))
+      if (auto markable = match; search_next(&markable, rule.marked_text, &marked))
       {
         indent.resize(match_prefix.length() + (match.length() - marked.length() - markable.length()), ' ');
         marker.resize(marked.length(), '~');

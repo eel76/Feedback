@@ -23,7 +23,7 @@ struct precompiled
     return RE2::PartialMatch(as_string_piece(input), *pattern.engine);
   }
 
-  friend bool search(std::string_view input, std::string_view* match, precompiled const& pattern)
+  friend bool search(std::string_view input, precompiled const& pattern, std::string_view* match)
   {
     auto re2_match = as_string_piece(*match);
 
@@ -38,7 +38,7 @@ struct precompiled
   }
 
   friend bool
-  search(std::string_view input, std::string_view* match1, std::string_view* match2, precompiled const& pattern)
+  search(std::string_view input, precompiled const& pattern, std::string_view* match1, std::string_view* match2)
   {
     auto re2_match1 = as_string_piece(*match1);
     auto re2_match2 = as_string_piece(*match2);
@@ -54,7 +54,7 @@ struct precompiled
     return true;
   }
 
-  friend bool search_next(std::string_view* input, std::string_view* match, precompiled const& pattern)
+  friend bool search_next(std::string_view* input, precompiled const& pattern, std::string_view* match)
   {
     auto re2_input = as_string_piece(*input);
     auto re2_match = as_string_piece(*match);
