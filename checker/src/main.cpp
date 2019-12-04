@@ -2,92 +2,16 @@
 #include "benchmark.h"
 #include "format.h"
 #include "parameter.h"
+#include "regex.h"
 #include "stream.h"
 
 #include <nlohmann/json.hpp>
-#include <re2/re2.h>
 
 #include <algorithm>
 #include <map>
-#include <memory>
 #include <optional>
-#include <regex>
 #include <syncstream>
 #include <unordered_set>
-
-namespace regex {
-
-auto as_string_piece(std::string_view sv)
-{
-  return re2::StringPiece{ sv.data(), sv.length() };
-}
-
-auto as_string_view(re2::StringPiece const& match)
-{
-  return std::string_view{ match.data(), match.length() };
-}
-
-//auto as_string_view(std::ssub_match const& match)
-//{
-//  return std::string_view{ &*match.first, static_cast<size_t>(match.length()) };
-//}
-
-struct precompiled
-{
-  precompiled() = default;
-
-  explicit precompiled(std::string_view pattern)
-  : engine(std::make_shared<re2::RE2>(as_string_piece(pattern), RE2::Quiet))
-  {
-    if (not engine->ok())
-      throw std::invalid_argument{ std::string{ "Invalid regex: " }.append(engine->error()) };
-  }
-
-  friend bool search(std::string_view input, precompiled const& pattern)
-  {
-    return RE2::PartialMatch(as_string_piece(input), *pattern.engine);
-  }
-
-  friend bool search(std::string_view input, std::string_view* match, precompiled const& pattern)
-  {
-    auto re2_match = as_string_piece(*match);
-
-    assert(pattern.engine->NumberOfCapturingGroups() >= 1);
-
-    if (not RE2::PartialMatch(as_string_piece(input), *pattern.engine, &re2_match))
-      return false;
-
-    *match = as_string_view(re2_match);
-
-    return true;
-  }
-
-  friend bool search_next(std::string_view* input, std::string_view* match, precompiled const& pattern)
-  {
-    auto re2_input = as_string_piece(*input);
-    auto re2_match = as_string_piece(*match);
-
-    assert(pattern.engine->NumberOfCapturingGroups() >= 1);
-
-    if (not RE2::FindAndConsume(&re2_input, *pattern.engine, &re2_match))
-      return false;
-
-    *input = as_string_view(re2_input);
-    *match = as_string_view(re2_match);
-
-    return true;
-  }
-
-private:
-  std::shared_ptr<re2::RE2> engine;
-};
-
-auto sub_pattern(std::string_view pattern)
-{
-  return precompiled{ std::string{ "(" }.append(pattern).append(")") };
-}
-
-} // namespace regex
 
 namespace {
 
@@ -100,14 +24,13 @@ struct coding_guidelines
     , prefix(origin)
     , nr()
     {
-      re2::StringPiece prefix_match;
-      re2::StringPiece nr_match;
+      auto nr_match = std::string_view{};
 
-      if (not RE2::FullMatch(origin.c_str(), R"pattern(([^\d]+)(\d{1,5}))pattern", &prefix_match, &nr_match))
+      auto const pattern = regex::precompiled{ R"pattern(^([^\d]+)(\d{1,5})$)pattern" };
+      if (not search(origin, &prefix, &nr_match, pattern))
         return;
 
-      prefix = regex::as_string_view(prefix_match);
-      nr = std::stoi(nr_match.ToString());
+      nr = std::stoi(std::string{ nr_match });
     }
 
     operator std::string_view() const
