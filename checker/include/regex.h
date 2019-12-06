@@ -2,6 +2,7 @@
 
 #include <re2/re2.h>
 
+#include <cassert>
 #include <memory>
 #include <string_view>
 

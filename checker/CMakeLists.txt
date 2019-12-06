@@ -25,6 +25,11 @@ FetchContent_Declare(
   GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/re2.git"
   GIT_TAG 2019-12-01
   )
+FetchContent_Declare(
+  catch2_content
+  GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/catch2.git"
+  GIT_TAG v2.11.0
+  )
 
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(RE2_BUILD_TESTING OFF CACHE INTERNAL "")
@@ -33,14 +38,12 @@ FetchContent_MakeAvailable(lyra_content)
 FetchContent_MakeAvailable(json_content)
 FetchContent_MakeAvailable(fmt_content)
 FetchContent_MakeAvailable(re2_content)
+FetchContent_MakeAvailable(catch2_content)
 
 target_compile_options (re2 BEFORE PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:CLANG>>:-Wno-error=unused-parameter -Wno-error=missing-field-initializers>)
 target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${re2_content_SOURCE_DIR}>)
 
-add_executable (${PROJECT_NAME})
-
-target_sources (${PROJECT_NAME} PRIVATE
-  "src/main.cpp"
+add_library (core.${PROJECT_NAME} STATIC
   "src/parameter.cpp"
   "include/async.h"
   "include/benchmark.h"
@@ -50,15 +53,33 @@ target_sources (${PROJECT_NAME} PRIVATE
   "include/stream.h"
   "include/syncstream"
   )
-
-target_include_directories (${PROJECT_NAME} PRIVATE include)
-
-target_link_libraries (${PROJECT_NAME} PRIVATE
-  ${CMAKE_THREAD_LIBS_INIT}
-  BFG::Lyra
-  nlohmann_json::nlohmann_json
-  fmt::fmt-header-only
-  re2::re2
+target_link_libraries (core.${PROJECT_NAME}
+  PUBLIC ${CMAKE_THREAD_LIBS_INIT}
+  PUBLIC BFG::Lyra
+  PUBLIC nlohmann_json::nlohmann_json
+  PUBLIC fmt::fmt-header-only
+  PUBLIC re2::re2
+  )
+target_include_directories (core.${PROJECT_NAME}
+  PUBLIC include
   )
 
-set_target_properties (${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
+add_executable (${PROJECT_NAME}
+  "src/main.cpp"
+  )
+target_link_libraries (${PROJECT_NAME}
+  PRIVATE core.${PROJECT_NAME}
+  )
+
+add_executable (test.${PROJECT_NAME}
+  "src/test.main.cpp"
+  "src/test.regex.cpp"
+  )
+target_link_libraries (test.${PROJECT_NAME}
+  PRIVATE core.${PROJECT_NAME}
+  PRIVATE Catch2::Catch2
+  )
+
+set_target_properties (core.${PROJECT_NAME} test.${PROJECT_NAME} ${PROJECT_NAME}
+  PROPERTIES CXX_STANDARD 17
+  )
