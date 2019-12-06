@@ -45,6 +45,7 @@ target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${re2_content_SOURCE
 
 add_library (core.${PROJECT_NAME} STATIC
   "src/parameter.cpp"
+  "src/regex.cpp"
   "include/async.h"
   "include/benchmark.h"
   "include/format.h"
@@ -58,7 +59,7 @@ target_link_libraries (core.${PROJECT_NAME}
   PUBLIC BFG::Lyra
   PUBLIC nlohmann_json::nlohmann_json
   PUBLIC fmt::fmt-header-only
-  PUBLIC re2::re2
+  PRIVATE re2::re2
   )
 target_include_directories (core.${PROJECT_NAME}
   PUBLIC include
