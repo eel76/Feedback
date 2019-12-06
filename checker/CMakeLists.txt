@@ -34,7 +34,7 @@ FetchContent_MakeAvailable(json_content)
 FetchContent_MakeAvailable(fmt_content)
 FetchContent_MakeAvailable(re2_content)
 
-target_compile_options (re2 BEFORE PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:CLANG>>:-Wno-error=unused-parameter>)
+target_compile_options (re2 BEFORE PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:CLANG>>:-Wno-error=unused-parameter -Wno-error=missing-field-initializers>)
 target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${re2_content_SOURCE_DIR}>)
 
 add_executable (${PROJECT_NAME})
