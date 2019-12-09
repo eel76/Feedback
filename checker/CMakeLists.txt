@@ -48,6 +48,7 @@ add_library (core.${PROJECT_NAME} STATIC
   "src/regex.cpp"
   "include/async.h"
   "include/benchmark.h"
+  "include/container.h"
   "include/format.h"
   "include/parameter.h"
   "include/regex.h"
@@ -73,6 +74,7 @@ target_link_libraries (${PROJECT_NAME}
   )
 
 add_executable (test.${PROJECT_NAME}
+  "src/test.container.cpp"
   "src/test.main.cpp"
   "src/test.regex.cpp"
   )

@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <string_view>
+#include <vector>
 
 namespace {
 auto as_string_piece(std::string_view sv)
@@ -19,15 +20,14 @@ auto as_string_view(re2::StringPiece const& match)
 
 struct regex::precompiled::impl : public re2::RE2
 {
-  template <class... Args>
-  explicit impl(Args&&... args)
-  : RE2(std::forward<Args>(args)...)
+  explicit impl(std::string_view pattern)
+  : RE2(as_string_piece(pattern), RE2::Quiet)
   {
   }
 };
 
 regex::precompiled::precompiled(std::string_view pattern)
-: engine(std::make_shared<impl>(as_string_piece(pattern), RE2::Quiet))
+: engine(std::make_shared<impl>(pattern))
 {
   if (not engine->ok())
     throw std::invalid_argument{ std::string{ "Invalid regex: " }.append(engine->error()) };
