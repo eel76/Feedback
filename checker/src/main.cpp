@@ -26,7 +26,7 @@ struct coding_guidelines
     {
       auto nr_match = std::string_view{};
 
-      auto const pattern = regex::precompiled{ R"pattern(^([^\d]+)(\d{1,5})$)pattern" };
+      auto const pattern = regex::compile( R"pattern(^([^\d]+)(\d{1,5})$)pattern" );
       if (not search(origin, pattern, &prefix, &nr_match))
         return;
 
@@ -77,11 +77,11 @@ void from_json(nlohmann::json const& json, coding_guidelines::rule& rule)
   rule.summary = json.at("summary");
   rule.rationale = json.at("rationale");
   rule.workaround = json.at("workaround");
-  rule.matched_files = regex::sub_pattern(json.at("matched_files").get<std::string>());
-  rule.ignored_files = regex::sub_pattern(json.at("ignored_files").get<std::string>());
-  rule.matched_text = regex::sub_pattern(json.at("matched_text").get<std::string>());
-  rule.ignored_text = regex::sub_pattern(json.at("ignored_text").get<std::string>());
-  rule.marked_text = regex::sub_pattern(json.at("marked_text").get<std::string>());
+  rule.matched_files = regex::compile(regex::capture(json.at("matched_files").get<std::string>()));
+  rule.ignored_files = regex::compile(regex::capture(json.at("ignored_files").get<std::string>()));
+  rule.matched_text = regex::compile(regex::capture(json.at("matched_text").get<std::string>()));
+  rule.ignored_text = regex::compile(regex::capture(json.at("ignored_text").get<std::string>()));
+  rule.marked_text = regex::compile(regex::capture(json.at("marked_text").get<std::string>()));
 }
 
 auto coding_guidelines_read_from(std::string const& file_name)

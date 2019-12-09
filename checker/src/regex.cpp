@@ -85,7 +85,12 @@ bool regex::search_next(std::string_view* input, precompiled const& pattern, std
   return true;
 }
 
-auto regex::sub_pattern(std::string_view pattern) -> precompiled
+auto regex::compile(std::string_view pattern) -> precompiled
 {
-  return precompiled{ std::string{ "(" }.append(pattern).append(")") };
+  return precompiled{ pattern };
+}
+
+auto regex::capture(std::string_view pattern) -> std::string
+{
+  return std::string{ "(" }.append(pattern).append(")");
 }
