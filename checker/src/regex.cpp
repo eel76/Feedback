@@ -17,8 +17,17 @@ auto as_string_view(re2::StringPiece const& match)
 }
 } // namespace
 
+struct regex::precompiled::impl : public re2::RE2
+{
+  template <class... Args>
+  explicit impl(Args&&... args)
+  : RE2(std::forward<Args>(args)...)
+  {
+  }
+};
+
 regex::precompiled::precompiled(std::string_view pattern)
-: engine(std::make_shared<re2::RE2>(as_string_piece(pattern), RE2::Quiet))
+: engine(std::make_shared<impl>(as_string_piece(pattern), RE2::Quiet))
 {
   if (not engine->ok())
     throw std::invalid_argument{ std::string{ "Invalid regex: " }.append(engine->error()) };

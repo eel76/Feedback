@@ -3,10 +3,6 @@
 #include <memory>
 #include <string_view>
 
-namespace re2 {
-class RE2;
-}
-
 namespace regex {
 
 struct precompiled
@@ -25,7 +21,8 @@ struct precompiled
   friend bool search_next(std::string_view* input, precompiled const& pattern, std::string_view* match);
 
 private:
-  std::shared_ptr<re2::RE2> engine;
+  struct impl;
+  std::shared_ptr<impl> engine;
 };
 
 auto sub_pattern(std::string_view pattern) -> precompiled;
