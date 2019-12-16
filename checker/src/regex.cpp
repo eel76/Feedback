@@ -41,8 +41,6 @@ auto regex::precompiled::matches(std::string_view input) const -> bool
 
 auto regex::precompiled::matches(std::string_view input, match_results captures_ret) const -> bool
 {
-  assert(engine->NumberOfCapturingGroups() >= captures_ret.size());
-
   auto constexpr max_captures = 64;
 
   std::array<re2::StringPiece, max_captures> re2_captures;
@@ -52,13 +50,13 @@ auto regex::precompiled::matches(std::string_view input, match_results captures_
   if (captures_ret.size() > re2_captures.size())
     return false;
 
-  for (auto i = 0; i < captures_ret.size(); ++i)
+  for (size_t i = 0; i < captures_ret.size(); ++i)
     re2_args_p[i] = &(re2_args[i] = &re2_captures[i]);
 
   if (not RE2::PartialMatchN(as_string_piece(input), *engine, re2_args_p.data(), static_cast<int>(captures_ret.size())))
     return false;
 
-  for (auto i = 0; i < captures_ret.size(); ++i)
+  for (size_t i = 0; i < captures_ret.size(); ++i)
     if (auto capture_ret = *(captures_ret.begin() + i))
       *capture_ret = as_string_view(re2_captures[i]);
 
@@ -70,8 +68,6 @@ auto regex::precompiled::find_first(
 {
   auto remaining = as_string_piece(input);
   auto match = re2::StringPiece{};
-
-  assert(engine->NumberOfCapturingGroups() >= 1);
 
   if (not RE2::FindAndConsume(&remaining, *engine, &match))
     return false;
