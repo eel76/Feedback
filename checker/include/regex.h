@@ -5,25 +5,22 @@
 
 namespace regex {
 
+using match_result = std::string_view*;
+using match_results = std::initializer_list<match_result>;
+
 struct precompiled
 {
-  // FIXME: use a match type which inherits from string_view, has prefix and suffix members, too
-
   precompiled() = default;
 
-  friend auto search(std::string_view input, precompiled const& pattern) -> bool;
-  friend auto search(std::string_view input, precompiled const& pattern, std::string_view* match) -> bool;
+  auto matches(std::string_view input) const -> bool;
+  auto matches(std::string_view input, match_results captures_ret) const -> bool;
 
-  friend auto
-  search(std::string_view input, precompiled const& pattern, std::string_view* match1, std::string_view* match2)
+  auto find_first(std::string_view input, match_result match_ret, match_result skipped_ret, match_result remaining_ret) const
     -> bool;
-
-  friend auto search_next(std::string_view* input, precompiled const& pattern, std::string_view* match) -> bool;
-
-  friend auto compile(std::string_view pattern) -> precompiled;
 
 private:
   explicit precompiled(std::string_view pattern);
+  friend auto compile(std::string_view pattern) -> precompiled;
 
 private:
   struct impl;

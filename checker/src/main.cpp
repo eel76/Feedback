@@ -26,8 +26,9 @@ struct coding_guidelines
     {
       auto nr_match = std::string_view{};
 
-      auto const pattern = regex::compile( R"pattern(^([^\d]+)(\d{1,5})$)pattern" );
-      if (not search(origin, pattern, &prefix, &nr_match))
+      auto const pattern = regex::compile( R"(^([^\d]+)(\d\d?\d?\d?\d?)$)" );
+
+      if (not pattern.matches(origin, { &prefix, &nr_match }))
         return;
 
       nr = std::stoi(std::string{ nr_match });
@@ -99,10 +100,10 @@ auto check_rule_in(std::string const& file_name)
   return [=](coding_guidelines const& guidelines, auto const& id, auto const& rule) {
     using fmt::operator""_a;
 
-    if (not search(file_name, rule.matched_files))
+    if (not rule.matched_files.matches(file_name))
       return fmt::format("\n// rule {} not matched\n", id);
 
-    if (search (file_name, rule.ignored_files))
+    if (rule.ignored_files.matches(file_name))
       return fmt::format("\n// rule {} ignored\n", id);
 
     auto out = std::ostringstream{};
@@ -110,32 +111,34 @@ auto check_rule_in(std::string const& file_name)
 
     ptrdiff_t nr = 0;
 
-    auto content = std::string_view{ file_content.get() };
+    auto remaining = std::string_view{ file_content.get() };
+    auto processed = std::string_view{ remaining.data(), 0 };
+    auto skipped = std::string_view{};
     auto match = std::string_view{};
 
-    for (auto last_content = content; search_next(&content, rule.matched_text, &match); last_content = content)
+    while (rule.matched_text.find_first(remaining, &match, &skipped, &remaining))
     {
-      last_content.remove_suffix(match.size() + content.size());
-
       if (match.empty())
         break;
 
-      auto const last_newline_pos = last_content.find_last_of('\n');
-      auto const first_newline_pos = content.find_first_of('\n');
+      nr += std::count(begin(skipped), end(skipped), '\n');
+      processed = std::string_view{ processed.data(), processed.length() + skipped.length() };
+
+      auto const last_processed_newline = processed.find_last_of('\n');
+      auto const first_remaining_newline = remaining.find_first_of('\n');
 
       auto const match_prefix =
-        (last_newline_pos == std::string_view::npos) ? last_content : last_content.substr(last_newline_pos + 1);
+        (last_processed_newline == std::string_view::npos) ? processed : processed.substr(last_processed_newline + 1);
 
       auto const match_suffix =
-        (first_newline_pos == std::string_view::npos) ? content : content.substr(0, first_newline_pos);
+        (first_remaining_newline == std::string_view::npos) ? remaining : remaining.substr(0, first_remaining_newline);
 
       std::string indent;
       std::string marker;
-      std::string_view marked;
 
-      if (auto markable = match; search_next(&markable, rule.marked_text, &marked))
+      if (auto marked = std::string_view{}; rule.marked_text.find_first(match, &marked, &skipped, nullptr))
       {
-        indent.resize(match_prefix.length() + (match.length() - marked.length() - markable.length()), ' ');
+        indent.resize(match_prefix.length() + skipped.length(), ' ');
         marker.resize(marked.length(), '~');
       }
 
@@ -145,12 +148,10 @@ auto check_rule_in(std::string const& file_name)
       source.append(match);
       source.append(match_suffix);
 
-      auto const ignored = search(source, rule.ignored_text) ? "// Ignored: " : "";
+      auto const ignored = rule.ignored_text.matches(source) ? "// Ignored: " : "";
 
       // FIXME: marker, wenn match über mehrere zeilen geht
 
-      nr += std::count(begin(last_content), end(last_content), '\n');
-      
       format::print(
         out,
         R"message(

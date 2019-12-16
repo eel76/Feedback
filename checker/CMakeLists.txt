@@ -40,7 +40,7 @@ FetchContent_MakeAvailable(fmt_content)
 FetchContent_MakeAvailable(re2_content)
 FetchContent_MakeAvailable(catch2_content)
 
-target_compile_options (re2 BEFORE PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:CLANG>>:-Wno-error=unused-parameter -Wno-error=missing-field-initializers>)
+target_compile_options (re2 PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:CLANG>>:-Wno-error=unused-parameter -Wno-error=missing-field-initializers>)
 target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${re2_content_SOURCE_DIR}>)
 
 add_library (core.${PROJECT_NAME} STATIC
@@ -65,6 +65,9 @@ target_link_libraries (core.${PROJECT_NAME}
 target_include_directories (core.${PROJECT_NAME}
   PUBLIC include
   )
+target_compile_options (core.${PROJECT_NAME}
+  PUBLIC $<$<CXX_COMPILER_ID:MSVC>:-permissive->
+  )
 
 add_executable (${PROJECT_NAME}
   "src/main.cpp"
@@ -81,6 +84,10 @@ add_executable (test.${PROJECT_NAME}
 target_link_libraries (test.${PROJECT_NAME}
   PRIVATE core.${PROJECT_NAME}
   PRIVATE Catch2::Catch2
+  )
+
+add_test(NAME ${PROJECT_NAME}Test
+  COMMAND $<TARGET_FILE:test.${PROJECT_NAME}>
   )
 
 set_target_properties (core.${PROJECT_NAME} test.${PROJECT_NAME} ${PROJECT_NAME}

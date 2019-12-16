@@ -2,9 +2,10 @@
 
 #include <re2/re2.h>
 
+#include <array>
 #include <cassert>
+#include <stdexcept>
 #include <string_view>
-#include <vector>
 
 namespace {
 auto as_string_piece(std::string_view sv)
@@ -33,54 +34,58 @@ regex::precompiled::precompiled(std::string_view pattern)
     throw std::invalid_argument{ std::string{ "Invalid regex: " }.append(engine->error()) };
 }
 
-bool regex::search(std::string_view input, precompiled const& pattern)
+auto regex::precompiled::matches(std::string_view input) const -> bool
 {
-  return RE2::PartialMatch(as_string_piece(input), *pattern.engine);
+  return matches(input, {});
 }
 
-bool regex::search(std::string_view input, precompiled const& pattern, std::string_view* match)
+auto regex::precompiled::matches(std::string_view input, match_results captures_ret) const -> bool
 {
-  auto re2_match = as_string_piece(*match);
+  assert(engine->NumberOfCapturingGroups() >= captures_ret.size());
 
-  assert(pattern.engine->NumberOfCapturingGroups() >= 1);
+  auto constexpr max_captures = 64;
 
-  if (not RE2::PartialMatch(as_string_piece(input), *pattern.engine, &re2_match))
+  std::array<re2::StringPiece, max_captures> re2_captures;
+  std::array<re2::RE2::Arg, max_captures> re2_args;
+  std::array<re2::RE2::Arg*, max_captures> re2_args_p;
+
+  if (captures_ret.size() > re2_captures.size())
     return false;
 
-  *match = as_string_view(re2_match);
+  for (auto i = 0; i < captures_ret.size(); ++i)
+    re2_args_p[i] = &(re2_args[i] = &re2_captures[i]);
+
+  if (not RE2::PartialMatchN(as_string_piece(input), *engine, re2_args_p.data(), static_cast<int>(captures_ret.size())))
+    return false;
+
+  for (auto i = 0; i < captures_ret.size(); ++i)
+    if (auto capture_ret = *(captures_ret.begin() + i))
+      *capture_ret = as_string_view(re2_captures[i]);
 
   return true;
 }
 
-bool regex::search(
-  std::string_view input, precompiled const& pattern, std::string_view* match1, std::string_view* match2)
+auto regex::precompiled::find_first(
+  std::string_view input, match_result match_ret, match_result skipped_ret, match_result remaining_ret) const -> bool
 {
-  auto re2_match1 = as_string_piece(*match1);
-  auto re2_match2 = as_string_piece(*match2);
+  auto remaining = as_string_piece(input);
+  auto match = re2::StringPiece{};
 
-  assert(pattern.engine->NumberOfCapturingGroups() >= 2);
+  assert(engine->NumberOfCapturingGroups() >= 1);
 
-  if (not RE2::PartialMatch(as_string_piece(input), *pattern.engine, &re2_match1, &re2_match2))
+  if (not RE2::FindAndConsume(&remaining, *engine, &match))
     return false;
 
-  *match1 = as_string_view(re2_match1);
-  *match2 = as_string_view(re2_match2);
+  input.remove_suffix(match.length() + remaining.length());
 
-  return true;
-}
+  if (match_ret)
+    *match_ret = as_string_view(match);
 
-bool regex::search_next(std::string_view* input, precompiled const& pattern, std::string_view* match)
-{
-  auto re2_input = as_string_piece(*input);
-  auto re2_match = as_string_piece(*match);
+  if (skipped_ret)
+    *skipped_ret = input;
 
-  assert(pattern.engine->NumberOfCapturingGroups() >= 1);
-
-  if (not RE2::FindAndConsume(&re2_input, *pattern.engine, &re2_match))
-    return false;
-
-  *input = as_string_view(re2_input);
-  *match = as_string_view(re2_match);
+  if (remaining_ret)
+    *remaining_ret = as_string_view(remaining);
 
   return true;
 }
