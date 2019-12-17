@@ -58,7 +58,6 @@ add_library (core.${PROJECT_NAME} STATIC
 target_link_libraries (core.${PROJECT_NAME}
   PUBLIC ${CMAKE_THREAD_LIBS_INIT}
   PUBLIC BFG::Lyra
-  PUBLIC nlohmann_json::nlohmann_json
   PUBLIC fmt::fmt-header-only
   PRIVATE re2::re2
   )
@@ -74,22 +73,34 @@ add_executable (${PROJECT_NAME}
   )
 target_link_libraries (${PROJECT_NAME}
   PRIVATE core.${PROJECT_NAME}
+  PRIVATE nlohmann_json::nlohmann_json
   )
 
-add_executable (test.${PROJECT_NAME}
-  "src/test.container.cpp"
-  "src/test.main.cpp"
-  "src/test.regex.cpp"
-  )
-target_link_libraries (test.${PROJECT_NAME}
-  PRIVATE core.${PROJECT_NAME}
-  PRIVATE Catch2::Catch2
-  )
-
-add_test(NAME ${PROJECT_NAME}Test
-  COMMAND $<TARGET_FILE:test.${PROJECT_NAME}>
-  )
-
-set_target_properties (core.${PROJECT_NAME} test.${PROJECT_NAME} ${PROJECT_NAME}
+set_target_properties (core.${PROJECT_NAME} ${PROJECT_NAME}
   PROPERTIES CXX_STANDARD 17
   )
+
+option (CODING_GUIDELINES_BUILD_TESTING "enable tests for this package")
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR CODING_GUIDELINES_BUILD_TESTING)
+  include(CTest)
+
+  if (BUILD_TESTING)
+    add_executable (test.${PROJECT_NAME}
+      "src/test.container.cpp"
+      "src/test.main.cpp"
+      "src/test.regex.cpp"
+      )
+    target_link_libraries (test.${PROJECT_NAME}
+      PRIVATE core.${PROJECT_NAME}
+      PRIVATE Catch2::Catch2
+    )
+
+    add_test(NAME ${PROJECT_NAME}Test
+      COMMAND $<TARGET_FILE:test.${PROJECT_NAME}>
+    )
+
+    set_target_properties (test.${PROJECT_NAME}
+      PROPERTIES CXX_STANDARD 17
+      )
+  endif()
+endif()
