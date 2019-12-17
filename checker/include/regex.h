@@ -5,18 +5,16 @@
 
 namespace regex {
 
-using match_result = std::string_view*;
-using match_results = std::initializer_list<match_result>;
+using match = std::string_view;
 
 struct precompiled
 {
   precompiled() = default;
 
   auto matches(std::string_view input) const -> bool;
-  auto matches(std::string_view input, match_results captures_ret) const -> bool;
+  auto matches(std::string_view input, std::initializer_list<match*> captures_ret) const -> bool;
 
-  auto find_first(std::string_view input, match_result match_ret, match_result skipped_ret, match_result remaining_ret) const
-    -> bool;
+  auto find(std::string_view input, match* match_ret, match* skipped_ret, match* remaining_ret) const -> bool;
 
 private:
   explicit precompiled(std::string_view pattern);

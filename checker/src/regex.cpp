@@ -22,8 +22,17 @@ auto as_string_view(re2::StringPiece const& match)
 struct regex::precompiled::impl : public re2::RE2
 {
   explicit impl(std::string_view pattern)
-  : RE2(as_string_piece(pattern), RE2::Quiet)
+  : RE2(as_string_piece(pattern), re2_options())
   {
+  }
+
+private:
+  static auto re2_options() -> RE2::Options
+  {
+    auto options = RE2::Options{ RE2::Quiet };
+    options.set_dot_nl(true);
+
+    return options;
   }
 };
 
@@ -39,7 +48,7 @@ auto regex::precompiled::matches(std::string_view input) const -> bool
   return matches(input, {});
 }
 
-auto regex::precompiled::matches(std::string_view input, match_results captures_ret) const -> bool
+auto regex::precompiled::matches(std::string_view input, std::initializer_list<match*> captures_ret) const -> bool
 {
   auto constexpr max_captures = 64;
 
@@ -63,8 +72,8 @@ auto regex::precompiled::matches(std::string_view input, match_results captures_
   return true;
 }
 
-auto regex::precompiled::find_first(
-  std::string_view input, match_result match_ret, match_result skipped_ret, match_result remaining_ret) const -> bool
+auto regex::precompiled::find(std::string_view input, match* match_ret, match* skipped_ret, match* remaining_ret) const
+  -> bool
 {
   auto remaining = as_string_piece(input);
   auto match = re2::StringPiece{};

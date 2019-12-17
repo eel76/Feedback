@@ -116,7 +116,7 @@ auto check_rule_in(std::string const& file_name)
     auto skipped = std::string_view{};
     auto match = std::string_view{};
 
-    while (rule.matched_text.find_first(remaining, &match, &skipped, &remaining))
+    while (rule.matched_text.find(remaining, &match, &skipped, &remaining))
     {
       if (match.empty())
         break;
@@ -136,7 +136,7 @@ auto check_rule_in(std::string const& file_name)
       std::string indent;
       std::string marker;
 
-      if (auto marked = std::string_view{}; rule.marked_text.find_first(match, &marked, &skipped, nullptr))
+      if (auto marked = std::string_view{}; rule.marked_text.find(match, &marked, &skipped, nullptr))
       {
         indent.resize(match_prefix.length() + skipped.length(), ' ');
         marker.resize(marked.length(), '~');
