@@ -1,5 +1,5 @@
-#include "catch2/catch.hpp"
 #include "regex.h"
+#include "catch2/catch.hpp"
 
 SCENARIO("regex tests", "[regex]")
 {

@@ -30,15 +30,22 @@ FetchContent_Declare(
   GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/catch2.git"
   GIT_TAG v2.11.0
   )
+FetchContent_Declare(
+  benchmark_content
+  GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/benchmark.git"
+  GIT_TAG v1.5.0
+  )
 
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(RE2_BUILD_TESTING OFF CACHE INTERNAL "")
+set(BENCHMARK_ENABLE_TESTING OFF CACHE INTERNAL "")
 
 FetchContent_MakeAvailable(lyra_content)
 FetchContent_MakeAvailable(json_content)
 FetchContent_MakeAvailable(fmt_content)
 FetchContent_MakeAvailable(re2_content)
 FetchContent_MakeAvailable(catch2_content)
+FetchContent_MakeAvailable(benchmark_content)
 
 target_compile_options (re2 PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:CLANG>>:-Wno-error=unused-parameter -Wno-error=missing-field-initializers>)
 target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${re2_content_SOURCE_DIR}>)
@@ -93,13 +100,24 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR CODING_GUIDELINES_BUILD_TESTING)
     target_link_libraries (test.${PROJECT_NAME}
       PRIVATE core.${PROJECT_NAME}
       PRIVATE Catch2::Catch2
-    )
-
-    add_test(NAME ${PROJECT_NAME}Test
+      )
+    add_test(NAME ${PROJECT_NAME}Tests
       COMMAND $<TARGET_FILE:test.${PROJECT_NAME}>
-    )
+      )
 
-    set_target_properties (test.${PROJECT_NAME}
+    add_executable (benchmark.${PROJECT_NAME}
+      "src/benchmark.main.cpp"
+      "src/benchmark.regex.cpp"
+      )
+    target_link_libraries (benchmark.${PROJECT_NAME}
+      PRIVATE core.${PROJECT_NAME}
+      PRIVATE benchmark
+      )
+    add_test(NAME ${PROJECT_NAME}Benchmarks
+      COMMAND $<TARGET_FILE:benchmark.${PROJECT_NAME}>
+      )
+
+    set_target_properties (benchmark.${PROJECT_NAME} test.${PROJECT_NAME}
       PROPERTIES CXX_STANDARD 17
       )
   endif()
