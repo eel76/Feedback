@@ -111,11 +111,6 @@ auto last_line_of(std::string_view text)
   return text.substr(end_of_penultimate_line + 1);
 }
 
-auto matched_lines()
-{
-
-}
-
 auto check_rule_in(std::string const& file_name)
 {
   auto const file_content = async::share([=] { return stream::content(stream::from(file_name)); });
