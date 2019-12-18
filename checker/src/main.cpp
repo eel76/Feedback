@@ -147,8 +147,6 @@ auto check_rule_in(std::string const& file_name)
       nr += std::count(begin(skipped), end(skipped), '\n');
       processed = std::string_view{ processed.data(), processed.length() + skipped.length() };
 
-      // what if match starts/ends with a newline ???
-
       std::string matched_lines;
       std::string indentation;
       std::string annotation;

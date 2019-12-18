@@ -43,6 +43,8 @@ struct formatter<format::as_literal>
         out = base.format('\\', ctx);
         out = base.format('n', ctx);
         break;
+      case '\r':
+        break;
       case '\\':
         [[fallthrough]];
       case '\"':
