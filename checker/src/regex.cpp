@@ -22,17 +22,8 @@ auto as_string_view(re2::StringPiece const& match)
 struct regex::precompiled::impl : public re2::RE2
 {
   explicit impl(std::string_view pattern)
-  : RE2(as_string_piece(pattern), re2_options())
+  : RE2(as_string_piece(pattern), RE2::Quiet)
   {
-  }
-
-private:
-  static auto re2_options() -> RE2::Options
-  {
-    auto options = RE2::Options{ RE2::Quiet };
-    options.set_dot_nl(true);
-
-    return options;
   }
 };
 

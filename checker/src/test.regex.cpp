@@ -1,7 +1,7 @@
 #include "catch2/catch.hpp"
 #include "regex.h"
 
-SCENARIO("regex can be compiled", "[regex]")
+SCENARIO("regex tests", "[regex]")
 {
   GIVEN("A pattern which matches any character")
   {
@@ -78,9 +78,9 @@ SCENARIO("regex can be compiled", "[regex]")
     }
   }
 
-  GIVEN("A regex which matches everything")
+  GIVEN("A regex which matches all lines")
   {
-    auto const everything_pattern = regex::compile("(.*)");
+    auto const all_lines_pattern = regex::compile("((?:.|\n)*)");
 
     WHEN("it is applied to a multiline text")
     {
@@ -92,8 +92,28 @@ second line
       {
         auto match = regex::match{};
 
-        REQUIRE(everything_pattern.find(text, &match, nullptr, nullptr));
+        REQUIRE(all_lines_pattern.find(text, &match, nullptr, nullptr));
         REQUIRE(match == text);
+      }
+    }
+  }
+
+  GIVEN("A regex which matches a single line")
+  {
+    auto const single_line_pattern = regex::compile("(.*)");
+
+    WHEN("it is applied to a multiline text")
+    {
+      auto const text = R"(first line
+second line
+)";
+
+      THEN("it doesn't match the whole text")
+      {
+        auto match = regex::match{};
+
+        REQUIRE(single_line_pattern.find(text, &match, nullptr, nullptr));
+        REQUIRE(match != text);
       }
     }
   }

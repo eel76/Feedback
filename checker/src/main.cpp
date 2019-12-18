@@ -26,7 +26,7 @@ struct coding_guidelines
     {
       auto nr_match = std::string_view{};
 
-      auto const pattern = regex::compile( R"(^([^\d]+)(\d\d?\d?\d?\d?)$)" );
+      auto const pattern = regex::compile(R"(^([^\d]+)(\d\d?\d?\d?\d?)$)");
 
       if (not pattern.matches(origin, { &prefix, &nr_match }))
         return;
@@ -93,6 +93,29 @@ auto coding_guidelines_read_from(std::string const& file_name)
   return coding_guidelines{ file_name, json.get<coding_guidelines::rule_map>() };
 }
 
+auto first_line_of(std::string_view text)
+{
+  auto const end_of_first_line = text.find_first_of('\n');
+  if (end_of_first_line == std::string_view::npos)
+    return text;
+
+  return text.substr(0, end_of_first_line);
+}
+
+auto last_line_of(std::string_view text)
+{
+  auto const end_of_penultimate_line = text.find_last_of('\n');
+  if (end_of_penultimate_line == std::string_view::npos)
+    return text;
+
+  return text.substr(end_of_penultimate_line + 1);
+}
+
+auto matched_lines()
+{
+
+}
+
 auto check_rule_in(std::string const& file_name)
 {
   auto const file_content = async::share([=] { return stream::content(stream::from(file_name)); });
@@ -124,33 +147,32 @@ auto check_rule_in(std::string const& file_name)
       nr += std::count(begin(skipped), end(skipped), '\n');
       processed = std::string_view{ processed.data(), processed.length() + skipped.length() };
 
-      auto const last_processed_newline = processed.find_last_of('\n');
-      auto const first_remaining_newline = remaining.find_first_of('\n');
+      // what if match starts/ends with a newline ???
 
-      auto const match_prefix =
-        (last_processed_newline == std::string_view::npos) ? processed : processed.substr(last_processed_newline + 1);
+      std::string matched_lines;
+      std::string indentation;
+      std::string annotation;
 
-      auto const match_suffix =
-        (first_remaining_newline == std::string_view::npos) ? remaining : remaining.substr(0, first_remaining_newline);
-
-      std::string indent;
-      std::string marker;
+      matched_lines.append(last_line_of(processed));
+      indentation.append(matched_lines.length(), ' ');
+      matched_lines.append(match);
+      matched_lines.append(first_line_of(remaining));
 
       if (auto marked = std::string_view{}; rule.marked_text.find(match, &marked, &skipped, nullptr))
       {
-        indent.resize(match_prefix.length() + skipped.length(), ' ');
-        marker.resize(marked.length(), '~');
+        indentation.append(skipped.length(), ' ');
+        annotation.append(marked.length(), '~');
+
+        if (not annotation.empty())
+          annotation[0] = '^';
       }
 
-      std::string source;
+      auto const first_matched_line = first_line_of(matched_lines);
 
-      source.append(match_prefix);
-      source.append(match);
-      source.append(match_suffix);
+      assert(first_matched_line.length() >= indentation.size());
+      annotation.resize(first_matched_line.length() - indentation.size(), ' ');
 
-      auto const ignored = rule.ignored_text.matches(source) ? "// Ignored: " : "";
-
-      // FIXME: marker, wenn match über mehrere zeilen geht
+      auto const ignored = rule.ignored_text.matches(matched_lines) ? "// Ignored: " : "";
 
       format::print(
         out,
@@ -158,19 +180,19 @@ auto check_rule_in(std::string const& file_name)
 {ignored}#if defined(__GNUC__)
 {ignored}# line {nr} "{file_name}"
 {ignored}# pragma GCC warning \
-{ignored}{indent}"{id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}"
+{ignored}{indentation}"{id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}"
 {ignored}#elif defined(_MSC_VER)
 {ignored}# line {nr} "{file_name}"
 {ignored}
-{ignored}# pragma message(__FILE__ "(" STRINGIFY(__LINE__) "): warning: {id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}\n {source}\n {indent}{marker}")
+{ignored}# pragma message(__FILE__ "(" STRINGIFY(__LINE__) "): warning: {id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}\n {first_matched_line}\n {indentation}{annotation}")
 {ignored}#endif
 )message",
         "ignored"_a = ignored,
-        "indent"_a = indent,
-        "marker"_a = marker,
+        "indentation"_a = indentation,
+        "annotation"_a = annotation,
         "nr"_a = nr,
         "file_name"_a = format::as_literal{ file_name },
-        "source"_a = format::as_literal{ source },
+        "first_matched_line"_a = format::as_literal{ first_matched_line },
         "id"_a = format::as_literal{ id },
         "origin"_a = format::as_literal{ guidelines.origin },
         "summary"_a = format::as_literal{ rule.summary },
