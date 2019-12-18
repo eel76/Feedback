@@ -54,7 +54,6 @@ add_library (core.${PROJECT_NAME} STATIC
   "src/parameter.cpp"
   "src/regex.cpp"
   "include/async.h"
-  "include/benchmark.h"
   "include/container.h"
   "include/format.h"
   "include/parameter.h"

@@ -1,5 +1,4 @@
 #include "async.h"
-#include "benchmark.h"
 #include "format.h"
 #include "parameter.h"
 #include "regex.h"
@@ -285,8 +284,6 @@ auto redirect_cout_to(std::string const& file_name)
 
 int main(int argc, char* argv[])
 {
-  auto const overall_duration = benchmark::milliseconds_scope{ "Overall duration in milliseconds: {}\n" };
-
   std::ios::sync_with_stdio(false);
 
   try
