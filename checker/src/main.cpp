@@ -110,6 +110,32 @@ auto last_line_of(std::string_view text)
   return text.substr(end_of_penultimate_line + 1);
 }
 
+template <class Range, class Element>
+auto count(Range const& range, Element&& element)
+{
+  return std::count(begin(range), end(range), std::forward<Element>(element));
+}
+
+auto join(std::initializer_list<std::string_view> chunks)
+{
+  if (chunks.size() == 0)
+    return std::string_view{};
+
+  assert(std::adjacent_find(begin(chunks), end(chunks), [](auto&& a, auto&& b) {
+           return a.data() + a.length() != b.data();
+         }) == end(chunks));
+
+  auto const length = std::reduce(
+    begin(chunks), end(chunks), size_t{ 0 }, [](auto&& length, auto&& chunk) { return chunk.length() + length; });
+  return std::string_view{chunks.begin()->data (), length };
+}
+
+auto append(std::string_view text, std::string_view suffix)
+{
+  assert(text.data() + text.length() == suffix.data());
+  return std::string_view{ text.data(), text.length() + suffix.length() };
+}
+
 auto check_rule_in(std::string const& file_name)
 {
   auto const file_content = async::share([=] { return stream::content(stream::from(file_name)); });
@@ -126,29 +152,30 @@ auto check_rule_in(std::string const& file_name)
     auto out = std::ostringstream{};
     format::print(out, "\n// rule {} checked\n", id);
 
-    ptrdiff_t nr = 0;
-
     auto remaining = std::string_view{ file_content.get() };
     auto processed = std::string_view{ remaining.data(), 0 };
     auto skipped = std::string_view{};
     auto match = std::string_view{};
 
-    while (rule.matched_text.find(remaining, &match, &skipped, &remaining))
+    for (auto nr = ptrdiff_t{ 0 }; rule.matched_text.find(remaining, &match, &skipped, &remaining);
+         nr += count(match, '\n'))
     {
       if (match.empty())
         break;
 
-      nr += std::count(begin(skipped), end(skipped), '\n');
-      processed = std::string_view{ processed.data(), processed.length() + skipped.length() };
+      nr += count(skipped, '\n');
+      processed = join({ processed, skipped });
+      // processed = append(processed, skipped);
 
-      std::string matched_lines;
+      // continue if line filtered out
+
+      auto const last_processed_line = last_line_of(processed);
+      auto const first_remaining_line = first_line_of(remaining);
+
       std::string indentation;
       std::string annotation;
 
-      matched_lines.append(last_line_of(processed));
-      indentation.append(matched_lines.length(), ' ');
-      matched_lines.append(match);
-      matched_lines.append(first_line_of(remaining));
+      indentation.append(last_processed_line.length(), ' ');
 
       if (auto marked = std::string_view{}; rule.marked_text.find(match, &marked, &skipped, nullptr))
       {
@@ -159,16 +186,18 @@ auto check_rule_in(std::string const& file_name)
           annotation[0] = '^';
       }
 
-      auto const first_matched_line = first_line_of(matched_lines);
-
-      assert(first_matched_line.length() >= indentation.size());
-      annotation.resize(first_matched_line.length() - indentation.size(), ' ');
-
+      auto const matched_lines = join({ last_processed_line, match, first_remaining_line });
+      // auto const matched_lines = append(append(last_processed_line, match), first_remaining_line);
       auto const ignored = rule.ignored_text.matches(matched_lines) ? "// Ignored: " : "";
+
+      auto const first_matched_line = first_line_of(matched_lines);
+      assert(first_matched_line.length() >= indentation.size());
+
+      annotation.resize(first_matched_line.length() - indentation.size(), ' ');
 
       format::print(
         out,
-        R"message(
+        R"_(
 {ignored}#if defined(__GNUC__)
 {ignored}# line {nr} "{file_name}"
 {ignored}# pragma GCC warning \
@@ -178,7 +207,7 @@ auto check_rule_in(std::string const& file_name)
 {ignored}
 {ignored}# pragma message(__FILE__ "(" STRINGIFY(__LINE__) "): warning: {id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}\n {first_matched_line}\n {indentation}{annotation}")
 {ignored}#endif
-)message",
+)_",
         "ignored"_a = ignored,
         "indentation"_a = indentation,
         "annotation"_a = annotation,
@@ -191,8 +220,6 @@ auto check_rule_in(std::string const& file_name)
         "severity"_a = format::as_literal{ rule.severity },
         "rationale"_a = format::as_literal{ rule.rationale },
         "workaround"_a = format::as_literal{ rule.workaround });
-
-      nr += std::count(begin(match), end(match), '\n');
     }
 
     return out.str();
@@ -246,13 +273,13 @@ auto filter_read_from(std::string const& files_to_check)
 
 void print_header()
 {
-  std::cout << R"header(// DO NOT EDIT: this file is generated automatically
+  std::cout << R"_(// DO NOT EDIT: this file is generated automatically
 
 namespace { using symbol = int; }
 
 #define __STRINGIFY(x) #x
 #define STRINGIFY(x) __STRINGIFY(x)
-)header";
+)_";
 }
 
 auto redirect_cout_to(std::string const& file_name)
