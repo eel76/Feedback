@@ -25,27 +25,14 @@ FetchContent_Declare(
   GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/re2.git"
   GIT_TAG 2019-12-01
   )
-FetchContent_Declare(
-  catch2_content
-  GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/catch2.git"
-  GIT_TAG v2.11.0
-  )
-FetchContent_Declare(
-  benchmark_content
-  GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/benchmark.git"
-  GIT_TAG v1.5.0
-  )
 
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(RE2_BUILD_TESTING OFF CACHE INTERNAL "")
-set(BENCHMARK_ENABLE_TESTING OFF CACHE INTERNAL "")
 
 FetchContent_MakeAvailable(lyra_content)
 FetchContent_MakeAvailable(json_content)
 FetchContent_MakeAvailable(fmt_content)
 FetchContent_MakeAvailable(re2_content)
-FetchContent_MakeAvailable(catch2_content)
-FetchContent_MakeAvailable(benchmark_content)
 
 target_compile_options (re2 PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:CLANG>>:-Wno-error=unused-parameter -Wno-error=missing-field-initializers>)
 target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${re2_content_SOURCE_DIR}>)
@@ -91,6 +78,22 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR CODING_GUIDELINES_BUILD_TESTING)
   include(CTest)
 
   if (BUILD_TESTING)
+    FetchContent_Declare(
+      catch2_content
+      GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/catch2.git"
+      GIT_TAG v2.11.0
+      )
+    FetchContent_Declare(
+      benchmark_content
+      GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/benchmark.git"
+      GIT_TAG v1.5.0
+      )
+
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE INTERNAL "")
+
+    FetchContent_MakeAvailable(catch2_content)
+    FetchContent_MakeAvailable(benchmark_content)
+
     add_executable (test.${PROJECT_NAME}
       "src/test.container.cpp"
       "src/test.main.cpp"
