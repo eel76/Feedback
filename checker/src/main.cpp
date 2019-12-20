@@ -130,11 +130,18 @@ auto join(std::initializer_list<std::string_view> chunks)
   return std::string_view{chunks.begin()->data (), length };
 }
 
-auto append(std::string_view text, std::string_view suffix)
-{
-  assert(text.data() + text.length() == suffix.data());
-  return std::string_view{ text.data(), text.length() + suffix.length() };
-}
+//auto append(std::string_view text, std::string_view suffix);
+//
+//auto append(std::string_view text, std::string_view suffix, Suffix...);
+//{
+//  return append(append(text, suffix), ...);
+//}
+
+//auto append(std::string_view text, std::string_view suffix)
+//{
+//  assert(text.data() + text.length() == suffix.data());
+//  return std::string_view{ text.data(), text.length() + suffix.length() };
+//}
 
 auto check_rule_in(std::string const& file_name)
 {
