@@ -116,32 +116,11 @@ auto count(Range const& range, Element&& element)
   return std::count(begin(range), end(range), std::forward<Element>(element));
 }
 
-auto join(std::initializer_list<std::string_view> chunks)
+auto operator|(std::string_view const& lhs, std::string_view const& rhs)
 {
-  if (chunks.size() == 0)
-    return std::string_view{};
-
-  assert(std::adjacent_find(begin(chunks), end(chunks), [](auto&& a, auto&& b) {
-           return a.data() + a.length() != b.data();
-         }) == end(chunks));
-
-  auto const length = std::reduce(
-    begin(chunks), end(chunks), size_t{ 0 }, [](auto&& length, auto&& chunk) { return chunk.length() + length; });
-  return std::string_view{chunks.begin()->data (), length };
+  assert(lhs.data() + lhs.length() == rhs.data());
+  return std::string_view{ lhs.data(), lhs.length() + rhs.length() };
 }
-
-//auto append(std::string_view text, std::string_view suffix);
-//
-//auto append(std::string_view text, std::string_view suffix, Suffix...);
-//{
-//  return append(append(text, suffix), ...);
-//}
-
-//auto append(std::string_view text, std::string_view suffix)
-//{
-//  assert(text.data() + text.length() == suffix.data());
-//  return std::string_view{ text.data(), text.length() + suffix.length() };
-//}
 
 auto check_rule_in(std::string const& file_name)
 {
@@ -171,8 +150,7 @@ auto check_rule_in(std::string const& file_name)
         break;
 
       nr += count(skipped, '\n');
-      processed = join({ processed, skipped });
-      // processed = append(processed, skipped);
+      processed = processed | skipped;
 
       // continue if line filtered out
 
@@ -193,8 +171,7 @@ auto check_rule_in(std::string const& file_name)
           annotation[0] = '^';
       }
 
-      auto const matched_lines = join({ last_processed_line, match, first_remaining_line });
-      // auto const matched_lines = append(append(last_processed_line, match), first_remaining_line);
+      auto const matched_lines = last_processed_line | match | first_remaining_line;
       auto const ignored = rule.ignored_text.matches(matched_lines) ? "// Ignored: " : "";
 
       auto const first_matched_line = first_line_of(matched_lines);
