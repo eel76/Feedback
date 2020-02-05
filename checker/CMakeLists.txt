@@ -40,13 +40,13 @@ target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${re2_content_SOURCE
 add_library (core.${PROJECT_NAME} STATIC
   "src/parameter.cpp"
   "src/regex.cpp"
-  "include/async.h"
-  "include/container.h"
-  "include/format.h"
-  "include/parameter.h"
-  "include/regex.h"
-  "include/stream.h"
-  "include/syncstream"
+  "include/cxx20/syncstream"
+  "include/feedback/async.h"
+  "include/feedback/container.h"
+  "include/feedback/format.h"
+  "include/feedback/parameter.h"
+  "include/feedback/regex.h"
+  "include/feedback/stream.h"
   )
 target_link_libraries (core.${PROJECT_NAME}
   PUBLIC ${CMAKE_THREAD_LIBS_INIT}

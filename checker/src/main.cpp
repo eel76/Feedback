@@ -1,15 +1,15 @@
-#include "async.h"
-#include "format.h"
-#include "parameter.h"
-#include "regex.h"
-#include "stream.h"
+#include "feedback/async.h"
+#include "feedback/format.h"
+#include "feedback/parameter.h"
+#include "feedback/regex.h"
+#include "feedback/stream.h"
 
 #include <nlohmann/json.hpp>
 
+#include <cxx20/syncstream>
 #include <algorithm>
 #include <map>
 #include <optional>
-#include <syncstream>
 #include <unordered_set>
 
 namespace {
@@ -124,7 +124,7 @@ auto operator|(std::string_view const& lhs, std::string_view const& rhs)
 
 auto check_rule_in(std::string const& file_name)
 {
-  auto const file_content = async::share([=] { return stream::content(stream::from(file_name)); });
+  auto const file_content = async::launch([=] { return stream::content(stream::from(file_name)); }).share();
 
   return [=](coding_guidelines const& guidelines, auto const& id, auto const& rule) {
     using fmt::operator""_a;
@@ -232,7 +232,7 @@ auto print_messages(Guidelines&& guidelines, Filter&& filter)
 
     auto messages = async_messages_from(guidelines.get(), file_name);
 
-    auto synchronized_out = std::osyncstream{ std::cout };
+    auto synchronized_out = cxx20::osyncstream{ std::cout };
     format::print(synchronized_out, "\n// {}\n", file_name);
 
     for (auto&& message : messages)
@@ -301,7 +301,7 @@ int main(int argc, char* argv[])
   {
     auto const parameters = parameter::parse(argc, argv);
 
-    auto const guidelines = async::share([=] { return coding_guidelines_read_from(parameters.coding_guidelines); });
+    auto const guidelines = async::launch([=] { return coding_guidelines_read_from(parameters.coding_guidelines); }).share();
 
     // FIXME: async filter
     auto const filter = filter_read_from(parameters.files_to_check);

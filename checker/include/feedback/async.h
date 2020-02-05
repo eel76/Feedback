@@ -11,11 +11,11 @@ decltype(auto) launch(Args&&... args)
   return std::async(std::launch::async, std::forward<Args>(args)...);
 }
 
-template <class... Args>
-auto share(Args&&... args)
-{
-  return async::launch(std::forward<Args>(args)...).share();
-}
+//template <class... Args>
+//auto share(Args&&... args)
+//{
+//  return async::launch(std::forward<Args>(args)...).share();
+//}
 
 struct task
 {
