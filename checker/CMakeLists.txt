@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.15)
 
 project (CodingGuidelinesChecker)
 find_package (Threads REQUIRED)
@@ -47,6 +47,7 @@ add_library (core.${PROJECT_NAME} STATIC
   "include/feedback/io.h"
   "include/feedback/parameter.h"
   "include/feedback/regex.h"
+  "include/feedback/text.h"
   )
 target_link_libraries (core.${PROJECT_NAME}
   PUBLIC ${CMAKE_THREAD_LIBS_INIT}

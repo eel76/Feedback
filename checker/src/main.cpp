@@ -3,6 +3,7 @@
 #include "feedback/io.h"
 #include "feedback/parameter.h"
 #include "feedback/regex.h"
+#include "feedback/text.h"
 
 #include <nlohmann/json.hpp>
 
@@ -84,36 +85,17 @@ void from_json(nlohmann::json const& json, coding_guidelines::rule& rule)
   rule.marked_text = regex::compile(regex::capture(json.at("marked_text").get<std::string>()));
 }
 
-auto read_coding_guidelines_from(std::string const& file_name)
+auto read_rules_from(std::istream& input_stream)
 {
   auto json = nlohmann::json{};
-  io::stream_from(file_name) >> json;
+  input_stream >> json;
 
-  return coding_guidelines{ file_name, json.get<coding_guidelines::rule_map>() };
+  return json.get<coding_guidelines::rule_map>();
 }
 
-auto first_line_of(std::string_view text)
+auto read_coding_guidelines_from(std::string const& file_name)
 {
-  auto const end_of_first_line = text.find_first_of('\n');
-  if (end_of_first_line == std::string_view::npos)
-    return text;
-
-  return text.substr(0, end_of_first_line);
-}
-
-auto last_line_of(std::string_view text)
-{
-  auto const end_of_penultimate_line = text.find_last_of('\n');
-  if (end_of_penultimate_line == std::string_view::npos)
-    return text;
-
-  return text.substr(end_of_penultimate_line + 1);
-}
-
-template <class Range, class Element>
-auto count(Range const& range, Element&& element)
-{
-  return std::count(begin(range), end(range), std::forward<Element>(element));
+  return coding_guidelines{ file_name, read_rules_from(io::stream_from(file_name)) };
 }
 
 auto operator|(std::string_view const& lhs, std::string_view const& rhs)
@@ -144,18 +126,18 @@ auto check_rule_in_file_function(std::string const& file_name)
     auto match = std::string_view{};
 
     for (auto nr = ptrdiff_t{ 0 }; rule.matched_text.find(remaining, &match, &skipped, &remaining);
-         nr += count(match, '\n'))
+         nr += std::count(begin (match), end (match), '\n'))
     {
       if (match.empty())
         break;
 
-      nr += count(skipped, '\n');
+      nr += std::count(begin (skipped), end (skipped), '\n');
       processed = processed | skipped;
 
       // continue if line filtered out
 
-      auto const last_processed_line = last_line_of(processed);
-      auto const first_remaining_line = first_line_of(remaining);
+      auto const last_processed_line = text::last_line_of(processed);
+      auto const first_remaining_line = text::first_line_of(remaining);
 
       std::string indentation;
       std::string annotation;
@@ -174,7 +156,7 @@ auto check_rule_in_file_function(std::string const& file_name)
       auto const matched_lines = last_processed_line | match | first_remaining_line;
       auto const ignored = rule.ignored_text.matches(matched_lines) ? "// Ignored: " : "";
 
-      auto const first_matched_line = first_line_of(matched_lines);
+      auto const first_matched_line = text::first_line_of(matched_lines);
       assert(first_matched_line.length() >= indentation.size());
 
       annotation.resize(first_matched_line.length() - indentation.size(), ' ');
@@ -222,24 +204,6 @@ auto async_messages_from(coding_guidelines const& guidelines, std::string const&
   return messages;
 }
 
-template <class Guidelines, class Filter>
-auto print_messages_function(Guidelines&& guidelines, Filter&& filter)
-{
-  return [guidelines = std::forward<Guidelines>(guidelines),
-          filter = std::forward<Filter>(filter)](std::string const& file_name) {
-    if (not std::invoke(filter, file_name))
-      return;
-
-    auto messages = async_messages_from(guidelines.get(), file_name);
-
-    auto synchronized_out = cxx20::osyncstream{ std::cout };
-    format::print(synchronized_out, "\n// {}\n", file_name);
-
-    for (auto&& message : messages)
-      synchronized_out << message.get();
-  };
-}
-
 auto read_filter_from(std::string const& files_to_check)
 {
   auto file_names = std::optional<std::unordered_set<std::string>>{};
@@ -255,6 +219,34 @@ auto read_filter_from(std::string const& files_to_check)
   };
 }
 
+auto share_guidelines(std::string const& coding_guidelines)
+{
+  return async::launch([=] { return read_coding_guidelines_from(coding_guidelines); }).share();
+}
+
+auto share_filter(std::string const& files_to_check)
+{
+  return read_filter_from(files_to_check);
+}
+
+auto print_messages_function(
+  std::string const& coding_guidelines, std::string const& files_to_check)
+{
+  return [guidelines = share_guidelines(coding_guidelines),
+          filter = share_filter(files_to_check)](std::string const& file_name) {
+    if (not std::invoke(filter, file_name))
+      return;
+
+    auto messages = async_messages_from(guidelines.get(), file_name);
+
+    auto synchronized_out = cxx20::osyncstream{ std::cout };
+    format::print(synchronized_out, "\n// {}\n", file_name);
+
+    for (auto&& message : messages)
+      synchronized_out << message.get();
+  };
+}
+
 void print_header()
 {
   std::cout << R"_(// DO NOT EDIT: this file is generated automatically
@@ -266,6 +258,11 @@ namespace { using symbol = int; }
 )_";
 }
 
+void print_messages(std::function<void(std::string const&)> message_generator, std::string const& file_name)
+{
+  for_each_line(io::stream_from(file_name), async::as_task(message_generator));
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -275,17 +272,12 @@ int main(int argc, char* argv[])
   try
   {
     auto const parameters = parameter::parse(argc, argv);
-
-    auto const shared_guidelines =
-      async::share([=] { return read_coding_guidelines_from(parameters.coding_guidelines); });
-    auto const shared_filter = read_filter_from(parameters.files_to_check);
-
+    auto const message_generator = print_messages_function(parameters.coding_guidelines, parameters.files_to_check);
     auto const redirected_output = io::redirect(std::cout, parameters.output_file);
 
     print_header();
+    print_messages(message_generator, parameters.source_files);
 
-    for_each_line(
-      io::stream_from(parameters.source_files), async::as_task(print_messages_function(shared_guidelines, shared_filter)));
   }
   catch (std::exception const& e)
   {
