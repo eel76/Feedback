@@ -126,12 +126,12 @@ auto check_rule_in_file_function(std::string const& file_name)
     auto match = std::string_view{};
 
     for (auto nr = ptrdiff_t{ 0 }; rule.matched_text.find(remaining, &match, &skipped, &remaining);
-         nr += std::count(begin (match), end (match), '\n'))
+         nr += std::count(begin(match), end(match), '\n'))
     {
       if (match.empty())
         break;
 
-      nr += std::count(begin (skipped), end (skipped), '\n');
+      nr += std::count(begin(skipped), end(skipped), '\n');
       processed = processed | skipped;
 
       // continue if line filtered out
@@ -204,7 +204,7 @@ auto async_messages_from(coding_guidelines const& guidelines, std::string const&
   return messages;
 }
 
-auto read_filter_from(std::string const& files_to_check)
+auto read_filter_from(std::string const& files_to_check) -> std::function<bool(std::string const&)>
 {
   auto file_names = std::optional<std::unordered_set<std::string>>{};
 
@@ -226,15 +226,14 @@ auto share_guidelines(std::string const& coding_guidelines)
 
 auto share_filter(std::string const& files_to_check)
 {
-  return read_filter_from(files_to_check);
+  return async::launch([=] { return read_filter_from(files_to_check); }).share();
 }
 
-auto print_messages_function(
-  std::string const& coding_guidelines, std::string const& files_to_check)
+auto print_messages_function(std::string const& coding_guidelines, std::string const& files_to_check)
 {
   return [guidelines = share_guidelines(coding_guidelines),
           filter = share_filter(files_to_check)](std::string const& file_name) {
-    if (not std::invoke(filter, file_name))
+    if (not std::invoke(filter.get(), file_name))
       return;
 
     auto messages = async_messages_from(guidelines.get(), file_name);
@@ -277,7 +276,6 @@ int main(int argc, char* argv[])
 
     print_header();
     print_messages(message_generator, parameters.source_files);
-
   }
   catch (std::exception const& e)
   {
