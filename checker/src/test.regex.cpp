@@ -1,4 +1,4 @@
-#include "regex.h"
+#include "feedback/regex.h"
 #include "catch2/catch.hpp"
 
 SCENARIO("regex tests", "[regex]")

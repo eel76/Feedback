@@ -1,13 +1,13 @@
 #include "feedback/async.h"
 #include "feedback/format.h"
+#include "feedback/io.h"
 #include "feedback/parameter.h"
 #include "feedback/regex.h"
-#include "feedback/stream.h"
 
 #include <nlohmann/json.hpp>
 
-#include <cxx20/syncstream>
 #include <algorithm>
+#include <cxx20/syncstream>
 #include <map>
 #include <optional>
 #include <unordered_set>
@@ -84,10 +84,10 @@ void from_json(nlohmann::json const& json, coding_guidelines::rule& rule)
   rule.marked_text = regex::compile(regex::capture(json.at("marked_text").get<std::string>()));
 }
 
-auto coding_guidelines_read_from(std::string const& file_name)
+auto read_coding_guidelines_from(std::string const& file_name)
 {
   auto json = nlohmann::json{};
-  stream::from(file_name) >> json;
+  io::stream_from(file_name) >> json;
 
   return coding_guidelines{ file_name, json.get<coding_guidelines::rule_map>() };
 }
@@ -122,9 +122,9 @@ auto operator|(std::string_view const& lhs, std::string_view const& rhs)
   return std::string_view{ lhs.data(), lhs.length() + rhs.length() };
 }
 
-auto check_rule_in(std::string const& file_name)
+auto check_rule_in_file_function(std::string const& file_name)
 {
-  auto const file_content = async::launch([=] { return stream::content(stream::from(file_name)); }).share();
+  auto const file_content = async::launch([=] { return io::content(io::stream_from(file_name)); }).share();
 
   return [=](coding_guidelines const& guidelines, auto const& id, auto const& rule) {
     using fmt::operator""_a;
@@ -212,7 +212,7 @@ auto check_rule_in(std::string const& file_name)
 
 auto async_messages_from(coding_guidelines const& guidelines, std::string const& file_name)
 {
-  auto const check_rule_in_file = check_rule_in(file_name);
+  auto const check_rule_in_file = check_rule_in_file_function(file_name);
 
   auto messages = std::vector<std::future<std::string>>{};
 
@@ -223,7 +223,7 @@ auto async_messages_from(coding_guidelines const& guidelines, std::string const&
 }
 
 template <class Guidelines, class Filter>
-auto print_messages(Guidelines&& guidelines, Filter&& filter)
+auto print_messages_function(Guidelines&& guidelines, Filter&& filter)
 {
   return [guidelines = std::forward<Guidelines>(guidelines),
           filter = std::forward<Filter>(filter)](std::string const& file_name) {
@@ -240,14 +240,14 @@ auto print_messages(Guidelines&& guidelines, Filter&& filter)
   };
 }
 
-auto filter_read_from(std::string const& files_to_check)
+auto read_filter_from(std::string const& files_to_check)
 {
   auto file_names = std::optional<std::unordered_set<std::string>>{};
 
   if (not files_to_check.empty())
   {
     file_names.emplace();
-    stream::for_each_line(stream::from(files_to_check), [&](auto const& file_name) { file_names->emplace(file_name); });
+    for_each_line(io::stream_from(files_to_check), [&](auto const& file_name) { file_names->emplace(file_name); });
   }
 
   return [file_names = std::move(file_names)](auto const& file_name) {
@@ -266,31 +266,6 @@ namespace { using symbol = int; }
 )_";
 }
 
-auto redirect_cout_to(std::string const& file_name)
-{
-  struct redirection
-  {
-    redirection(std::string const& file_name)
-    : stream(file_name)
-    , backup(std::cout.rdbuf(stream.rdbuf()))
-    {
-    }
-    ~redirection()
-    {
-      std::cout.rdbuf(backup);
-    }
-
-  private:
-    std::ofstream stream;
-    std::streambuf* backup;
-  };
-
-  if (file_name.empty())
-    return std::unique_ptr<redirection>{};
-
-  return std::make_unique<redirection>(file_name);
-}
-
 } // namespace
 
 int main(int argc, char* argv[])
@@ -301,16 +276,16 @@ int main(int argc, char* argv[])
   {
     auto const parameters = parameter::parse(argc, argv);
 
-    auto const guidelines = async::launch([=] { return coding_guidelines_read_from(parameters.coding_guidelines); }).share();
+    auto const shared_guidelines =
+      async::share([=] { return read_coding_guidelines_from(parameters.coding_guidelines); });
+    auto const shared_filter = read_filter_from(parameters.files_to_check);
 
-    // FIXME: async filter
-    auto const filter = filter_read_from(parameters.files_to_check);
-
-    auto const output = redirect_cout_to(parameters.output_file);
+    auto const redirected_output = io::redirect(std::cout, parameters.output_file);
 
     print_header();
 
-    stream::for_each_line(stream::from(parameters.source_files), async::as_task(print_messages(guidelines, filter)));
+    for_each_line(
+      io::stream_from(parameters.source_files), async::as_task(print_messages_function(shared_guidelines, shared_filter)));
   }
   catch (std::exception const& e)
   {

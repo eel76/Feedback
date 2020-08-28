@@ -7,22 +7,22 @@ include(FetchContent)
 
 FetchContent_Declare(
   lyra_content
-  GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/lyra.git"
+  GIT_REPOSITORY "https://github.com/bfgroup/Lyra.git"
   GIT_TAG 1.2
   )
 FetchContent_Declare(
   json_content
-  GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/json.git"
+  GIT_REPOSITORY "https://github.com/nlohmann/json.git"
   GIT_TAG v3.7.3
   )
 FetchContent_Declare(
   fmt_content
-  GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/fmt.git"
+  GIT_REPOSITORY "https://github.com/fmtlib/fmt.git"
   GIT_TAG 6.1.0
   )
 FetchContent_Declare(
   re2_content
-  GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/re2.git"
+  GIT_REPOSITORY "https://github.com/google/re2.git"
   GIT_TAG 2019-12-01
   )
 
@@ -44,9 +44,9 @@ add_library (core.${PROJECT_NAME} STATIC
   "include/feedback/async.h"
   "include/feedback/container.h"
   "include/feedback/format.h"
+  "include/feedback/io.h"
   "include/feedback/parameter.h"
   "include/feedback/regex.h"
-  "include/feedback/stream.h"
   )
 target_link_libraries (core.${PROJECT_NAME}
   PUBLIC ${CMAKE_THREAD_LIBS_INIT}
@@ -80,12 +80,12 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR CODING_GUIDELINES_BUILD_TESTING)
   if (BUILD_TESTING)
     FetchContent_Declare(
       catch2_content
-      GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/catch2.git"
+      GIT_REPOSITORY "https://github.com/catchorg/Catch2.git"
       GIT_TAG v2.11.0
       )
     FetchContent_Declare(
       benchmark_content
-      GIT_REPOSITORY "http://bitbucket.volumegraphics.com:7990/scm/mirror/benchmark.git"
+      GIT_REPOSITORY "https://github.com/google/benchmark.git"
       GIT_TAG v1.5.0
       )
 
