@@ -13,8 +13,6 @@
 #include <optional>
 #include <unordered_set>
 
-namespace {
-
 namespace feedback {
 struct identifier
 {
@@ -78,17 +76,21 @@ void from_json(nlohmann::json const& json, feedback::rule& rule)
   rule.marked_text = regex::compile(regex::capture(json.at("marked_text").get<std::string>()));
 }
 
-using rules = std::map<identifier, rule>;
+class rules : public std::map<identifier, rule>
+{
+public:
+  static auto parse_from(std::istream& input_stream)
+  {
+    auto json = nlohmann::json{};
+    input_stream >> json;
+
+    return json.get<rules>();
+  }
+};
 
 } // namespace feedback
 
-auto parse_rules_from(std::istream& input_stream)
-{
-  auto json = nlohmann::json{};
-  input_stream >> json;
-
-  return json.get<feedback::rules>();
-}
+namespace {
 
 auto operator|(std::string_view const& lhs, std::string_view const& rhs)
 {
@@ -222,7 +224,7 @@ auto read_rules_from(std::string const& file_name)
 {
   return async::launch([file_name] {
            auto input_stream = std::ifstream{ file_name };
-           return parse_rules_from(input_stream);
+           return feedback::rules::parse_from(input_stream);
          })
     .share();
 }
@@ -243,8 +245,8 @@ auto check_rules_function(std::string const& rules_file, std::string const& file
 {
   return [rules_file,
           rules = read_rules_from(rules_file),
-          shared_files_to_check = read_files_to_check_from(files_to_check)](std::string const& file_name) {
-    if (not std::invoke(shared_files_to_check.get(), file_name))
+          check_file_name = read_files_to_check_from(files_to_check)](std::string const& file_name) {
+    if (not std::invoke(check_file_name.get(), file_name))
       return;
 
     auto messages = async_messages_from(rules_file, rules.get(), file_name);
