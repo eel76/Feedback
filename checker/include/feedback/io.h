@@ -15,26 +15,6 @@ auto content(std::istream& in)
   return sstr.str();
 }
 
-auto stream_from(std::string const& file_name)
-{
-  struct temporary_stream
-  {
-    explicit temporary_stream(std::string const& file_name)
-    : stream(file_name)
-    {
-    }
-    operator std::istream &() &&
-    {
-      return stream;
-    }
-
-  private:
-    std::ifstream stream;
-  };
-
-  return temporary_stream{ file_name };
-}
-
 auto redirect(std::ostream& stream, std::string const& file_name)
 {
   struct redirection
@@ -60,13 +40,6 @@ auto redirect(std::ostream& stream, std::string const& file_name)
     return std::optional<redirection>{};
 
   return std::make_optional<redirection>(stream, file_name);
-}
-
-template <class Operation>
-void for_each_line(std::istream& is, Operation&& operation)
-{
-  for (std::string line; std::getline(is, line);)
-    operation(line);
 }
 
 } // namespace stream

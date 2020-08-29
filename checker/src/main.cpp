@@ -15,64 +15,57 @@
 
 namespace {
 
-struct coding_guidelines
+namespace feedback {
+struct identifier
 {
-  struct identifier
+  explicit identifier(std::string const& str)
+  : origin(str)
+  , prefix(origin)
+  , nr()
   {
-    explicit identifier(std::string const& str)
-    : origin(str)
-    , prefix(origin)
-    , nr()
-    {
-      auto nr_match = std::string_view{};
+    auto nr_match = std::string_view{};
 
-      auto const pattern = regex::compile(R"(^([^\d]+)(\d\d?\d?\d?\d?)$)");
+    auto const pattern = regex::compile(R"(^([^\d]+)(\d\d?\d?\d?\d?)$)");
 
-      if (not pattern.matches(origin, { &prefix, &nr_match }))
-        return;
+    if (not pattern.matches(origin, { &prefix, &nr_match }))
+      return;
 
-      nr = std::stoi(std::string{ nr_match });
-    }
+    nr = std::stoi(std::string{ nr_match });
+  }
 
-    operator std::string_view() const
-    {
-      return origin;
-    }
-
-    bool operator<(identifier const& other) const
-    {
-      if (auto const prefix_comparision = prefix.compare(other.prefix); prefix_comparision != 0)
-        return prefix_comparision < 0;
-
-      return nr < other.nr;
-    }
-
-  private:
-    std::string origin;
-    std::string_view prefix;
-    std::optional<int> nr;
-  };
-
-  struct rule
+  operator std::string_view() const
   {
-    std::string severity;
-    std::string summary;
-    std::string rationale;
-    std::string workaround;
-    regex::precompiled matched_files;
-    regex::precompiled ignored_files;
-    regex::precompiled matched_text;
-    regex::precompiled ignored_text;
-    regex::precompiled marked_text;
-  };
+    return origin;
+  }
 
-  using rule_map = std::map<identifier, rule>;
+  bool operator<(identifier const& other) const
+  {
+    if (auto const prefix_comparision = prefix.compare(other.prefix); prefix_comparision != 0)
+      return prefix_comparision < 0;
 
+    return nr < other.nr;
+  }
+
+private:
   std::string origin;
-  rule_map rules;
+  std::string_view prefix;
+  std::optional<int> nr;
 };
 
-void from_json(nlohmann::json const& json, coding_guidelines::rule& rule)
+struct rule
+{
+  std::string severity;
+  std::string summary;
+  std::string rationale;
+  std::string workaround;
+  regex::precompiled matched_files;
+  regex::precompiled ignored_files;
+  regex::precompiled matched_text;
+  regex::precompiled ignored_text;
+  regex::precompiled marked_text;
+};
+
+void from_json(nlohmann::json const& json, feedback::rule& rule)
 {
   rule.severity = json.at("severity");
   rule.summary = json.at("summary");
@@ -85,17 +78,16 @@ void from_json(nlohmann::json const& json, coding_guidelines::rule& rule)
   rule.marked_text = regex::compile(regex::capture(json.at("marked_text").get<std::string>()));
 }
 
-auto read_rules_from(std::istream& input_stream)
+using rules = std::map<identifier, rule>;
+
+} // namespace feedback
+
+auto parse_rules_from(std::istream& input_stream)
 {
   auto json = nlohmann::json{};
   input_stream >> json;
 
-  return json.get<coding_guidelines::rule_map>();
-}
-
-auto read_coding_guidelines_from(std::string const& file_name)
-{
-  return coding_guidelines{ file_name, read_rules_from(io::stream_from(file_name)) };
+  return json.get<feedback::rules>();
 }
 
 auto operator|(std::string_view const& lhs, std::string_view const& rhs)
@@ -104,11 +96,19 @@ auto operator|(std::string_view const& lhs, std::string_view const& rhs)
   return std::string_view{ lhs.data(), lhs.length() + rhs.length() };
 }
 
+auto read_content_from(std::string const& file_name)
+{
+  return async::launch([=] {
+           auto input_stream = std::ifstream{ file_name };
+           return io::content(input_stream);
+         })
+    .share();
+}
+
 auto check_rule_in_file_function(std::string const& file_name)
 {
-  auto const file_content = async::launch([=] { return io::content(io::stream_from(file_name)); }).share();
-
-  return [=](coding_guidelines const& guidelines, auto const& id, auto const& rule) {
+  return [file_name,
+          file_content = read_content_from(file_name)](auto const& id, auto const& rule, std::string const& origin) {
     using fmt::operator""_a;
 
     if (not rule.matched_files.matches(file_name))
@@ -181,7 +181,7 @@ auto check_rule_in_file_function(std::string const& file_name)
         "file_name"_a = format::as_literal{ file_name },
         "first_matched_line"_a = format::as_literal{ first_matched_line },
         "id"_a = format::as_literal{ id },
-        "origin"_a = format::as_literal{ guidelines.origin },
+        "origin"_a = format::as_literal{ origin },
         "summary"_a = format::as_literal{ rule.summary },
         "severity"_a = format::as_literal{ rule.severity },
         "rationale"_a = format::as_literal{ rule.rationale },
@@ -192,51 +192,62 @@ auto check_rule_in_file_function(std::string const& file_name)
   };
 }
 
-auto async_messages_from(coding_guidelines const& guidelines, std::string const& file_name)
+auto async_messages_from(std::string const& rules_file, feedback::rules const& rules, std::string const& source_file)
 {
-  auto const check_rule_in_file = check_rule_in_file_function(file_name);
+  auto const check_rule_in_file = check_rule_in_file_function(source_file);
 
   auto messages = std::vector<std::future<std::string>>{};
 
-  for (auto const& [id, rule] : guidelines.rules)
-    messages.push_back(async::launch(check_rule_in_file, guidelines, id, rule));
+  for (auto const& [id, rule] : rules)
+    messages.push_back(async::launch(check_rule_in_file, id, rule, rules_file));
 
   return messages;
 }
 
-auto read_filter_from(std::string const& files_to_check) -> std::function<bool(std::string const&)>
+using filter = std::function<bool(std::string const&)>;
+
+auto parse_filter_from(std::istream& input_stream)
 {
-  auto file_names = std::optional<std::unordered_set<std::string>>{};
+  auto file_names = std::unordered_set<std::string>{};
 
-  if (not files_to_check.empty())
-  {
-    file_names.emplace();
-    for_each_line(io::stream_from(files_to_check), [&](auto const& file_name) { file_names->emplace(file_name); });
-  }
+  for (std::string file_name; std::getline(input_stream, file_name);)
+    file_names.emplace(file_name);
 
-  return [file_names = std::move(file_names)](auto const& file_name) {
-    return !file_names || file_names->count(file_name) != 0;
-  };
+  return filter{ [file_names = std::move(file_names)](auto const& file_name) {
+    return file_names.count(file_name) != 0;
+  } };
 }
 
-auto share_guidelines(std::string const& coding_guidelines)
+auto read_rules_from(std::string const& file_name)
 {
-  return async::launch([=] { return read_coding_guidelines_from(coding_guidelines); }).share();
+  return async::launch([file_name] {
+           auto input_stream = std::ifstream{ file_name };
+           return parse_rules_from(input_stream);
+         })
+    .share();
 }
 
-auto share_filter(std::string const& files_to_check)
+auto read_files_to_check_from(std::string const& file_name)
 {
-  return async::launch([=] { return read_filter_from(files_to_check); }).share();
+  return async::launch([=] {
+           if (file_name.empty())
+             return filter{ [](auto const&) { return true; } };
+
+           auto input_stream = std::ifstream{ file_name };
+           return parse_filter_from(input_stream);
+         })
+    .share();
 }
 
-auto print_messages_function(std::string const& coding_guidelines, std::string const& files_to_check)
+auto check_rules_function(std::string const& rules_file, std::string const& files_to_check)
 {
-  return [guidelines = share_guidelines(coding_guidelines),
-          filter = share_filter(files_to_check)](std::string const& file_name) {
-    if (not std::invoke(filter.get(), file_name))
+  return [rules_file,
+          rules = read_rules_from(rules_file),
+          shared_files_to_check = read_files_to_check_from(files_to_check)](std::string const& file_name) {
+    if (not std::invoke(shared_files_to_check.get(), file_name))
       return;
 
-    auto messages = async_messages_from(guidelines.get(), file_name);
+    auto messages = async_messages_from(rules_file, rules.get(), file_name);
 
     auto synchronized_out = cxx20::osyncstream{ std::cout };
     format::print(synchronized_out, "\n// {}\n", file_name);
@@ -257,9 +268,13 @@ namespace { using symbol = int; }
 )_";
 }
 
-void print_messages(std::function<void(std::string const&)> message_generator, std::string const& file_name)
+void print_messages(std::function<void(std::string const&)> print_messages_from, std::string const& source_files)
 {
-  for_each_line(io::stream_from(file_name), async::as_task(message_generator));
+  auto tasks = std::vector<async::task>{};
+
+  auto content = std::ifstream{ source_files };
+  for (std::string source_file; std::getline(content, source_file);)
+    tasks.emplace_back([=] { print_messages_from(source_file); });
 }
 
 } // namespace
@@ -271,11 +286,11 @@ int main(int argc, char* argv[])
   try
   {
     auto const parameters = parameter::parse(argc, argv);
-    auto const message_generator = print_messages_function(parameters.coding_guidelines, parameters.files_to_check);
+    auto const check_rules = check_rules_function(parameters.rules_file, parameters.files_to_check);
     auto const redirected_output = io::redirect(std::cout, parameters.output_file);
 
     print_header();
-    print_messages(message_generator, parameters.source_files);
+    print_messages(check_rules, parameters.source_list_file);
   }
   catch (std::exception const& e)
   {

@@ -16,8 +16,8 @@ auto parameter::parse(int argc, char* argv[]) -> parameters
   parameters p;
 
   auto const cli =
-    lyra::arg(p.coding_guidelines, "codingGuidelines")("Coding guidelines (JSON file) to check") |
-    lyra::arg(p.source_files, "source files")("File with list of source files to scan") |
+    lyra::arg(p.rules_file, "codingGuidelines")("Coding guidelines (JSON file) to check") |
+    lyra::arg(p.source_list_file, "source files")("File with list of source files to scan") |
     lyra::opt(p.files_to_check, "files to check")["-f"]["--files-to-check"]("File with list of files to check") |
     lyra::opt(p.output_file, "output file")["-o"]["--output-file"]("Output file name");
 

@@ -5,8 +5,8 @@ namespace parameter {
 
 struct parameters
 {
-  std::string coding_guidelines;
-  std::string source_files;
+  std::string rules_file;
+  std::string source_list_file;
   std::string files_to_check;
   std::string output_file;
 };
