@@ -107,7 +107,7 @@ auto read_content_from(std::string const& file_name)
     .share();
 }
 
-auto check_rule_in_file_function(std::string const& file_name)
+auto make_check_rule_in_file_function(std::string const& file_name)
 {
   return [file_name,
           file_content = read_content_from(file_name)](auto const& id, auto const& rule, std::string const& origin) {
@@ -196,12 +196,12 @@ auto check_rule_in_file_function(std::string const& file_name)
 
 auto async_messages_from(std::string const& rules_file, feedback::rules const& rules, std::string const& source_file)
 {
-  auto const check_rule_in_file = check_rule_in_file_function(source_file);
+  auto const check_rule_in_file_function = make_check_rule_in_file_function(source_file);
 
   auto messages = std::vector<std::future<std::string>>{};
 
   for (auto const& [id, rule] : rules)
-    messages.push_back(async::launch(check_rule_in_file, id, rule, rules_file));
+    messages.push_back(async::launch(check_rule_in_file_function, id, rule, rules_file));
 
   return messages;
 }
@@ -241,9 +241,10 @@ auto read_files_to_check_from(std::string const& file_name)
     .share();
 }
 
-auto check_rules_function(std::string const& rules_file, std::string const& files_to_check)
+auto make_check_rules_function(std::ostream& output, std::string const& rules_file, std::string const& files_to_check)
 {
-  return [rules_file,
+  return [&output,
+          rules_file,
           rules = read_rules_from(rules_file),
           check_file_name = read_files_to_check_from(files_to_check)](std::string const& file_name) {
     if (not std::invoke(check_file_name.get(), file_name))
@@ -251,7 +252,7 @@ auto check_rules_function(std::string const& rules_file, std::string const& file
 
     auto messages = async_messages_from(rules_file, rules.get(), file_name);
 
-    auto synchronized_out = cxx20::osyncstream{ std::cout };
+    auto synchronized_out = cxx20::osyncstream{ output };
     format::print(synchronized_out, "\n// {}\n", file_name);
 
     for (auto&& message : messages)
@@ -259,9 +260,9 @@ auto check_rules_function(std::string const& rules_file, std::string const& file
   };
 }
 
-void print_header()
+void print_header(std::ostream& output)
 {
-  std::cout << R"_(// DO NOT EDIT: this file is generated automatically
+  output << R"_(// DO NOT EDIT: this file is generated automatically
 
 namespace { using symbol = int; }
 
@@ -270,7 +271,7 @@ namespace { using symbol = int; }
 )_";
 }
 
-void print_messages(std::function<void(std::string const&)> print_messages_from, std::string const& source_files)
+void check_source_files(std::string const& source_files, std::function<void(std::string const&)> print_messages_from)
 {
   auto tasks = std::vector<async::task>{};
 
@@ -288,11 +289,12 @@ int main(int argc, char* argv[])
   try
   {
     auto const parameters = parameter::parse(argc, argv);
-    auto const check_rules = check_rules_function(parameters.rules_file, parameters.files_to_check);
     auto const redirected_output = io::redirect(std::cout, parameters.output_file);
+    auto const check_rules_function =
+      make_check_rules_function(std::cout, parameters.rules_file, parameters.files_to_check);
 
-    print_header();
-    print_messages(check_rules, parameters.source_list_file);
+    print_header(std::cout);
+    check_source_files(parameters.source_list_file, check_rules_function);
   }
   catch (std::exception const& e)
   {
