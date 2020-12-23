@@ -107,6 +107,80 @@ auto read_content_from(std::string const& file_name)
     .share();
 }
 
+class forward_search
+{
+public:
+  explicit forward_search(std::string_view const& text)
+  : processed_line_count (0)
+  , processed(text.data(), 0)
+  , current_match(text.data(), 0)
+  , remaining(text)
+  {
+  }
+
+  bool next(regex::precompiled const& pattern)
+  {
+    skip(current_match);
+
+    std::string_view no_match;
+
+    if (!pattern.find(remaining, &current_match, &no_match, &remaining))
+      return false;
+
+    skip(no_match);
+
+    last_processed_line = text::last_line_of(processed);
+    first_remaining_line = text::first_line_of(remaining);
+
+    return ! current_match.empty();
+  }
+
+  std::string_view matched_text() const
+  {
+    return current_match;
+  }
+
+  std::string_view matched_lines() const
+  {
+    return last_processed_line | current_match | first_remaining_line;
+  }
+
+  ptrdiff_t line() const
+  {
+    return processed_line_count;
+  }
+
+  ptrdiff_t column() const
+  {
+    return last_processed_line.length();
+  }
+
+private:
+  void skip(std::string_view const& text)
+  {
+    processed = processed | text;
+    processed_line_count += std::count(begin(text), end(text), '\n');
+  }
+
+private:
+  ptrdiff_t processed_line_count;
+  std::string_view processed;
+  std::string_view last_processed_line;
+  std::string_view current_match;
+  std::string_view first_remaining_line;
+  std::string_view remaining;
+};
+
+auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern)
+{
+  auto search = forward_search{ text };
+
+  if (search.next(pattern))
+    return search.matched_text();
+
+  return text;
+}
+
 auto make_check_rule_in_file_function(std::string const& file_name)
 {
   return [file_name,
@@ -122,46 +196,21 @@ auto make_check_rule_in_file_function(std::string const& file_name)
     auto out = std::ostringstream{};
     format::print(out, "\n// rule {} checked\n", id);
 
-    auto remaining = std::string_view{ file_content.get() };
-    auto processed = std::string_view{ remaining.data(), 0 };
-    auto skipped = std::string_view{};
-    auto match = std::string_view{};
-
-    for (auto nr = ptrdiff_t{ 0 }; rule.matched_text.find(remaining, &match, &skipped, &remaining);
-         nr += std::count(begin(match), end(match), '\n'))
+    auto search = forward_search{ file_content.get() };
+    while (search.next(rule.matched_text))
     {
-      if (match.empty())
-        break;
+      auto const marked_text = search_marked_text(search.matched_text(), rule.marked_text);
 
-      nr += std::count(begin(skipped), end(skipped), '\n');
-      processed = processed | skipped;
-
-      // continue if line filtered out
-
-      auto const last_processed_line = text::last_line_of(processed);
-      auto const first_remaining_line = text::first_line_of(remaining);
+      auto const first_matched_line = text::first_line_of(search.matched_lines());
 
       std::string indentation;
+      indentation.append(marked_text.data() - first_matched_line.data(), ' ');
+
       std::string annotation;
+      annotation.append(text::first_line_of(marked_text).length(), '~');
+      annotation[0] = '^';
 
-      indentation.append(last_processed_line.length(), ' ');
-
-      if (auto marked = std::string_view{}; rule.marked_text.find(match, &marked, &skipped, nullptr))
-      {
-        indentation.append(skipped.length(), ' ');
-        annotation.append(marked.length(), '~');
-
-        if (not annotation.empty())
-          annotation[0] = '^';
-      }
-
-      auto const matched_lines = last_processed_line | match | first_remaining_line;
-      auto const ignored = rule.ignored_text.matches(matched_lines) ? "// Ignored: " : "";
-
-      auto const first_matched_line = text::first_line_of(matched_lines);
-      assert(first_matched_line.length() >= indentation.size());
-
-      annotation.resize(first_matched_line.length() - indentation.size(), ' ');
+      auto const ignored = rule.ignored_text.matches(search.matched_lines()) ? "// Ignored: " : "";
 
       format::print(
         out,
@@ -179,7 +228,7 @@ auto make_check_rule_in_file_function(std::string const& file_name)
         "ignored"_a = ignored,
         "indentation"_a = indentation,
         "annotation"_a = annotation,
-        "nr"_a = nr,
+        "nr"_a = search.line(),
         "file_name"_a = format::as_literal{ file_name },
         "first_matched_line"_a = format::as_literal{ first_matched_line },
         "id"_a = format::as_literal{ id },
