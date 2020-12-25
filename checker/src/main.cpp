@@ -144,13 +144,12 @@ auto make_check_rule_in_file_function(std::string const& file_name)
     using fmt::operator""_a;
 
     if (not rule.matched_files.matches(file_name))
-      return fmt::format("\n// rule {} not matched for file name: {file_name}\n", id, file_name);
+      return fmt::format("\n// rule {} not matched for current file name\n", id);
 
     if (rule.ignored_files.matches(file_name))
-      return fmt::format("\n// rule {} ignored for file name: {file_name}\n", id, file_name);
+      return fmt::format("\n// rule {} ignored for current file name\n", id);
 
     auto out = std::ostringstream{};
-    format::print(out, "\n// check rule {} in file name: {file_name}\n", id, file_name);
 
     auto search = text::forward_search{ file_content.get() };
     while (search.next(rule.matched_text))
@@ -170,11 +169,11 @@ auto make_check_rule_in_file_function(std::string const& file_name)
         out,
         R"_(
 #if defined(__GNUC__)
-# line {nr} "{file_name}"
+# line {nr}
 # pragma GCC warning \
 {indentation}"{id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}"
 #elif defined(_MSC_VER)
-# line {nr} "{file_name}"
+# line {nr}
 
 # pragma message(__FILE__ "(" STRINGIFY(__LINE__) "): warning: {id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}\n {first_matched_line}\n {indentation}{annotation}")
 #endif
@@ -182,7 +181,6 @@ auto make_check_rule_in_file_function(std::string const& file_name)
         "indentation"_a = highlighting.indentation,
         "annotation"_a = highlighting.annotation,
         "nr"_a = search.line(),
-        "file_name"_a = format::as_literal{ file_name },
         "first_matched_line"_a = format::as_literal{ highlighting.first_line },
         "id"_a = format::as_literal{ id },
         "origin"_a = format::as_literal{ origin },
@@ -255,7 +253,7 @@ auto make_check_rules_function(std::ostream& output, std::string const& rules_fi
     auto messages = async_messages_from(rules_file, rules.get(), file_name);
 
     auto synchronized_out = cxx20::osyncstream{ output };
-    format::print(synchronized_out, "\n// {}\n", file_name);
+    format::print(synchronized_out, "\n# line 1 \"{}\"\n", file_name);
 
     for (auto&& message : messages)
       synchronized_out << message.get();
