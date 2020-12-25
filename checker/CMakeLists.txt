@@ -40,6 +40,7 @@ target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${re2_content_SOURCE
 add_library (core.${PROJECT_NAME} STATIC
   "src/parameter.cpp"
   "src/regex.cpp"
+  "src/text.cpp"
   "include/cxx20/syncstream"
   "include/feedback/async.h"
   "include/feedback/container.h"

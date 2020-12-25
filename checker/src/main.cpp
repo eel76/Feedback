@@ -92,12 +92,6 @@ public:
 
 namespace {
 
-auto operator|(std::string_view const& lhs, std::string_view const& rhs)
-{
-  assert(lhs.data() + lhs.length() == rhs.data());
-  return std::string_view{ lhs.data(), lhs.length() + rhs.length() };
-}
-
 auto read_content_from(std::string const& file_name)
 {
   return async::launch([=] {
@@ -107,73 +101,9 @@ auto read_content_from(std::string const& file_name)
     .share();
 }
 
-class forward_search
-{
-public:
-  explicit forward_search(std::string_view const& text)
-  : processed_line_count (0)
-  , processed(text.data(), 0)
-  , current_match(text.data(), 0)
-  , remaining(text)
-  {
-  }
-
-  bool next(regex::precompiled const& pattern)
-  {
-    skip(current_match);
-
-    std::string_view no_match;
-
-    if (!pattern.find(remaining, &current_match, &no_match, &remaining))
-      return false;
-
-    skip(no_match);
-
-    last_processed_line = text::last_line_of(processed);
-    first_remaining_line = text::first_line_of(remaining);
-
-    return ! current_match.empty();
-  }
-
-  std::string_view matched_text() const
-  {
-    return current_match;
-  }
-
-  std::string_view matched_lines() const
-  {
-    return last_processed_line | current_match | first_remaining_line;
-  }
-
-  ptrdiff_t line() const
-  {
-    return processed_line_count;
-  }
-
-  ptrdiff_t column() const
-  {
-    return last_processed_line.length();
-  }
-
-private:
-  void skip(std::string_view const& text)
-  {
-    processed = processed | text;
-    processed_line_count += std::count(begin(text), end(text), '\n');
-  }
-
-private:
-  ptrdiff_t processed_line_count;
-  std::string_view processed;
-  std::string_view last_processed_line;
-  std::string_view current_match;
-  std::string_view first_remaining_line;
-  std::string_view remaining;
-};
-
 auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern)
 {
-  auto search = forward_search{ text };
+  auto search = text::forward_search{ text };
 
   if (search.next(pattern))
     return search.matched_text();
@@ -196,7 +126,7 @@ auto make_check_rule_in_file_function(std::string const& file_name)
     auto out = std::ostringstream{};
     format::print(out, "\n// rule {} checked\n", id);
 
-    auto search = forward_search{ file_content.get() };
+    auto search = text::forward_search{ file_content.get() };
     while (search.next(rule.matched_text))
     {
       auto const marked_text = search_marked_text(search.matched_text(), rule.marked_text);
