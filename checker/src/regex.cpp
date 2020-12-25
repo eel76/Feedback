@@ -19,8 +19,9 @@ auto as_string_view(re2::StringPiece const& match)
 }
 } // namespace
 
-struct regex::precompiled::impl : public re2::RE2
+class regex::precompiled::impl : public re2::RE2
 {
+public:
   explicit impl(std::string_view pattern)
   : RE2(as_string_piece(pattern), RE2::Quiet)
   {

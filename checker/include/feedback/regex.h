@@ -7,8 +7,9 @@ namespace regex {
 
 using match = std::string_view;
 
-struct precompiled
+class precompiled
 {
+public:
   precompiled() = default;
 
   auto matches(std::string_view input) const -> bool;
