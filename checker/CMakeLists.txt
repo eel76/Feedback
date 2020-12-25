@@ -23,7 +23,7 @@ FetchContent_Declare(
 FetchContent_Declare(
   re2_content
   GIT_REPOSITORY "https://github.com/google/re2.git"
-  GIT_TAG 2019-12-01
+  GIT_TAG 2020-11-01
   )
 
 set(JSON_BuildTests OFF CACHE INTERNAL "")
