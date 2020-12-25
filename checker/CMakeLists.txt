@@ -8,7 +8,7 @@ include(FetchContent)
 FetchContent_Declare(
   lyra_content
   GIT_REPOSITORY "https://github.com/bfgroup/Lyra.git"
-  GIT_TAG 1.2
+  GIT_TAG 1.5.1
   )
 FetchContent_Declare(
   json_content
@@ -52,7 +52,7 @@ add_library (core.${PROJECT_NAME} STATIC
   )
 target_link_libraries (core.${PROJECT_NAME}
   PUBLIC ${CMAKE_THREAD_LIBS_INIT}
-  PUBLIC BFG::Lyra
+  PUBLIC bfg::Lyra
   PUBLIC fmt::fmt-header-only
   PRIVATE re2::re2
   )
