@@ -88,7 +88,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR CODING_GUIDELINES_BUILD_TESTING)
     FetchContent_Declare(
       benchmark_content
       GIT_REPOSITORY "https://github.com/google/benchmark.git"
-      GIT_TAG v1.5.0
+      GIT_TAG v1.5.2
       )
 
     set(BENCHMARK_ENABLE_TESTING OFF CACHE INTERNAL "")
