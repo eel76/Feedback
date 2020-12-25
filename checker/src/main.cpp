@@ -111,6 +111,32 @@ auto search_marked_text(std::string_view const& text, regex::precompiled const& 
   return text;
 }
 
+class excerpt
+{
+public:
+  excerpt(std::string_view text, std::string_view match)
+  {
+    assert(text.data() <= match.data());
+    assert(text.data() + text.length() >= match.data() + match.length());
+
+    first_line = text::first_line_of(text);
+
+    std::string indentation;
+    indentation.append(match.data() - text.data(), ' ');
+
+    std::string annotation;
+    annotation.append(text::first_line_of(match).length(), '~');
+
+    if (!annotation.empty())
+      annotation[0] = '^';
+  }
+
+public:
+  std::string_view first_line;
+  std::string indentation;
+  std::string annotation;
+};
+
 auto make_check_rule_in_file_function(std::string const& file_name)
 {
   return [file_name,
@@ -118,49 +144,46 @@ auto make_check_rule_in_file_function(std::string const& file_name)
     using fmt::operator""_a;
 
     if (not rule.matched_files.matches(file_name))
-      return fmt::format("\n// rule {} not matched\n", id);
+      return fmt::format("\n// rule {} not matched for file name: {file_name}\n", id, file_name);
 
     if (rule.ignored_files.matches(file_name))
-      return fmt::format("\n// rule {} ignored\n", id);
+      return fmt::format("\n// rule {} ignored for file name: {file_name}\n", id, file_name);
 
     auto out = std::ostringstream{};
-    format::print(out, "\n// rule {} checked\n", id);
+    format::print(out, "\n// check rule {} in file name: {file_name}\n", id, file_name);
 
     auto search = text::forward_search{ file_content.get() };
     while (search.next(rule.matched_text))
     {
+      auto const matched_lines = search.matched_lines();
+
+      if (rule.ignored_text.matches(matched_lines))
+      {
+        format::print(out, "\n// ignored match in line {nr}\n", "nr"_a = search.line());
+        continue;
+      }
+
       auto const marked_text = search_marked_text(search.matched_text(), rule.marked_text);
-
-      auto const first_matched_line = text::first_line_of(search.matched_lines());
-
-      std::string indentation;
-      indentation.append(marked_text.data() - first_matched_line.data(), ' ');
-
-      std::string annotation;
-      annotation.append(text::first_line_of(marked_text).length(), '~');
-      annotation[0] = '^';
-
-      auto const ignored = rule.ignored_text.matches(search.matched_lines()) ? "// Ignored: " : "";
+      auto const highlighting = excerpt{ matched_lines, marked_text };
 
       format::print(
         out,
         R"_(
-{ignored}#if defined(__GNUC__)
-{ignored}# line {nr} "{file_name}"
-{ignored}# pragma GCC warning \
-{ignored}{indentation}"{id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}"
-{ignored}#elif defined(_MSC_VER)
-{ignored}# line {nr} "{file_name}"
-{ignored}
-{ignored}# pragma message(__FILE__ "(" STRINGIFY(__LINE__) "): warning: {id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}\n {first_matched_line}\n {indentation}{annotation}")
-{ignored}#endif
+#if defined(__GNUC__)
+# line {nr} "{file_name}"
+# pragma GCC warning \
+{indentation}"{id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}"
+#elif defined(_MSC_VER)
+# line {nr} "{file_name}"
+
+# pragma message(__FILE__ "(" STRINGIFY(__LINE__) "): warning: {id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}\n {first_matched_line}\n {indentation}{annotation}")
+#endif
 )_",
-        "ignored"_a = ignored,
-        "indentation"_a = indentation,
-        "annotation"_a = annotation,
+        "indentation"_a = highlighting.indentation,
+        "annotation"_a = highlighting.annotation,
         "nr"_a = search.line(),
         "file_name"_a = format::as_literal{ file_name },
-        "first_matched_line"_a = format::as_literal{ first_matched_line },
+        "first_matched_line"_a = format::as_literal{ highlighting.first_line },
         "id"_a = format::as_literal{ id },
         "origin"_a = format::as_literal{ origin },
         "summary"_a = format::as_literal{ rule.summary },
