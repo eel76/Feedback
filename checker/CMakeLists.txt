@@ -18,7 +18,7 @@ FetchContent_Declare(
 FetchContent_Declare(
   fmt_content
   GIT_REPOSITORY "https://github.com/fmtlib/fmt.git"
-  GIT_TAG 6.1.0
+  GIT_TAG 7.1.3
   )
 FetchContent_Declare(
   re2_content
