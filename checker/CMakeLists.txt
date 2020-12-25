@@ -13,7 +13,7 @@ FetchContent_Declare(
 FetchContent_Declare(
   json_content
   GIT_REPOSITORY "https://github.com/nlohmann/json.git"
-  GIT_TAG v3.7.3
+  GIT_TAG v3.9.1
   )
 FetchContent_Declare(
   fmt_content
