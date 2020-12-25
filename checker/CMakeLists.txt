@@ -83,7 +83,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR CODING_GUIDELINES_BUILD_TESTING)
     FetchContent_Declare(
       catch2_content
       GIT_REPOSITORY "https://github.com/catchorg/Catch2.git"
-      GIT_TAG v2.11.0
+      GIT_TAG v2.13.3
       )
     FetchContent_Declare(
       benchmark_content
