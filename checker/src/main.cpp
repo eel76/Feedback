@@ -92,7 +92,7 @@ public:
 
 namespace {
 
-auto read_content_from(std::string const& file_name)
+auto async_content_from(std::string const& file_name)
 {
   return async::launch([=] {
            auto input_stream = std::ifstream{ file_name };
@@ -140,7 +140,7 @@ public:
 auto make_check_rule_in_file_function(std::string const& file_name)
 {
   return [file_name,
-          file_content = read_content_from(file_name)](auto const& id, auto const& rule, std::string const& origin) {
+          file_content = async_content_from(file_name)](auto const& id, auto const& rule, std::string const& origin) {
     using fmt::operator""_a;
 
     if (not rule.matched_files.matches(file_name))
