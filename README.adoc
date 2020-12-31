@@ -1,0 +1,88 @@
+= Feedback
+
+// tag::intro[]
+
+[.tagline]
+A simple to use feedback system for CMake based C++ projects.
+
+[horizontal.shields]
+
+// end::intro[]
+
+== License
+
+// tag::license[]
+
+Distributed under the [MIT](https://opensource.org/licenses/MIT) license.
+
+// end::license[]
+
+== Features
+
+// tag::features[]
+
+* Define new feedback rules within minutes
+
+// end::features[]
+
+== Using
+
+// tag::using[]
+
+To use, integrate the feedback system into your CMake project:
+
+[source,cmake]
+----
+include (FetchContent)
+
+FetchContent_Declare (feedback_content GIT_REPOSITORY "https://github.com/volumegraphics/feedback.git" GIT_TAG 1.0.0)
+FetchContent_MakeAvailable (feedback_content)
+----
+
+You can also add feedback as subdirectory if you store its sources side-by-side:
+
+[source,cmake]
+----
+add_subdirectory (path_to_feedback)
+----
+
+A feedback can then be created like this:
+
+[source,cmake]
+----
+add_executable (example main.cpp)
+
+ConfigureFeedbackForTargets (warnings.json example)
+----
+
+Where your feedback rules (`warnings.json`) are like this:
+
+[source,json]
+----
+{
+  "CG1": {
+    "severity": "error",
+    "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
+    "ignored_files": "/vg/random/|/vg[.]approval/",
+    "matched_text": "(std|cxx11) *:: *(normal_distribution|poisson_distribution|uniform_int_distribution|uniform_real_distribution)",
+    "ignored_text": "//.*(std|cxx11) *:: *(normal_distribution|poisson_distribution|uniform_int_distribution|uniform_real_distribution)",
+    "marked_text": ".*",
+    "summary": "Avoid random number distributions from std",
+    "rationale": "We want consistent results across all platforms. Unfortunately algorithms for distributions are not mandated, so implementations can vary. See also: https://www.reddit.com/r/cpp/comments/30w7cs/inconsistency_in_c_random/",
+    "workaround": "Please use a random number distribution from vg::random instead"
+  },
+  "CG2": {
+    "severity": "error",
+    "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
+    "ignored_files": "/vg/random/|/vg[.]approval/",
+    "matched_text": "(std|cxx11) *:: *linear_congruential_engine",
+    "ignored_text": "//.*(std|cxx11) *:: *linear_congruential_engine",
+    "marked_text": ".*",
+    "summary": "Avoid std::linear_congruential_engine",
+    "rationale": "We want consistent results across all platforms. However, clang does not conform to the mandated standard algorithm and its generator produces different values.",
+    "workaround": "Please use vg::random::linear_congruential_engine instead."
+  }
+}
+----
+
+// end::using[]
