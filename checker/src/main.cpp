@@ -121,10 +121,7 @@ public:
 
     first_line = text::first_line_of(text);
 
-    std::string indentation;
     indentation.append(match.data() - text.data(), ' ');
-
-    std::string annotation;
     annotation.append(text::first_line_of(match).length(), '~');
 
     if (!annotation.empty())
@@ -175,7 +172,7 @@ auto make_check_rule_in_file_function(std::string const& file_name)
 #elif defined(_MSC_VER)
 # line {nr}
 
-# pragma message(__FILE__ "(" STRINGIFY(__LINE__) "): warning: {id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}\n {first_matched_line}\n {indentation}{annotation}")
+# pragma message(__FILE__ "(" STRINGIFY(__LINE__) "): warning: {id}: {summary} [file://{origin}]\n |\n | {first_matched_line}\n | {indentation}{annotation}\n |\n | SEVERITY  : {severity}\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
 #endif
 )_",
         "indentation"_a = highlighting.indentation,
@@ -289,12 +286,12 @@ int main(int argc, char* argv[])
   try
   {
     auto const parameters = parameter::parse(argc, argv);
-    auto const redirected_output = io::redirect(std::cout, parameters.output_file);
+    auto const redirected_output = io::redirect(std::cout, parameters.output_file_name);
     auto const check_rules_function =
-      make_check_rules_function(std::cout, parameters.rules_file, parameters.files_to_check);
+      make_check_rules_function(std::cout, parameters.rules_file_name, parameters.files_to_check);
 
     print_header(std::cout);
-    check_source_files(parameters.source_list_file, check_rules_function);
+    check_source_files(parameters.sources_file_name, check_rules_function);
   }
   catch (std::exception const& e)
   {

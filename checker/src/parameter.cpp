@@ -16,14 +16,14 @@ auto parameter::parse(int argc, char* argv[]) -> parameters
   parameters p;
 
   auto const cli =
-    lyra::arg(p.rules_file, "codingGuidelines")("Coding guidelines (JSON file) to check") |
-    lyra::arg(p.source_list_file, "source files")("File with list of source files to scan") |
     lyra::opt(p.files_to_check, "files to check")["-f"]["--files-to-check"]("File with list of files to check") |
-    lyra::opt(p.output_file, "output file")["-o"]["--output-file"]("Output file name");
+    lyra::opt(p.output_file_name, "output file")["-o"]["--output-file"]("Output file name") |
+    lyra::arg(p.rules_file_name, "rules")("Feedback rules") |
+    lyra::arg(p.sources_file_name, "source files")("File with list of source files to scan");
 
   auto const result = cli.parse({ argc, argv });
   if (!result)
-    throw std::invalid_argument{ "Error in command line: " + result.errorMessage() };
+    throw std::invalid_argument{ result.errorMessage() };
 
   return p;
 }
