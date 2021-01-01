@@ -52,6 +52,9 @@ A feedback can then be created like this:
 ----
 add_executable (example main.cpp)
 
+# Recommended setting
+set_property(GLOBAL PROPERTY USE_FOLDERS true)
+
 ConfigureFeedbackForTargets (warnings.json example)
 ----
 
