@@ -80,7 +80,7 @@ set_target_properties (core.${PROJECT_NAME} ${PROJECT_NAME}
   PROPERTIES CXX_STANDARD 17
   )
 
-if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR FEEDBACK_BUILD_TESTING) AND BUILD_TESTING)
+if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR CHECKER_BUILD_TESTING) AND BUILD_TESTING)
   Feedback_MakeAvailable (Catch2::Catch2 "https://github.com/catchorg/Catch2.git" v2.13.4)
   Feedback_MakeAvailable (benchmark "https://github.com/google/benchmark.git" v1.5.2 BUILD_TESTING_VARIABLE BENCHMARK_ENABLE_TESTING)
 
