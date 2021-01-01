@@ -8,10 +8,6 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   set_property(GLOBAL PROPERTY USE_FOLDERS true)
 endif ()
 
-find_package (Git REQUIRED)
-
-include ("feedback.cmake")
-
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR FEEDBACK_BUILD_TESTING)
   set(CHECKER_BUILD_TESTING ON CACHE INTERNAL "")
 endif()
@@ -20,8 +16,11 @@ add_subdirectory("checker")
 
 if (NOT CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 # FIXME
-#  target_compile_options (FeedbackChecker BEFORE PRIVATE $<$<CONFIG:Debug>:-O2> $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:-Ob2>)
+#  target_compile_options (generator BEFORE PRIVATE $<$<CONFIG:Debug>:-O2> $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:-Ob2>)
 endif ()
+
+include ("feedback.cmake")
+find_package (Git REQUIRED)
 
 RelevantTargetsInDirectory (targets "${CMAKE_CURRENT_LIST_DIR}/checker")
 
