@@ -9,5 +9,6 @@ FetchContent_MakeAvailable(feedback_content)
 
 add_executable (example main.cpp)
 ConfigureFeedbackForTargets (warnings.json example)
+# ConfigureFeedbackForTargets (errors.json example)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS true)
