@@ -10,43 +10,34 @@ find_package (Threads REQUIRED)
 
 include(FetchContent)
 
-if (NOT TARGET fmt::fmt-header-only)
-  FetchContent_Declare(
-    fmt_content
-    GIT_REPOSITORY "https://github.com/fmtlib/fmt.git"
-    GIT_TAG 7.1.3
-    )
-  FetchContent_MakeAvailable(fmt_content)
-endif ()
+function (Feedback_MakeAvailable target git_repository git_tag)
+  if (NOT TARGET ${target})
+    message (STATUS "Make available: ${git_repository} at ${git_tag}")
+    cmake_parse_arguments(MakeAvailable "" "BUILD_TESTING_VARIABLE" "" ${ARGN})
 
-if (NOT TARGET bfg::Lyra)
-  FetchContent_Declare(
-    lyra_content
-    GIT_REPOSITORY "https://github.com/bfgroup/Lyra.git"
-    GIT_TAG 1.5.1
-    )
-  FetchContent_MakeAvailable(lyra_content)
-endif ()
+    if (DEFINED MakeAvailable_UNPARSED_ARGUMENTS)
+      message (FATAL_ERROR "Unparsed arguments: ${MakeAvailable_UNPARSED_ARGUMENTS}")
+    endif ()
 
-if (NOT TARGET nlohmann_json::nlohmann_json)
-  FetchContent_Declare(
-    json_content
-    GIT_REPOSITORY "https://github.com/nlohmann/json.git"
-    GIT_TAG v3.9.1
-    )
-  set(JSON_BuildTests OFF CACHE INTERNAL "")
-  FetchContent_MakeAvailable(json_content)
-endif ()
+    if (DEFINED MakeAvailable_BUILD_TESTING_VARIABLE)
+      set(${MakeAvailable_BUILD_TESTING_VARIABLE} OFF CACHE INTERNAL "")
+    endif ()
 
-if (NOT TARGET re2::re2)
-  FetchContent_Declare(
-    re2_content
-    GIT_REPOSITORY "https://github.com/google/re2.git"
-    GIT_TAG 2020-11-01
-    )
-  set(RE2_BUILD_TESTING OFF CACHE INTERNAL "")
-  FetchContent_MakeAvailable(re2_content)
-endif ()
+    string (MAKE_C_IDENTIFIER "${target}__package" target_package)
+
+    FetchContent_Declare(
+      ${target_package}
+      GIT_REPOSITORY ${git_repository}
+      GIT_TAG ${git_tag}
+      )
+    FetchContent_MakeAvailable(${target_package})
+  endif ()
+endfunction ()
+
+Feedback_MakeAvailable (fmt::fmt-header-only "https://github.com/fmtlib/fmt.git" 7.1.3)
+Feedback_MakeAvailable (bfg::Lyra "https://github.com/bfgroup/Lyra.git" 1.5.1)
+Feedback_MakeAvailable (nlohmann_json::nlohmann_json "https://github.com/nlohmann/json.git" v3.9.1 BUILD_TESTING_VARIABLE JSON_BuildTests)
+Feedback_MakeAvailable (re2::re2 "https://github.com/google/re2.git" 2020-11-01 BUILD_TESTING_VARIABLE RE2_BUILD_TESTING)
 
 target_compile_options (re2 PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:CLANG>>:-Wno-error=unused-parameter -Wno-error=missing-field-initializers>)
 target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${re2_content_SOURCE_DIR}>)
@@ -90,24 +81,8 @@ set_target_properties (core.${PROJECT_NAME} ${PROJECT_NAME}
   )
 
 if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR FEEDBACK_BUILD_TESTING) AND BUILD_TESTING)
-  if (NOT TARGET Catch2::Catch2)
-    FetchContent_Declare(
-      catch2_content
-      GIT_REPOSITORY "https://github.com/catchorg/Catch2.git"
-      GIT_TAG v2.13.4
-      )
-    FetchContent_MakeAvailable(catch2_content)
-  endif()
-
-  if (NOT TARGET benchmark)
-    FetchContent_Declare(
-      benchmark_content
-      GIT_REPOSITORY "https://github.com/google/benchmark.git"
-      GIT_TAG v1.5.2
-      )
-    set(BENCHMARK_ENABLE_TESTING OFF CACHE INTERNAL "")
-    FetchContent_MakeAvailable(benchmark_content)
-  endif()
+  Feedback_MakeAvailable (Catch2::Catch2 "https://github.com/catchorg/Catch2.git" v2.13.4)
+  Feedback_MakeAvailable (benchmark "https://github.com/google/benchmark.git" v1.5.2 BUILD_TESTING_VARIABLE BENCHMARK_ENABLE_TESTING)
 
   add_executable (test.${PROJECT_NAME}
     "src/test.container.cpp"
