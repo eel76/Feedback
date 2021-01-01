@@ -292,15 +292,15 @@ function (CreateFeedbackSourceForSources filename json_filename)
   if (FEEDBACK_FILES_TO_CHECK STREQUAL "ALL_VERSIONED_FILES")
     add_custom_command (
       OUTPUT "${filename}"
-      COMMAND "$<TARGET_FILE:FeedbackChecker>" "-o=${filename}" "${json_filename}" "${filename}.sources.txt"
-      DEPENDS FeedbackChecker "${json_filename}" ${ARGN}
+      COMMAND "$<TARGET_FILE:generator>" "-o=${filename}" "${json_filename}" "${filename}.sources.txt"
+      DEPENDS generator "${json_filename}" ${ARGN}
       )
 #  elseif (FEEDBACK_FILES_TO_CHECK STREQUAL "ADDED_OR_MODIFIED_FILES")
 #    GetAddedOrModifiedFileListPath (added_or_modified_file_list)
 #    add_custom_command (
 #      OUTPUT "${filename}"
-#      COMMAND "$<TARGET_FILE:FeedbackChecker>" "-f=${added_or_modified_file_list}" "-o=${filename}" "${json_filename}" "${filename}.sources.txt"
-#      DEPENDS FeedbackChecker "${added_or_modified_file_list}" "${json_filename}" ${ARGN}
+#      COMMAND "$<TARGET_FILE:generator>" "-f=${added_or_modified_file_list}" "-o=${filename}" "${json_filename}" "${filename}.sources.txt"
+#      DEPENDS generator "${added_or_modified_file_list}" "${json_filename}" ${ARGN}
 #      )
   endif ()
 endfunction ()
