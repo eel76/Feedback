@@ -27,9 +27,3 @@ option (FEEDBACK_BUILD_TESTING "Enable testing for ${PROJECT_NAME} project.")
 if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR FEEDBACK_BUILD_TESTING) AND BUILD_TESTING)
   add_subdirectory(tests)
 endif()
-
-
-# FIXME
-function (feedback_test)
-  message (STATUS "just a test")
-endfunction ()
