@@ -6,41 +6,7 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   include (CTest)
 endif ()
 
-find_package (Threads REQUIRED)
-
-include(FetchContent)
-
-function (Feedback_MakeAvailable package git_repository git_tag)
-  cmake_parse_arguments(MakeAvailable "" "BUILD_TESTING_VARIABLE;SOURCE_DIR_VARIABLE" "" ${ARGN})
-
-  if (DEFINED MakeAvailable_UNPARSED_ARGUMENTS)
-    message (FATAL_ERROR "Unparsed arguments: ${MakeAvailable_UNPARSED_ARGUMENTS}")
-  endif ()
-
-  if (DEFINED MakeAvailable_BUILD_TESTING_VARIABLE)
-    set(${MakeAvailable_BUILD_TESTING_VARIABLE} OFF CACHE INTERNAL "")
-  endif ()
-
-  FetchContent_Declare(
-    ${package}
-    GIT_REPOSITORY ${git_repository}
-    GIT_TAG ${git_tag}
-    GIT_SHALLOW TRUE
-    )
-  FetchContent_MakeAvailable(${package})
-
-  if (DEFINED MakeAvailable_SOURCE_DIR_VARIABLE)
-    set (${MakeAvailable_SOURCE_DIR_VARIABLE} ${${package}_SOURCE_DIR} PARENT_SCOPE)
-  endif ()
-endfunction ()
-
-Feedback_MakeAvailable (fmt "https://github.com/fmtlib/fmt.git" 7.1.3)
-Feedback_MakeAvailable (Lyra "https://github.com/bfgroup/Lyra.git" 1.5.1)
-Feedback_MakeAvailable (nlohmann_json "https://github.com/nlohmann/json.git" v3.9.1 BUILD_TESTING_VARIABLE JSON_BuildTests)
-Feedback_MakeAvailable (re2 "https://github.com/google/re2.git" 2020-11-01 BUILD_TESTING_VARIABLE RE2_BUILD_TESTING SOURCE_DIR_VARIABLE RE2_SOURCE_DIR)
-
-target_compile_options (re2 PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:CLANG>>:-Wno-error=unused-parameter -Wno-error=missing-field-initializers>)
-target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${RE2_SOURCE_DIR}>)
+add_subdirectory (extern)
 
 add_library (${PROJECT_NAME}.core STATIC
   "src/parameter.cpp"
@@ -81,9 +47,6 @@ set_target_properties (${PROJECT_NAME}.core ${PROJECT_NAME}
   )
 
 if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR GENERATOR_BUILD_TESTING) AND BUILD_TESTING)
-  Feedback_MakeAvailable (Catch2 "https://github.com/catchorg/Catch2.git" v2.13.4)
-  Feedback_MakeAvailable (benchmark "https://github.com/google/benchmark.git" v1.5.2 BUILD_TESTING_VARIABLE BENCHMARK_ENABLE_TESTING)
-
   add_executable (${PROJECT_NAME}.test
     "src/test.container.cpp"
     "src/test.main.cpp"
