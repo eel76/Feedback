@@ -9,10 +9,10 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 endif ()
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR FEEDBACK_BUILD_TESTING)
-  set(CHECKER_BUILD_TESTING ON CACHE INTERNAL "")
+  set(GENERATOR_BUILD_TESTING ON CACHE INTERNAL "")
 endif()
 
-add_subdirectory("checker")
+add_subdirectory("generator")
 
 if (NOT CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 # FIXME
@@ -22,7 +22,7 @@ endif ()
 include ("feedback.cmake")
 find_package (Git REQUIRED)
 
-RelevantTargetsInDirectory (targets "${CMAKE_CURRENT_LIST_DIR}/checker")
+RelevantTargetsInDirectory (targets "${CMAKE_CURRENT_LIST_DIR}/generator")
 
 ExcludeFromFeedback (${targets})
 GroupInFeedbackFolder (${targets})
