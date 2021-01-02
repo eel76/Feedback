@@ -232,7 +232,7 @@ endfunction ()
 
 
 function (ConfigureFeedbackTargetFromTargets feedback_target json_filename)
-  CreateFeedbackSourcesFromTargets (feedback_sources "${json_filename}" ${ARGN})
+  CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${json_filename}" ${ARGN})
 
   add_library ("${feedback_target}" SHARED EXCLUDE_FROM_ALL "${json_filename}" ${feedback_sources})
   target_compile_options("${feedback_target}" PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
@@ -286,6 +286,29 @@ function (ConfigureFeedbackForTargets json_filename)
   message (STATUS "Configuration done")
 endfunction ()
 
+function (Feedback_Create name)
+  cmake_parse_arguments (Feedback "" "RULES_FILE" "TARGETS" ${ARGN})
+
+  if (DEFINED Feedback_UNPARSED_ARGUMENTS)
+    message (FATAL_ERROR "Unparsed arguments: ${Feedback_UNPARSED_ARGUMENTS}")
+  endif ()
+
+  if (NOT DEFINED Feedback_RULES_FILE)
+    message (FATAL_ERROR "No rules file given.")
+  endif ()
+
+  if (NOT DEFINED Feedback_TARGETS)
+    message (FATAL_ERROR "No targets given.")
+  endif ()
+
+  message (STATUS "Configuring feedback ${name} for targets ${Create_TARGETS}")
+
+  get_filename_component (Feedback_RULES_FILE "${Feedback_RULES_FILE}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+
+  ConfigureFeedbackOptions ()
+  ConfigureFeedbackTargetFromTargets (${name} "${Feedback_RULES_FILE}" ${Feedback_TARGETS})
+endfunction ()
+
 function (CreateFeedbackSourceForSources filename json_filename)
   WriteFileList ("${filename}.sources.txt" ${ARGN})
 
@@ -305,14 +328,14 @@ function (CreateFeedbackSourceForSources filename json_filename)
   endif ()
 endfunction ()
 
-function (CreateFeedbackSourcesForTarget feedback_sources_variable json_filename target)
+function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_target json_filename target)
   RelevantSourcesFromTarget (relevant_sources "${target}")
   GetFeedbackSourceDir (source_dir)
 
   set (index 0)
   while (relevant_sources)
     math (EXPR index "${index} + 1")
-    set (feedback_source "${source_dir}/feedback_n_${target}_${index}.cpp")
+    set (feedback_source "${source_dir}/${feedback_target}_${target}_${index}.cpp")
     list (APPEND feedback_sources "${feedback_source}")
 
     RemoveFirstElementsFromList (sources 128 relevant_sources)
@@ -322,9 +345,9 @@ function (CreateFeedbackSourcesForTarget feedback_sources_variable json_filename
   set (${feedback_sources_variable} ${feedback_sources} PARENT_SCOPE)
 endfunction ()
 
-function (CreateFeedbackSourcesFromTargets all_sources_variable json_filename)
+function (CreateFeedbackSourcesFromTargets all_sources_variable feedback_target json_filename)
   foreach (target IN LISTS ARGN)
-    CreateFeedbackSourcesForTarget (sources "${json_filename}" "${target}")
+    CreateFeedbackSourcesForTarget (sources "${feedback_target}" "${json_filename}" "${target}")
     list (APPEND all_sources ${sources})
   endforeach()
 
