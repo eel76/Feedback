@@ -3,4 +3,4 @@ message (STATUS "feedback examples")
 
 add_executable (client main.cpp)
 
-ConfigureFeedbackForTargets ("errors.json" client)
+Feedback_Create (test_errors RULES_FILE errors.json TARGETS client)

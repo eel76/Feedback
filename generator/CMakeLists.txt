@@ -4,6 +4,7 @@ project (generator)
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   include (CTest)
+  set_property(GLOBAL PROPERTY USE_FOLDERS true)
 endif ()
 
 add_subdirectory (extern)

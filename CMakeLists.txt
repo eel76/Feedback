@@ -25,7 +25,8 @@ find_package (Git REQUIRED)
 RelevantTargetsInDirectory (targets "${CMAKE_CURRENT_LIST_DIR}/generator")
 
 ExcludeFromFeedback (${targets})
-GroupInFeedbackFolder (${targets})
+GroupTargetsInFolder (generator ${targets})
+GroupTargetsInFolder (feedback ${targets})
 
 if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR FEEDBACK_BUILD_TESTING) AND BUILD_TESTING)
   add_subdirectory(tests)
