@@ -9,6 +9,7 @@ struct parameters
   std::string sources_file_name;
   std::string files_to_check;
   std::string output_file_name;
+  bool        treat_warnings_as_errors;
 };
 
 auto parse(int argc, char* argv[]) -> parameters;
