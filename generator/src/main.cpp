@@ -52,7 +52,6 @@ private:
 
 struct rule
 {
-  std::string severity;
   std::string summary;
   std::string rationale;
   std::string workaround;
@@ -65,7 +64,6 @@ struct rule
 
 void from_json(nlohmann::json const& json, feedback::rule& rule)
 {
-  rule.severity = json.at("severity");
   rule.summary = json.at("summary");
   rule.rationale = json.at("rationale");
   rule.workaround = json.at("workaround");

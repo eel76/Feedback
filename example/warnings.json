@@ -1,6 +1,5 @@
 {
   "CG1": {
-    "severity": "error",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "/vg/random/|/vg[.]approval/",
     "matched_text": "(std|cxx11) *:: *(normal_distribution|poisson_distribution|uniform_int_distribution|uniform_real_distribution)",
@@ -11,7 +10,6 @@
     "workaround": "Please use a random number distribution from vg::random instead"
   },
   "CG2": {
-    "severity": "error",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "/vg/random/|/vg[.]approval/",
     "matched_text": "(std|cxx11) *:: *linear_congruential_engine",
@@ -22,7 +20,6 @@
     "workaround": "Please use vg::random::linear_congruential_engine instead."
   },
   "CG3": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "__VGL_MODULE_SYMBOL",
@@ -33,7 +30,6 @@
     "workaround": "Please define all free variables/functions in an unnamed namespace instead."
   },
   "CG4": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "[^ -~\n\r\t]",
@@ -44,7 +40,6 @@
     "workaround": "Please remove all non-ASCII characters, including a possible UTF-8 BOM."
   },
   "CG5": {
-    "severity": "error",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "/vg/memory/rpmalloc[.][ch]|/unit-tests/rpmalloc/tests.c",
     "matched_text": "\t",
@@ -55,7 +50,6 @@
     "workaround": "Please replace all tabulators with spaces and adjust your editor settings accordingly."
   },
   "CG6": {
-    "severity": "error",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "vgs[.]operatorpluginapi",
     "matched_text": "@VG_COPYRIGHT_NOTICE@|^[^\"]+Copyright[^\"]+Volume +Graphics +GmbH.*$",
@@ -66,7 +60,6 @@
     "workaround": "Please remove the copyright notice from the source file or add an exception to this coding guideline."
   },
   "CG7": {
-    "severity": "info",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": ".*",
     "matched_text": "[/][*] *VG_NARROWING_CAST *[*][/] *static_cast",
@@ -77,7 +70,6 @@
     "workaround": "Please review this 'static_cast' carefully! Either remove it with a more appropriate fix (this should be your default approach) or remove this comment if you think that this cast is adequate."
   },
   "CG8": {
-    "severity": "error",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "^ *# *include *([<][^>]*|[\"][^\"]*)[\\\\]",
@@ -88,7 +80,6 @@
     "workaround": "Please replace all backslashes with forward slashes in include directives."
   },
   "CG9": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "^ *# *include *[<]vg/cxx11/[^>]*[>]",
@@ -99,7 +90,6 @@
     "workaround": "Please use classes and headers from std library instead."
   },
   "CG10": {
-    "severity": "error",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "^ *# *include *([<][^>]*|[\"][^\"]*)//",
@@ -110,7 +100,6 @@
     "workaround": "Please remove the redundant forward slash."
   },
   "CG11": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "// *(TODO|FIXME|REVIEW|OPTIMIZE|HACK|XXX|BUG)",
@@ -121,7 +110,6 @@
     "workaround": "Please finish this task if possible. Remove its marker from our code base either way. Use an issue tracker like JIRA for important tasks."
   },
   "CG12": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "bind(1st|2nd)? *[(].*_\\d+.*[)]",
@@ -132,7 +120,6 @@
     "workaround": "Please use a (generic) lambda expression instead."
   },
   "CG13": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "\\[\\[ *deprecated *\\]\\]",
@@ -143,7 +130,6 @@
     "workaround": "Please add a workaround message or remove the attribute completely."
   },
   "CG14": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "vg/platform[.]h$",
     "matched_text": "VG_DEPRECATED_(LEVEL_(0_|1_|2_))?MSG *[(] *[\"][^\"]*[\"] *[)]",
@@ -154,7 +140,6 @@
     "workaround": "Please use a [[deprecated(\"msg\")]] attribute if you intend to fix all use cases soon, or remove the deprecation marker completely."
   },
   "CG15": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "vgl(Error|Warning) *[(] *(VGL|(:: *)vg *:: *)?String *:: *fromUtf8 *[(] *\"",
@@ -165,7 +150,6 @@
     "workaround": "Please mark this string for translation in a meaningful context."
   },
   "CG16": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "vgl(Error|Warning) *[(] *(VGL|(:: *)vg *:: *)?String *:: *fromUtf8 *[(] *\"\\^",
@@ -176,7 +160,6 @@
     "workaround": "Please remove the caret ^ at the start of the message."
   },
   "CG17": {
-    "severity": "warning",
     "matched_files": "(^|/)CMakeLists[.]txt$|[.]cmake$",
     "ignored_files": "^$",
     "matched_text": "^ *file *[(] *GLOB(_RECURSE)? +",
@@ -187,7 +170,6 @@
     "workaround": "Please maintain an explicit file list instead. You may leave your code as is and add an exception if and only if your CMake code is run in script mode rather than configuration mode."
   },
   "CG18": {
-    "severity": "info",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": ".*",
     "matched_text": " +$",
@@ -198,7 +180,6 @@
     "workaround": "Please remove any extra whitespace."
   },
   "CG20": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "^ *# *include +[<]vgl/(alignedarray|localarray.*|lockedarray.*|valuearray|valuearrayopcache|valuelist)[.]h[>]",
@@ -209,7 +190,6 @@
     "workaround": "Please include the corresponding template implementation file (.i) instead."
   },
   "CG21": {
-    "severity": "warning",
     "matched_files": "[.](h)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "^ *# *include +[<]vgl/(alignedarray|localarray.*|lockedarray.*|valuearray|valuearrayopcache|valuelist)[.]i[>]",
@@ -220,7 +200,6 @@
     "workaround": "Please include the corresponding template header file (.h) instead."
   },
   "CG22": {
-    "severity": "error",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "fromUtf8 *[(] *\"([^\"\\\\]|\\\\\")*[^ -~\n\r\t]",
@@ -231,7 +210,6 @@
     "workaround": "Please replace all non-ASCII characters with their proper UTF-8 encoding: http://www.utf8-chartable.de/unicode-utf8-table.pl?utf8=string-literal"
   },
   "CG23": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "^ *# *if.* [_a-z][_a-z0-9]*_PRODUCT_[_a-z0-9]*",
@@ -242,7 +220,6 @@
     "workaround": "Please use a modular component design, feature toggles and our product information API instead."
   },
   "CG24": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "^ *# *include +[<].+[.].+/(begin|end)[>]",
@@ -253,7 +230,6 @@
     "workaround": "Please remove this include directive. Include <vg/begin> at the beginning and <vg/end> at the end of a source file."
   },
   "CG25": {
-    "severity": "info",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": ".*",
     "matched_text": "typedef +[^;{}]+[;]",
@@ -264,7 +240,6 @@
     "workaround": "Please define this type alias with a 'using' declaration instead."
   },
   "CG26": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "[tT]ask *([.]|->) *error *[(] *VGL *:: *[_a-zA-Z0-9]+ *[)]",
@@ -275,7 +250,6 @@
     "workaround": "Please set the error diagnostic corresponding to the error code, e.g. vglGenericError () instead of VGL::GenericError."
   },
   "CG27": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": " *# *if.*_PRODUCT_.*",
@@ -286,7 +260,6 @@
     "workaround": "Use a component (library) design where product specific features are bundled in true modules, i.e. a module can be added/removed easily. A good designed module can be added/removed in your project description (a CMake lists file for instance). You may take a look at http://bitbucket.volumegraphics.com:7990/projects/SBP/repos/dependency-inversion/browse if you need inspiration. As an - inferior! - workaround you can use our runtime product info API to get the context of your code. Please note however, that you should avoid this approach in general due to security issues (product critical code should only be present in the wanted product). Additionally, we should strive for lean products: you don't have to pay (disk-space, compile-time, link-time, run-time, ...) for what you don't get."
   },
   "CG28": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "VGL_CLASS_API",
@@ -297,7 +270,6 @@
     "workaround": "Please use VGL_CLASS(class, superclass) instead."
   },
   "CG29": {
-    "severity": "warning",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": " *virtual .*override",
@@ -308,7 +280,6 @@
     "workaround": "remove 'virtual' when specifying 'override'"
   },
   "CG30": {
-    "severity": "error",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": "^ *# *include[<].*[>] *$",
@@ -319,7 +290,6 @@
     "workaround": "Please insert a space between #include and the following <"
   },
   "CG31": {
-    "severity": "error",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "vg\\.inline\\.controller|vg\\.inline\\.worker|vg\\.inline\\.approver|vg\\.inline\\.viewer|vgs\\.inlinecommons|vgq/messagebox|vgs\\.inlineimageviewer",
     "matched_text": "[^A-Za-z_](QMessageBox)",
@@ -330,7 +300,6 @@
     "workaround": "Replace QMessageBox with VGQMessageBox. (If you really know, what you do, use /*CG-31-Intended*/ to mark this usage as allowed / valid)"
   },
   "CG32": {
-    "severity": "error",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
     "ignored_files": "^$",
     "matched_text": " *VG_EXPORT +(class|struct) *",
