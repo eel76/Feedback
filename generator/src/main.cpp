@@ -166,7 +166,8 @@ auto make_check_rule_in_file_function(std::string const& file_name)
         out,
         R"_(
 # line {nr}
-{indentation}FEEDBACK("{id}: {summary} [file://{origin}]\n |\n | {first_matched_line}\n | {indentation}{annotation}\n |\n | SEVERITY  : {severity}\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
+
+{indentation}FEEDBACK("{id}: {summary} [file://{origin}]\n |\n | {first_matched_line}\n | {indentation}{annotation}\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
 )_",
         "indentation"_a = highlighting.indentation,
         "annotation"_a = highlighting.annotation,
@@ -175,7 +176,6 @@ auto make_check_rule_in_file_function(std::string const& file_name)
         "id"_a = format::as_literal{ id },
         "origin"_a = format::as_literal{ origin },
         "summary"_a = format::as_literal{ rule.summary },
-        "severity"_a = format::as_literal{ rule.severity },
         "rationale"_a = format::as_literal{ rule.rationale },
         "workaround"_a = format::as_literal{ rule.workaround });
     }
@@ -256,7 +256,7 @@ void print_header(std::ostream& output, bool treat_warnings_as_errors)
     output,
     R"_(// DO NOT EDIT: this file is generated automatically
 
-namespace { using symbol = int; }
+namespace {{ using symbol = int; }}
 
 #define __STRINGIFY(x) #x
 #define STRINGIFY(x) __STRINGIFY(x)
@@ -266,8 +266,8 @@ namespace { using symbol = int; }
 # define FEEDBACK_ERROR(msg) PRAGMA(GCC error msg)
 # define FEEDBACK_WARNING(msg) PRAGMA(GCC warning msg)
 #else
-# define FEEDBACK_ERROR(msg) PRAGMA(message (__FILE__ \"(\" STRINGIFY(__LINE__) \"): error \" msg))
-# define FEEDBACK_WARNING(msg) PRAGMA(message (__FILE__ \"(\" STRINGIFY(__LINE__) \"): warning \" msg))
+# define FEEDBACK_ERROR(msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): error " msg))
+# define FEEDBACK_WARNING(msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): warning " msg))
 #endif
 
 #define FEEDBACK(msg) FEEDBACK_{}(msg)

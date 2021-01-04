@@ -178,15 +178,15 @@ function (RelevantTargetsInDirectory targets_variable directory)
   set (${targets_variable} ${targets} PARENT_SCOPE)
 endfunction ()
 
-function (ConfigureFeedbackOptions)
-  # set (FEEDBACK_FILES_TO_CHECK ADDED_OR_MODIFIED_FILES CACHE STRING "files to check")
-  set (FEEDBACK_FILES_TO_CHECK ALL_VERSIONED_FILES CACHE STRING "files to check")
-  mark_as_advanced (FEEDBACK_FILES_TO_CHECK)
-  set_property (CACHE FEEDBACK_FILES_TO_CHECK PROPERTY STRINGS ALL_VERSIONED_FILES ADDED_OR_MODIFIED_FILES CUSTOM_FILE_LIST)
+#function (ConfigureFeedbackOptions)
+#  # set (FEEDBACK_FILES_TO_CHECK ADDED_OR_MODIFIED_FILES CACHE STRING "files to check")
+#  set (FEEDBACK_FILES_TO_CHECK ALL_VERSIONED_FILES CACHE STRING "files to check")
+#  mark_as_advanced (FEEDBACK_FILES_TO_CHECK)
+#  set_property (CACHE FEEDBACK_FILES_TO_CHECK PROPERTY STRINGS ALL_VERSIONED_FILES ADDED_OR_MODIFIED_FILES CUSTOM_FILE_LIST)
 
-  set (FEEDBACK_FILE_LIST "" CACHE FILEPATH "file list")
-  mark_as_advanced (FEEDBACK_FILE_LIST)
-endfunction ()
+#  set (FEEDBACK_FILE_LIST "" CACHE FILEPATH "file list")
+#  mark_as_advanced (FEEDBACK_FILE_LIST)
+#endfunction ()
 
 #function (GetAddedOrModifiedFileListPath added_or_modified_file_list_variable)
 #  if (FEEDBACK_FILES_TO_CHECK STREQUAL "CUSTOM_FILE_LIST")
@@ -237,11 +237,13 @@ function (GroupTargetsInFolder folder)
   endforeach()
 endfunction ()
 
-function (ConfigureFeedbackTargetFromTargets feedback_target json_filename)
-  CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${json_filename}" ${ARGN})
+function (ConfigureFeedbackTargetFromTargets type feedback_target json_filename)
+  CreateFeedbackSourcesFromTargets (feedback_sources "${type}" "${feedback_target}" "${json_filename}" ${ARGN})
 
   add_library ("${feedback_target}" SHARED EXCLUDE_FROM_ALL "${json_filename}" ${feedback_sources})
-  target_compile_options("${feedback_target}" PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
+  target_compile_options(${feedback_target} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
+  target_compile_options(${feedback_target} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:-WX->)
+
   ExcludeFromFeedback ("${feedback_target}")
   GroupTargetsInFolder (feedback "${feedback_target}")
   
@@ -250,22 +252,22 @@ function (ConfigureFeedbackTargetFromTargets feedback_target json_filename)
   endforeach()
 endfunction ()
 
-function (ConfigureFeedbackForTargets json_filename)
+#function (ConfigureFeedbackForTargets json_filename)
   #GetFeedbackSourceDir (source_dir)
   #set (cmake_lists_file "${source_dir}/CMakeLists.txt")
   
   #if (NOT CMAKE_CURRENT_LIST_FILE STREQUAL cmake_lists_file)
-  get_filename_component (json_filename "${json_filename}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+#  get_filename_component (json_filename "${json_filename}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
   #  file (WRITE "${cmake_lists_file}" "ConfigureFeedbackForTargets (\"${json_filename}\" ${ARGN})")
   #  add_subdirectory ("${source_dir}" "${source_dir}-Build")
   
   #  return ()
   #endif ()
 
-  message (STATUS "Configuring feedback")
+#  message (STATUS "Configuring feedback")
 
-  ConfigureFeedbackOptions ()
-  ConfigureFeedbackTargetFromTargets (ALL_FEEDBACK "${json_filename}" ${ARGN})
+#  ConfigureFeedbackOptions ()
+#  ConfigureFeedbackTargetFromTargets (ALL_FEEDBACK "${json_filename}" ${ARGN})
 
 #  if (FEEDBACK_FILES_TO_CHECK STREQUAL "ADDED_OR_MODIFIED_FILES")
 #    GetRepositoryPath (repository)
@@ -289,17 +291,17 @@ function (ConfigureFeedbackForTargets json_filename)
 #    add_dependencies(ALL_FEEDBACK ADDED_OR_MODIFIED_FILE_LIST)
 #  endif ()
 
-  message (STATUS "Configuration done")
-endfunction ()
+#  message (STATUS "Configuration done")
+#endfunction ()
 
-function (Feedback_Create name)
-  cmake_parse_arguments (Feedback "" "RULES_FILE" "TARGETS" ${ARGN})
+function (Feedback_ReportWarnings name)
+  cmake_parse_arguments (Feedback "" "RULES" "TARGETS" ${ARGN})
 
   if (DEFINED Feedback_UNPARSED_ARGUMENTS)
     message (FATAL_ERROR "Unparsed arguments: ${Feedback_UNPARSED_ARGUMENTS}")
   endif ()
 
-  if (NOT DEFINED Feedback_RULES_FILE)
+  if (NOT DEFINED Feedback_RULES)
     message (FATAL_ERROR "No rules file given.")
   endif ()
 
@@ -307,21 +309,42 @@ function (Feedback_Create name)
     message (FATAL_ERROR "No targets given.")
   endif ()
 
-  message (STATUS "Configuring feedback ${name} for targets ${Create_TARGETS}")
-
-  get_filename_component (Feedback_RULES_FILE "${Feedback_RULES_FILE}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
-
-  ConfigureFeedbackOptions ()
-  ConfigureFeedbackTargetFromTargets (${name} "${Feedback_RULES_FILE}" ${Feedback_TARGETS})
+  get_filename_component (Feedback_RULES "${Feedback_RULES}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+  ConfigureFeedbackTargetFromTargets (WARNINGS ${name} "${Feedback_RULES}" ${Feedback_TARGETS})
 endfunction ()
 
-function (CreateFeedbackSourceForSources filename json_filename)
+function (Feedback_ReportErrors name)
+  cmake_parse_arguments (Feedback "" "RULES" "TARGETS" ${ARGN})
+
+  if (DEFINED Feedback_UNPARSED_ARGUMENTS)
+    message (FATAL_ERROR "Unparsed arguments: ${Feedback_UNPARSED_ARGUMENTS}")
+  endif ()
+
+  if (NOT DEFINED Feedback_RULES)
+    message (FATAL_ERROR "No rules file given.")
+  endif ()
+
+  if (NOT DEFINED Feedback_TARGETS)
+    message (FATAL_ERROR "No targets given.")
+  endif ()
+
+  get_filename_component (Feedback_RULES "${Feedback_RULES}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+  ConfigureFeedbackTargetFromTargets (ERRORS ${name} "${Feedback_RULES}" ${Feedback_TARGETS})
+endfunction ()
+
+function (CreateFeedbackSourceForSources type filename json_filename)
   WriteFileList ("${filename}.sources.txt" ${ARGN})
 
-  if (FEEDBACK_FILES_TO_CHECK STREQUAL "ALL_VERSIONED_FILES")
+  unset (parameters)
+
+  if (type STREQUAL ERRORS)
+    list (APPEND parameters "-e")
+  endif ()
+
+#  if (FEEDBACK_FILES_TO_CHECK STREQUAL "ALL_VERSIONED_FILES")
     add_custom_command (
       OUTPUT "${filename}"
-      COMMAND "$<TARGET_FILE:generator>" "-o=${filename}" "${json_filename}" "${filename}.sources.txt"
+      COMMAND "$<TARGET_FILE:generator>" ${parameters} "-o=${filename}" "${json_filename}" "${filename}.sources.txt"
       DEPENDS generator "${json_filename}" ${ARGN}
       )
 #  elseif (FEEDBACK_FILES_TO_CHECK STREQUAL "ADDED_OR_MODIFIED_FILES")
@@ -331,10 +354,10 @@ function (CreateFeedbackSourceForSources filename json_filename)
 #      COMMAND "$<TARGET_FILE:generator>" "-f=${added_or_modified_file_list}" "-o=${filename}" "${json_filename}" "${filename}.sources.txt"
 #      DEPENDS generator "${added_or_modified_file_list}" "${json_filename}" ${ARGN}
 #      )
-  endif ()
+#  endif ()
 endfunction ()
 
-function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_target json_filename target)
+function (CreateFeedbackSourcesForTarget feedback_sources_variable type feedback_target json_filename target)
   RelevantSourcesFromTarget (relevant_sources "${target}")
   GetFeedbackSourceDir (source_dir)
 
@@ -345,25 +368,25 @@ function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_targ
     list (APPEND feedback_sources "${feedback_source}")
 
     RemoveFirstElementsFromList (sources 128 relevant_sources)
-    CreateFeedbackSourceForSources ("${feedback_source}" "${json_filename}" ${sources})
+    CreateFeedbackSourceForSources ("${type}" "${feedback_source}" "${json_filename}" ${sources})
   endwhile ()
 
   set (${feedback_sources_variable} ${feedback_sources} PARENT_SCOPE)
 endfunction ()
 
-function (CreateFeedbackSourcesFromTargets all_sources_variable feedback_target json_filename)
+function (CreateFeedbackSourcesFromTargets all_sources_variable type feedback_target json_filename)
   foreach (target IN LISTS ARGN)
-    CreateFeedbackSourcesForTarget (sources "${feedback_target}" "${json_filename}" "${target}")
+    CreateFeedbackSourcesForTarget (sources "${type}" "${feedback_target}" "${json_filename}" "${target}")
     list (APPEND all_sources ${sources})
   endforeach()
 
   set (${all_sources_variable} ${all_sources} PARENT_SCOPE)
 endfunction ()
 
-function (ConfigureFeedbackForRelevantTargets json_filename)
-  RelevantTargetsInDirectory (targets "${CMAKE_SOURCE_DIR}")
-  ConfigureFeedbackForTargets ("${json_filename}" ${targets})
-endfunction ()
+#function (ConfigureFeedbackForRelevantTargets json_filename)
+#  RelevantTargetsInDirectory (targets "${CMAKE_SOURCE_DIR}")
+#  ConfigureFeedbackForTargets ("${json_filename}" ${targets})
+#endfunction ()
 
 #GetFeedbackSourceDir (source_dir)
 #configure_file ("${CMAKE_CURRENT_LIST_DIR}/dummy.cpp" "${source_dir}/dummy.cpp" COPYONLY)
