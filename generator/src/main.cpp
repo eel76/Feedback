@@ -165,15 +165,8 @@ auto make_check_rule_in_file_function(std::string const& file_name)
       format::print(
         out,
         R"_(
-#if defined(__GNUC__)
 # line {nr}
-# pragma GCC warning \
-{indentation}"{id}: {summary} [{origin}]\n SEVERITY  : {severity}\n RATIONALE : {rationale}\n WORKAROUND: {workaround}"
-#elif defined(_MSC_VER)
-# line {nr}
-
-# pragma message(__FILE__ "(" STRINGIFY(__LINE__) "): warning: {id}: {summary} [file://{origin}]\n |\n | {first_matched_line}\n | {indentation}{annotation}\n |\n | SEVERITY  : {severity}\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
-#endif
+{indentation}FEEDBACK("{id}: {summary} [file://{origin}]\n |\n | {first_matched_line}\n | {indentation}{annotation}\n |\n | SEVERITY  : {severity}\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
 )_",
         "indentation"_a = highlighting.indentation,
         "annotation"_a = highlighting.annotation,
@@ -257,15 +250,28 @@ auto make_check_rules_function(std::ostream& output, std::string const& rules_fi
   };
 }
 
-void print_header(std::ostream& output)
+void print_header(std::ostream& output, bool treat_warnings_as_errors)
 {
-  output << R"_(// DO NOT EDIT: this file is generated automatically
+  format::print(
+    output,
+    R"_(// DO NOT EDIT: this file is generated automatically
 
 namespace { using symbol = int; }
 
 #define __STRINGIFY(x) #x
 #define STRINGIFY(x) __STRINGIFY(x)
-)_";
+#define PRAGMA(x) _Pragma (#x)
+
+#if defined (__GNUC__)
+# define FEEDBACK_ERROR(msg) PRAGMA(GCC error msg)
+# define FEEDBACK_WARNING(msg) PRAGMA(GCC warning msg)
+#else
+# define FEEDBACK_ERROR(msg) PRAGMA(message (__FILE__ \"(\" STRINGIFY(__LINE__) \"): error \" msg))
+# define FEEDBACK_WARNING(msg) PRAGMA(message (__FILE__ \"(\" STRINGIFY(__LINE__) \"): warning \" msg))
+#endif
+
+#define FEEDBACK(msg) FEEDBACK_{}(msg)
+)_", treat_warnings_as_errors ? "ERROR" : "WARNING");
 }
 
 void check_source_files(std::string const& source_files, std::function<void(std::string const&)> print_messages_from)
@@ -290,7 +296,7 @@ int main(int argc, char* argv[])
     auto const check_rules_function =
       make_check_rules_function(std::cout, parameters.rules_file_name, parameters.files_to_check);
 
-    print_header(std::cout);
+    print_header(std::cout, parameters.treat_warnings_as_errors);
     check_source_files(parameters.sources_file_name, check_rules_function);
   }
   catch (std::exception const& e)
