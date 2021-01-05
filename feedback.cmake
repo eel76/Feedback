@@ -159,12 +159,25 @@ function (RelevantTargets relevant_targets_variable)
   set (${relevant_targets_variable} "${relevant_targets}" PARENT_SCOPE)
 endfunction ()
 
+function (Feedback_RemoveExcludedTargets included_targets_variable)
+  foreach (target IN LISTS ARGN)
+    get_target_property (exclude_from_feedback "${target}" EXCLUDE_FROM_FEEDBACK)
+    if (NOT exclude_from_feedback)
+      list (APPEND included_targets "${target}")
+    endif ()
+  endforeach ()
+
+  set (${included_targets_variable} "${included_targets}" PARENT_SCOPE)
+endfunction ()
+
+
+# Feedback_FindTargets (targets_variable DIRECTORY directory TYPES type1 type2)
 function (AllTargetsInDirectory targets_variable directory)
-  get_directory_property(targets DIRECTORY ${directory} BUILDSYSTEM_TARGETS)
-  get_directory_property(subdirectories DIRECTORY ${directory} SUBDIRECTORIES)
+  get_directory_property(targets DIRECTORY "${directory}" BUILDSYSTEM_TARGETS)
+  get_directory_property(subdirectories DIRECTORY "${directory}" SUBDIRECTORIES)
 
   foreach (subdirectory IN LISTS subdirectories)
-    AllTargetsInDirectory (subdirectory_targets ${subdirectory})
+    AllTargetsInDirectory (subdirectory_targets "${subdirectory}")
     list (APPEND targets ${subdirectory_targets})
   endforeach ()
 
@@ -238,6 +251,7 @@ function (GroupTargetsInFolder folder)
 endfunction ()
 
 function (ConfigureFeedbackTargetFromTargets type feedback_target json_filename)
+  Feedback_RemoveExcludedTargets (ARGN ${ARGN})
   CreateFeedbackSourcesFromTargets (feedback_sources "${type}" "${feedback_target}" "${json_filename}" ${ARGN})
 
   add_library ("${feedback_target}" SHARED EXCLUDE_FROM_ALL "${json_filename}" ${feedback_sources})

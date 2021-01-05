@@ -10,8 +10,11 @@ FetchContent_MakeAvailable(Feedback)
 
 add_executable (example main.cpp)
 
-Feedback_ReportWarnings (example_warnings RULES warnings.json TARGETS example)
-Feedback_ReportErrors (example_errors RULES errors.json TARGETS example)
+add_executable (excluded_example main.cpp)
+set_target_properties(excluded_example PROPERTIES EXCLUDE_FROM_FEEDBACK TRUE)
+
+Feedback_ReportWarnings (example_warnings RULES warnings.json TARGETS example excluded_example)
+Feedback_ReportErrors (example_errors RULES errors.json TARGETS example excluded_example)
 
 #Feedback_DefaultWarnings (CHECK ALL_FILES)
 #Feedback_DefaultWarnings (CHECK MODIFIED_FILES)
