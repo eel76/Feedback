@@ -105,7 +105,41 @@ function (Feedback_RemoveExcludedTargets included_targets_variable)
 endfunction ()
 
 
-# Feedback_FindTargets (targets_variable DIRECTORY directory TYPES type1 type2)
+function (Feedback_FindTargets targets_variable)
+  cmake_parse_arguments (Feedback "" "DIRECTORY" "TYPES" ${ARGN})
+
+  if (DEFINED Feedback_UNPARSED_ARGUMENTS)
+    message (FATAL_ERROR "Unparsed arguments: ${Feedback_UNPARSED_ARGUMENTS}")
+  endif ()
+
+  if (NOT DEFINED Feedback_DIRECTORY)
+    message (FATAL_ERROR "No directory given.")
+  endif ()
+
+  if (NOT DEFINED Feedback_TYPES)
+    set (Feedback_TYPES STATIC_LIBRARY MODULE_LIBRARY SHARED_LIBRARY EXECUTABLE)
+  endif ()
+
+  get_directory_property(directory_targets DIRECTORY "${Feedback_DIRECTORY}" BUILDSYSTEM_TARGETS)
+  list(JOIN Feedback_TYPES " " types)
+
+  foreach (target IN LISTS directory_targets)
+    get_target_property (type "${target}" TYPE)
+    if (" ${types} " MATCHES " ${type} ")
+      list (APPEND targets "${target}")
+    endif ()
+  endforeach ()
+
+  get_directory_property(subdirectories DIRECTORY "${Feedback_DIRECTORY}" SUBDIRECTORIES)
+
+  foreach (subdirectory IN LISTS subdirectories)
+    Feedback_FindTargets (directory_targets DIRECTORY "${subdirectory}" TYPES ${Feedback_TYPES})
+    list (APPEND targets ${subdirectory_targets})
+  endforeach ()
+
+  set (${targets_variable} ${targets} PARENT_SCOPE)
+endfunction ()
+
 function (AllTargetsInDirectory targets_variable directory)
   get_directory_property(targets DIRECTORY "${directory}" BUILDSYSTEM_TARGETS)
   get_directory_property(subdirectories DIRECTORY "${directory}" SUBDIRECTORIES)
