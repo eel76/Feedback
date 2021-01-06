@@ -93,20 +93,6 @@ function (WriteFileList filename)
   WriteFileIfDifferent ("${filename}" "${file_list}")
 endfunction ()
 
-function (RelevantTargets relevant_targets_variable)
-  foreach (target IN LISTS ARGN)
-    get_target_property (type ${target} TYPE)
-    if (" STATIC_LIBRARY MODULE_LIBRARY SHARED_LIBRARY EXECUTABLE " MATCHES " ${type} ")
-      Feedback_IsExcluded (is_excluded "${target}")
-      if (NOT is_excluded)
-        list (APPEND relevant_targets ${target})
-      endif ()
-    endif ()
-  endforeach ()
-
-  set (${relevant_targets_variable} "${relevant_targets}" PARENT_SCOPE)
-endfunction ()
-
 function (Feedback_RemoveExcludedTargets included_targets_variable)
   foreach (target IN LISTS ARGN)
     Feedback_IsExcluded (is_excluded "${target}")
@@ -116,26 +102,6 @@ function (Feedback_RemoveExcludedTargets included_targets_variable)
   endforeach ()
 
   set (${included_targets_variable} "${included_targets}" PARENT_SCOPE)
-endfunction ()
-
-
-function (AllTargetsInDirectory targets_variable directory)
-  get_directory_property(targets DIRECTORY "${directory}" BUILDSYSTEM_TARGETS)
-  get_directory_property(subdirectories DIRECTORY "${directory}" SUBDIRECTORIES)
-
-  foreach (subdirectory IN LISTS subdirectories)
-    AllTargetsInDirectory (subdirectory_targets "${subdirectory}")
-    list (APPEND targets ${subdirectory_targets})
-  endforeach ()
-
-  set (${targets_variable} ${targets} PARENT_SCOPE)
-endfunction ()
-
-function (RelevantTargetsInDirectory targets_variable directory)
-  AllTargetsInDirectory (targets ${directory})
-  RelevantTargets (targets ${targets})
-
-  set (${targets_variable} ${targets} PARENT_SCOPE)
 endfunction ()
 
 #function (ConfigureFeedbackOptions)
@@ -301,9 +267,4 @@ function (CreateFeedbackSourcesFromTargets all_sources_variable type feedback_ta
 
   set (${all_sources_variable} ${all_sources} PARENT_SCOPE)
 endfunction ()
-
-#function (ConfigureFeedbackForRelevantTargets json_filename)
-#  RelevantTargetsInDirectory (targets "${CMAKE_SOURCE_DIR}")
-#  ConfigureFeedbackForTargets ("${json_filename}" ${targets})
-#endfunction ()
 
