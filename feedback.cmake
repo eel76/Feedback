@@ -8,11 +8,6 @@ function (GetFeedbackSourceDir source_dir_variable)
   set (${source_dir_variable} "${CMAKE_BINARY_DIR}/FeedbackSourceDir" PARENT_SCOPE)
 endfunction ()
 
-#function (GetFeedbackScript script_variable)
-#  GetFeedbackSourceDir (source_dir)
-#  set (${script_variable} "${source_dir}/Feedback.cmake" PARENT_SCOPE)
-#endfunction ()
-
 function (ToAbsolutePath paths_variable base_dir)
   foreach (path IN LISTS ${paths_variable})
     get_filename_component (path "${path}" ABSOLUTE BASE_DIR "${base_dir}")
@@ -83,67 +78,6 @@ function (WriteFileList filename)
   string (REGEX REPLACE ";" "\n" file_list "${ARGN};")
   WriteFileIfDifferent ("${filename}" "${file_list}")
 endfunction ()
-
-#function (GetRepositoryPath repository_variable)
-#  get_filename_component(repository "${CMAKE_SOURCE_DIR}" ABSOLUTE)
-
-#  while (NOT IS_DIRECTORY "${repository}/.git")
-#    get_filename_component (new_repository "${repository}" DIRECTORY)
-#    if (new_repository STREQUAL repository)
-#      message (FATAL_ERROR "'${CMAKE_SOURCE_DIR}' is not under version control!")
-#    endif ()
-#    set (repository "${new_repository}")
-#  endwhile ()
-
-#  set (${repository_variable} "${repository}" PARENT_SCOPE)
-#endfunction ()
-
-#function (StatusOfRepositoryEntries entries_variable repository)
-#  execute_process (
-#    COMMAND "@GIT_EXECUTABLE@" status --porcelain=v1 ${ARGN}
-#    WORKING_DIRECTORY "${repository}"
-#    OUTPUT_VARIABLE status
-#    )
-
-#  string (REGEX REPLACE "\\\\" "/" status "${status}")
-#  string (REGEX REPLACE "[\r\n]+$" "" status "${status}")
-#  string (REGEX REPLACE "[\r\n]+" ";" status "${status}")
-
-#  foreach (entry IN LISTS status)
-#    if (entry MATCHES "^(A.|.A) (.+)$")
-#      string (REGEX REPLACE "^...(.+)$" "\\1" file "${entry}")
-#      get_filename_component (file "${file}" ABSOLUTE BASE_DIR "${repository}")
-#      list (APPEND entries_added "${file}")
-#    elseif (entry MATCHES "^(D.|.D) (.+)$")
-#      string (REGEX REPLACE "^...(.+)$" "\\1" file "${entry}")
-#      get_filename_component (file "${file}" ABSOLUTE BASE_DIR "${repository}")
-#      list (APPEND entries_deleted "${file}")
-#    elseif (entry MATCHES "^(M.|.M) (.+)$")
-#      string (REGEX REPLACE "^...(.+)$" "\\1" file "${entry}")
-#      get_filename_component (file "${file}" ABSOLUTE BASE_DIR "${repository}")
-#      list (APPEND entries_modified "${file}")
-#    elseif (entry MATCHES "^[?][?] (.+)$")
-#      string (REGEX REPLACE "^...(.+)$" "\\1" file "${entry}")
-#      get_filename_component (file "${file}" ABSOLUTE BASE_DIR "${repository}")
-#      list (APPEND entries_unversioned "${file}")
-#    endif ()
-#  endforeach ()
-
-#  set (${entries_variable}_added ${entries_added} PARENT_SCOPE)
-#  set (${entries_variable}_deleted ${entries_deleted} PARENT_SCOPE)
-#  set (${entries_variable}_modified ${entries_modified} PARENT_SCOPE)
-#  set (${entries_variable}_unversioned ${entries_unversioned} PARENT_SCOPE)
-#endfunction ()
-
-#function (AddedOrModifiedRepositoryEntries modified_entries_variable repository)
-#  StatusOfRepositoryEntries (entries "${repository}" ${ARGN})
-#  set (${modified_entries_variable} ${entries_added} ${entries_modified} ${entries_unversioned} PARENT_SCOPE)
-#endfunction ()
-
-#function (WriteAddedOrModifiedFileList)
-#  AddedOrModifiedRepositoryEntries (added_or_modified_entries "${PARAMETER_REPOSITORY}" .)
-#  WriteFileList ("${PARAMETER_OUTPUT}" ${added_or_modified_entries})
-#endfunction ()
 
 function (RelevantTargets relevant_targets_variable)
   foreach (target IN LISTS ARGN)
@@ -401,21 +335,4 @@ endfunction ()
 #  RelevantTargetsInDirectory (targets "${CMAKE_SOURCE_DIR}")
 #  ConfigureFeedbackForTargets ("${json_filename}" ${targets})
 #endfunction ()
-
-#GetFeedbackSourceDir (source_dir)
-#configure_file ("${CMAKE_CURRENT_LIST_DIR}/dummy.cpp" "${source_dir}/dummy.cpp" COPYONLY)
-
-#GetFeedbackScript (script)
-#if ("${CMAKE_CURRENT_LIST_FILE}" IS_NEWER_THAN "${script}")
-#  file (REMOVE "${script}")
-#endif ()
-
-#configure_file ("${CMAKE_CURRENT_LIST_FILE}" "${script}" @ONLY ESCAPE_QUOTES)
-
-#if (SCRIPT_FUNCTION STREQUAL "WriteAddedOrModifiedFileList")
-#  WriteAddedOrModifiedFileList ()
-#  return ()
-#elseif (SCRIPT_FUNCTION)
-#  message (FATAL_ERROR "Unknown script function")
-#endif ()
 
