@@ -52,6 +52,7 @@ private:
 
 struct rule
 {
+  std::string type;
   std::string summary;
   std::string rationale;
   std::string workaround;
@@ -64,6 +65,7 @@ struct rule
 
 void from_json(nlohmann::json const& json, feedback::rule& rule)
 {
+  rule.type = "requirement"; // FIXME: json.at("type");
   rule.summary = json.at("summary");
   rule.rationale = json.at("rationale");
   rule.workaround = json.at("workaround");
@@ -134,9 +136,10 @@ public:
 
 auto make_check_rule_in_file_function(std::string const& file_name)
 {
+  using fmt::operator""_a;
+
   return [file_name,
           file_content = async_content_from(file_name)](auto const& id, auto const& rule, std::string const& origin) {
-    using fmt::operator""_a;
 
     if (not rule.matched_files.matches(file_name))
       return fmt::format("\n// rule {} not matched for current file name\n", id);
@@ -165,14 +168,16 @@ auto make_check_rule_in_file_function(std::string const& file_name)
         R"_(
 # line {nr}
 
-{indentation}FEEDBACK("{id}: {summary} [file://{origin}]\n |\n | {first_matched_line}\n | {indentation}{annotation}\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
+{indentation}FEEDBACK_{uppercase_type}({id}, "{summary} [{type} from file://{origin}]\n |\n | {first_matched_line}\n | {indentation}{annotation}\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
 )_",
         "indentation"_a = highlighting.indentation,
         "annotation"_a = highlighting.annotation,
         "nr"_a = search.line(),
         "first_matched_line"_a = format::as_literal{ highlighting.first_line },
-        "id"_a = format::as_literal{ id },
+        "id"_a = id,
         "origin"_a = format::as_literal{ origin },
+        "uppercase_type"_a = format::uppercase{ rule.type },
+        "type"_a = format::as_literal{ rule.type },
         "summary"_a = format::as_literal{ rule.summary },
         "rationale"_a = format::as_literal{ rule.rationale },
         "workaround"_a = format::as_literal{ rule.workaround });
@@ -250,6 +255,8 @@ auto make_check_rules_function(std::ostream& output, std::string const& rules_fi
 
 void print_header(std::ostream& output, bool treat_warnings_as_errors)
 {
+  using fmt::operator""_a;
+
   format::print(
     output,
     R"_(// DO NOT EDIT: this file is generated automatically
@@ -261,15 +268,18 @@ namespace {{ using symbol = int; }}
 #define PRAGMA(x) _Pragma (#x)
 
 #if defined (__GNUC__)
-# define FEEDBACK_ERROR(msg) PRAGMA(GCC error msg)
-# define FEEDBACK_WARNING(msg) PRAGMA(GCC warning msg)
+# define FEEDBACK_ERROR(id, msg) PRAGMA(GCC error id ": " msg)
+# define FEEDBACK_WARNING(id, msg) PRAGMA(GCC warning id ": " msg)
 #else
-# define FEEDBACK_ERROR(msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): error " msg))
-# define FEEDBACK_WARNING(msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): warning " msg))
+# define FEEDBACK_ERROR(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): error " id ": " msg))
+# define FEEDBACK_WARNING(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): warning " id ": " msg))
 #endif
 
-#define FEEDBACK(msg) FEEDBACK_{}(msg)
-)_", treat_warnings_as_errors ? "ERROR" : "WARNING");
+#define FEEDBACK_REQUIREMENT(id, msg) FEEDBACK_{response}(STRINGIFY(id), msg)
+#define FEEDBACK_GUIDELINE(id, msg) FEEDBACK_{response}(STRINGIFY(id), msg)
+#define FEEDBACK_IMPROVEMENT(id, msg) FEEDBACK_{response}(STRINGIFY(id), msg)
+#define FEEDBACK_SUGGESTION(id, msg) FEEDBACK_{response}(STRINGIFY(id), msg)
+)_", "response"_a = (treat_warnings_as_errors ? "ERROR" : "WARNING"));
 }
 
 void check_source_files(std::string const& source_files, std::function<void(std::string const&)> print_messages_from)
