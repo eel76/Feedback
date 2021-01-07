@@ -18,6 +18,11 @@ struct as_literal
   std::string_view str;
 };
 
+struct uppercase
+{
+  std::string_view str;
+};
+
 } // namespace format
 
 namespace fmt {
@@ -35,9 +40,10 @@ struct formatter<format::as_literal>
   auto format(format::as_literal const& text, FormatContext& ctx)
   {
     auto out = ctx.out();
-    for (auto it = text.str.begin(); it != text.str.end(); ++it)
+
+    for (auto const& ch : text.str)
     {
-      switch (*it)
+      switch (ch)
       {
       case '\n':
         out = base.format('\\', ctx);
@@ -51,10 +57,34 @@ struct formatter<format::as_literal>
         out = base.format('\\', ctx);
         [[fallthrough]];
       default:
-        out = base.format(*it, ctx);
+        out = base.format(ch, ctx);
         break;
       }
     }
+
+    return out;
+  }
+
+private:
+  formatter<char> base;
+};
+
+template <>
+struct formatter<format::uppercase>
+{
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx)
+  {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(format::uppercase const& text, FormatContext& ctx)
+  {
+    auto out = ctx.out();
+
+    for (auto const& ch : text.str)
+      out = base.format(std::toupper(ch), ctx);
 
     return out;
   }
