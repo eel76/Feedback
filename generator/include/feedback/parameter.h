@@ -5,11 +5,12 @@ namespace parameter {
 
 struct parameters
 {
-  std::string rules_file_name;
-  std::string sources_file_name;
+  std::string workflow_filename;
+  std::string rules_filename;
+  std::string sources_filename;
+  std::string diff_filename;
   std::string files_to_check;
-  std::string output_file_name;
-  bool        treat_warnings_as_errors{ false };
+  std::string output_filename;
 };
 
 auto parse(int argc, char* argv[]) -> parameters;

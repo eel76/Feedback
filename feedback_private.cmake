@@ -220,16 +220,10 @@ endfunction ()
 function (CreateFeedbackSourceForSources type filename json_filename)
   WriteFileList ("${filename}.sources.txt" ${ARGN})
 
-  unset (parameters)
-
-  if (type STREQUAL ERRORS)
-    list (APPEND parameters "-e")
-  endif ()
-
 #  if (FEEDBACK_FILES_TO_CHECK STREQUAL "ALL_VERSIONED_FILES")
     add_custom_command (
       OUTPUT "${filename}"
-      COMMAND "$<TARGET_FILE:generator>" ${parameters} "-o=${filename}" "${json_filename}" "${filename}.sources.txt"
+      COMMAND "$<TARGET_FILE:generator>" "-o=${filename}" "${json_filename}" "${filename}.sources.txt"
       DEPENDS generator "${json_filename}" ${ARGN}
       )
 #  elseif (FEEDBACK_FILES_TO_CHECK STREQUAL "ADDED_OR_MODIFIED_FILES")
@@ -267,4 +261,3 @@ function (CreateFeedbackSourcesFromTargets all_sources_variable type feedback_ta
 
   set (${all_sources_variable} ${all_sources} PARENT_SCOPE)
 endfunction ()
-
