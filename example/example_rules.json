@@ -1,0 +1,79 @@
+{
+  "EX1": {
+    "type": "guideline",
+    "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
+    "ignored_files": "/vg/random/|/vg[.]approval/",
+    "matched_text": "(std|cxx11) *:: *(normal_distribution|poisson_distribution|uniform_int_distribution|uniform_real_distribution)",
+    "ignored_text": "//.*(std|cxx11) *:: *(normal_distribution|poisson_distribution|uniform_int_distribution|uniform_real_distribution)",
+    "marked_text": ".*",
+    "summary": "Avoid random number distributions from std",
+    "rationale": "We want consistent results across all platforms. Unfortunately algorithms for distributions are not mandated, so implementations can vary. See also: https://www.reddit.com/r/cpp/comments/30w7cs/inconsistency_in_c_random/",
+    "workaround": "Please use a random number distribution from vg::random instead"
+  },
+  "EX2": {
+    "type": "guideline",
+    "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
+    "ignored_files": "^$",
+    "matched_text": "[^ -~\n\r\t]",
+    "ignored_text": "^$",
+    "marked_text": ".*",
+    "summary": "Source files are ASCII only",
+    "rationale": "Some tools are not able to deal with non-ASCII files properly. In addition, we avert bugs in fromUtf8(\"\") invocations.",
+    "workaround": "Please remove all non-ASCII characters, including a possible UTF-8 BOM."
+  },
+  "EX3": {
+    "type": "guideline",
+    "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
+    "ignored_files": "^$",
+    "matched_text": "\t",
+    "ignored_text": "^$",
+    "marked_text": ".*",
+    "summary": "Don't use tabulators in source files",
+    "rationale": "Developers who use spaces make more money than those who use tabs. See also: https://stackoverflow.blog/2017/06/15/developers-use-spaces-make-money-use-tabs/",
+    "workaround": "Please replace all tabulators with spaces and adjust your editor settings accordingly."
+  },
+  "EX4": {
+    "type": "guideline",
+    "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
+    "ignored_files": "^$",
+    "matched_text": "^ *# *include *([<][^>]*|[\"][^\"]*)[\\\\]",
+    "ignored_text": "^$",
+    "marked_text": "[\\\\]",
+    "summary": "Don't use backslashes in include directives",
+    "rationale": "Non Windows systems may not recognize a backslash as path delimiter.",
+    "workaround": "Please replace all backslashes with forward slashes in include directives."
+  },
+  "EX5": {
+    "type": "guideline",
+    "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
+    "ignored_files": "^$",
+    "matched_text": "^ *# *include *([<][^>]*|[\"][^\"]*)//",
+    "ignored_text": "^$",
+    "marked_text": "//",
+    "summary": "Duplicate forward slash in include directive",
+    "rationale": "Such typos are ignored by most compilers, but they complicate automated refactorings.",
+    "workaround": "Please remove the redundant forward slash."
+  },
+  "EX6": {
+    "type": "guideline",
+    "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
+    "ignored_files": "^$",
+    "matched_text": "^ *# *include[<].*[>] *$",
+    "ignored_text": "^$",
+    "marked_text": "include",
+    "summary": "The missing space between the preprocessor tokens",
+    "rationale": "It's necessary to have a space between #include and the following <, as its absence leads to incorrect parentheses counting by lupdate (Qt)",
+    "workaround": "Please insert a space between #include and the following <"
+  },
+  "EX7": {
+    "type": "guideline",
+    "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
+    "ignored_files": "^$",
+    "matched_text": "// *(TODO|FIXME|REVIEW|OPTIMIZE|HACK|XXX|BUG)",
+    "ignored_text": "^$",
+    "marked_text": "[A-Z]+",
+    "summary": "Unfinished task (TODO/FIXME/HACK/...)",
+    "rationale": "Task markers should be used only rarely and temporarily in our code base because they indicate a technical debt. They tend to rot over time and will be forgotton eventually.",
+    "workaround": "Please finish this task if possible. Remove its marker from our code base either way. Use an issue tracker like JIRA for important tasks."
+  }
+}

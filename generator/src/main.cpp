@@ -1,4 +1,5 @@
 #include "feedback/async.h"
+#include "feedback/container.h"
 #include "feedback/format.h"
 #include "feedback/io.h"
 #include "feedback/parameter.h"
@@ -8,10 +9,12 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <filesystem>
 #include <cxx20/syncstream>
 #include <map>
 #include <optional>
 #include <type_traits>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace feedback {
@@ -93,7 +96,7 @@ namespace feedback {
 
   void from_json(nlohmann::json const& json, feedback::rule& rule)
   {
-    rule.type = "requirement"; // FIXME: json.at("type");
+    rule.type = json.at("type");
     rule.summary = json.at("summary");
     rule.rationale = json.at("rationale");
     rule.workaround = json.at("workaround");
@@ -368,6 +371,55 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     return nlohmann::json::parse(io::content (ifstream)).get<feedback::workflow>();
   }
 
+  using changes = std::unordered_map<std::string, container::interval_map<int, bool>>;
+
+  auto parse_diff_from(std::string const& filename) -> changes
+  {
+    if (filename.empty())
+      return {};
+
+    auto ifstream = std::ifstream{ filename };
+    auto file_content = io::content(ifstream);
+
+    file_content = R"_(diff --git a/example/diff.txt b/example/diff.txt
+index 0edb85647c2..76445155a9a 100644
+--- a/example/diff.txt
++++ b/example/diff.txt
+@@ -1,13 +1,15 @@
+ a
+ b
+-c
+ d
+-e
+-f
+ g
+ h
++1
++2
+ i
+ j
++3
++4
++5
+ k
+ l
+ m
+)_";
+
+    auto entry = regex::compile("diff --git a/[^\n]+ b/([^\n]+)\n");
+
+    regex::match match;
+    regex::match skipped;
+    regex::match remaining;
+
+    remaining = file_content;
+
+    while (entry.find(remaining, &match, &skipped, &remaining))
+    {
+    }
+
+    return {};
+  }
 } // namespace
 
 int main(int argc, char* argv[])
@@ -378,6 +430,7 @@ int main(int argc, char* argv[])
   {
     auto const parameters = parameter::parse(argc, argv);
     auto const redirected_output = io::redirect(std::cout, parameters.output_filename);
+    auto const changes = parse_diff_from(parameters.diff_filename);
     auto const check_rules_function =
       make_check_rules_function(std::cout, parameters.rules_filename, parameters.files_to_check);
 
