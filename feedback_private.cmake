@@ -159,11 +159,11 @@ function (GroupTargetsInFolder folder)
   endforeach()
 endfunction ()
 
-function (ConfigureFeedbackTargetFromTargets type feedback_target json_filename)
+function (ConfigureFeedbackTargetFromTargets feedback_target rules_file workflow)
   Feedback_RemoveExcludedTargets (ARGN ${ARGN})
-  CreateFeedbackSourcesFromTargets (feedback_sources "${type}" "${feedback_target}" "${json_filename}" ${ARGN})
+  CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${rules_file}" "${workflow}" ${ARGN})
 
-  add_library ("${feedback_target}" SHARED EXCLUDE_FROM_ALL "${json_filename}" ${feedback_sources})
+  add_library ("${feedback_target}" SHARED EXCLUDE_FROM_ALL "${rules_file}" ${feedback_sources})
   target_compile_options(${feedback_target} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
   target_compile_options(${feedback_target} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:-WX->)
 
@@ -217,14 +217,36 @@ endfunction ()
 #  message (STATUS "Configuration done")
 #endfunction ()
 
-function (CreateFeedbackSourceForSources type filename json_filename)
+function (WriteWorkflow filename workflow)
+  unset (content)
+  unset (separator)
+
+  string (APPEND content "{\n")
+
+  foreach (type IN LISTS "FEEDBACK_WORKFLOW_${workflow}_TYPES")
+    string (APPEND content "${separator}")
+    set (separator ",\n")
+
+    string (APPEND content "  \"${type}\": {\n")
+    string (APPEND content "    \"check\": \"${FEEDBACK_WORKFLOW_${workflow}_CHECK_${type}}\",\n")
+    string (APPEND content "    \"response\": \"${FEEDBACK_WORKFLOW_${workflow}_RESPONSE_${type}}\"\n")
+    string (APPEND content "  }")
+  endforeach()
+
+  string (APPEND content "\n}")
+
+  file (WRITE "${filename}" "${content}")
+endfunction ()
+
+function (CreateFeedbackSourceForSources filename rules_file workflow)
   WriteFileList ("${filename}.sources.txt" ${ARGN})
+  WriteWorkflow ("${filename}.workflow.json" "${workflow}")
 
 #  if (FEEDBACK_FILES_TO_CHECK STREQUAL "ALL_VERSIONED_FILES")
     add_custom_command (
       OUTPUT "${filename}"
-      COMMAND "$<TARGET_FILE:generator>" "-o=${filename}" "${json_filename}" "${filename}.sources.txt"
-      DEPENDS generator "${json_filename}" ${ARGN}
+      COMMAND "$<TARGET_FILE:generator>" "-o=${filename}" "-w=${filename}.workflow.json" "${rules_file}" "${filename}.sources.txt"
+      DEPENDS generator "${rules_file}" "${filename}.workflow.json" "${filename}.sources.txt" ${ARGN}
       )
 #  elseif (FEEDBACK_FILES_TO_CHECK STREQUAL "ADDED_OR_MODIFIED_FILES")
 #    GetAddedOrModifiedFileListPath (added_or_modified_file_list)
@@ -236,7 +258,7 @@ function (CreateFeedbackSourceForSources type filename json_filename)
 #  endif ()
 endfunction ()
 
-function (CreateFeedbackSourcesForTarget feedback_sources_variable type feedback_target json_filename target)
+function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_target rules_file workflow target)
   RelevantSourcesFromTarget (relevant_sources "${target}")
   GetFeedbackSourceDir (source_dir)
 
@@ -247,17 +269,17 @@ function (CreateFeedbackSourcesForTarget feedback_sources_variable type feedback
     list (APPEND feedback_sources "${feedback_source}")
 
     RemoveFirstElementsFromList (sources 128 relevant_sources)
-    CreateFeedbackSourceForSources ("${type}" "${feedback_source}" "${json_filename}" ${sources})
+    CreateFeedbackSourceForSources ("${feedback_source}" "${rules_file}" "${workflow}" ${sources})
   endwhile ()
 
   set (${feedback_sources_variable} ${feedback_sources} PARENT_SCOPE)
 endfunction ()
 
-function (CreateFeedbackSourcesFromTargets all_sources_variable type feedback_target json_filename)
+function (CreateFeedbackSourcesFromTargets all_sources_variable feedback_target rules_file workflow)
   foreach (target IN LISTS ARGN)
-    CreateFeedbackSourcesForTarget (sources "${type}" "${feedback_target}" "${json_filename}" "${target}")
+    CreateFeedbackSourcesForTarget (sources "${feedback_target}" "${rules_file}" "${workflow}" "${target}")
     list (APPEND all_sources ${sources})
   endforeach()
 
-  set (${all_sources_variable} ${all_sources} PARENT_SCOPE)
+  set ("${all_sources_variable}" ${all_sources} PARENT_SCOPE)
 endfunction ()

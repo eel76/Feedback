@@ -69,15 +69,6 @@ namespace feedback {
   class workflow : public std::map<std::string, handling>
   {
   public:
-    workflow()
-    {
-      insert_or_assign("requirement", handling{ check::ALL_FILES, response::ERROR });
-      insert_or_assign("guideline", handling{ check::ALL_FILES, response::WARNING });
-      insert_or_assign("improvement", handling{ check::CHANGED_FILES, response::WARNING });
-      insert_or_assign("suggestion", handling{ check::CHANGED_CODE_LINES, response::WARNING });
-    }
-
-  public:
     static auto parse_from(std::istream& input_stream)
     {
       auto json = nlohmann::json{};
@@ -246,7 +237,7 @@ namespace {
           out,
           R"_(
 # line {nr}
-{indentation}FEEDBACK_{uppercase_type}({id}, "{summary} [{type} from file://{origin}]\n |\n | {first_matched_line}\n | {indentation}{annotation}\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
+{indentation}FEEDBACK_{uppercase_type}_MATCH({id}, "{summary} [{type} from file://{origin}]\n |\n | {first_matched_line}\n | {indentation}{annotation}\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
 )_",
 "indentation"_a = highlighting.indentation,
 "annotation"_a = highlighting.annotation,
@@ -344,11 +335,11 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
 #define PRAGMA(x) _Pragma (#x)
 
 #if defined (__GNUC__)
-# define FEEDBACK_ERROR(id, msg) PRAGMA(GCC error STRINGIFY(id) ": " msg)
-# define FEEDBACK_WARNING(id, msg) PRAGMA(GCC warning STRINGIFY(id) ": " msg)
+# define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(GCC error STRINGIFY(id) ": " msg)
+# define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(GCC warning STRINGIFY(id) ": " msg)
 #else
-# define FEEDBACK_ERROR(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): error " STRINGIFY(id) ": " msg))
-# define FEEDBACK_WARNING(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): warning " STRINGIFY(id) ": " msg))
+# define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): error " STRINGIFY(id) ": " msg))
+# define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): warning " STRINGIFY(id) ": " msg))
 #endif
 )_");
 
@@ -356,7 +347,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
       format::print(
         output,
         R"_(
-#define FEEDBACK_{}(id, msg) FEEDBACK_{}(id, msg))_", format::uppercase{ type }, format::uppercase{ to_string(handling.response) });
+#define FEEDBACK_{}_MATCH(id, msg) FEEDBACK_{}_RESPONSE(id, msg))_", format::uppercase{ type }, format::uppercase{ to_string(handling.response) });
   }
 
   void check_source_files(std::string const& source_files, std::function<void(std::string const&)> print_messages_from)
