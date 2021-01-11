@@ -73,13 +73,26 @@ namespace feedback {
   class workflow : public std::map<std::string, handling>
   {
   public:
-    static auto parse_from(std::istream& input_stream)
+    static auto parse_from(std::string const& filename)
     {
+      std::ifstream input_stream{ filename };
+
       auto json = nlohmann::json{};
       input_stream >> json;
 
-      return json.get<workflow>();
+      auto ret = json.get<workflow>();
+      ret.origin_ = filename;
+
+      return ret;
     }
+
+    auto origin() const
+    {
+      return origin_;
+    }
+
+  private:
+    std::string origin_;
   };
 
   struct rule
@@ -148,13 +161,26 @@ namespace feedback {
   class rules : public std::map<identifier, rule>
   {
   public:
-    static auto parse_from(std::istream& input_stream)
+    static auto parse_from(std::string const& filename)
     {
+      std::ifstream input_stream{ filename };
+
       auto json = nlohmann::json{};
       input_stream >> json;
 
-      return json.get<rules>();
+      auto ret = json.get<rules>();
+      ret.origin_ = filename;
+
+      return ret;
     }
+
+    auto origin() const
+    {
+      return origin_;
+    }
+
+  private:
+    std::string origin_;
   };
 
 } // namespace feedback
@@ -170,10 +196,10 @@ namespace {
       .share();
   }
 
-  auto workflow_from(std::string const& text)
-  {
-    return nlohmann::json::parse(text).get<feedback::workflow>();;
-  }
+  //auto workflow_from(std::string const& text)
+  //{
+  //  return nlohmann::json::parse(text).get<feedback::workflow>();;
+  //}
 
   auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern)
   {
@@ -210,10 +236,8 @@ namespace {
 
   auto make_check_rule_in_file_function(std::string const& filename)
   {
-    using fmt::operator""_a;
-
     return[filename,
-      file_content = async_content_from(filename)](auto const& id, auto const& rule, std::string const& origin) {
+      file_content = async_content_from(filename)](auto const& id, auto const& rule) {
 
       if (not rule.matched_files.matches(filename))
         return fmt::format("\n// rule {} not matched for current file name", id);
@@ -230,95 +254,62 @@ namespace {
 
         if (rule.ignored_text.matches(matched_lines))
         {
-          format::print(out, "\n// ignored match in line {nr}", "nr"_a = search.line());
+          format::print(out, "\n// ignored match in line {}", search.line());
           continue;
         }
+
+        // rule.type im workflow nachschauen, was wird gecheckt
+        // no_files => ignorieren
+        // all_files reporten
+        // changed_files => im diff überprüfen
+        // changed_code_lines => im diff überprüfen 
 
         auto const marked_text = search_marked_text(search.matched_text(), rule.marked_text);
         auto const highlighting = excerpt{ matched_lines, marked_text };
 
         format::print(
           out,
-          R"_(
-# line {nr}
-{indentation}FEEDBACK_{uppercase_type}_MATCH({id}, "{summary} [{type} from file://{origin}]\n |\n | {first_matched_line}\n | {indentation}{annotation}\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
-)_",
-"indentation"_a = highlighting.indentation,
-"annotation"_a = highlighting.annotation,
-"nr"_a = search.line() + 1,
-"first_matched_line"_a = format::as_literal{ highlighting.first_line },
-"id"_a = id,
-"origin"_a = format::as_literal{ origin },
-"uppercase_type"_a = format::uppercase{ rule.type },
-"type"_a = format::as_literal{ rule.type },
-"summary"_a = format::as_literal{ rule.summary },
-"rationale"_a = format::as_literal{ rule.rationale },
-"workaround"_a = format::as_literal{ rule.workaround });
+          "\n# line {}\n{}FEEDBACK_{}_MATCH(\"{}\", \"{}\")",
+search.line() + 1,
+highlighting.indentation,
+format::uppercase{ id },
+format::as_literal{ highlighting.first_line },
+highlighting.indentation + highlighting.annotation);
       }
 
       return out.str();
     };
   }
 
-  auto async_messages_from(std::string const& rules_file, feedback::rules const& rules, std::string const& source_file)
+  auto async_messages_from(feedback::rules const& rules, std::string const& source_filename)
   {
-    auto const check_rule_in_file_function = make_check_rule_in_file_function(source_file);
+    auto const check_rule_in_file_function = make_check_rule_in_file_function(source_filename);
 
     auto messages = std::vector<std::future<std::string>>{};
 
     for (auto const& [id, rule] : rules)
-      messages.push_back(async::launch(check_rule_in_file_function, id, rule, rules_file));
+      messages.push_back(async::launch(check_rule_in_file_function, id, rule));
 
     return messages;
   }
 
-  using filter = std::function<bool(std::string const&)>;
-
-  auto parse_filter_from(std::istream& input_stream)
-  {
-    auto filenames = std::unordered_set<std::string>{};
-
-    for (std::string filename; std::getline(input_stream, filename);)
-      filenames.emplace(filename);
-
-    return filter{ [filenames = std::move(filenames)] (auto const& filename) {
-      return filenames.count(filename) != 0;
-    } };
-  }
-
-  auto read_rules_from(std::string const& filename)
+  auto async_rules_from(std::string const& filename)
   {
     return async::launch([filename] {
-      auto input_stream = std::ifstream{ filename };
-      return feedback::rules::parse_from(input_stream);
+      return feedback::rules::parse_from(filename);
       })
       .share();
   }
 
-  auto read_files_to_check_from(std::string const& filename)
+  using filter = std::function<bool(std::string const&, int)>;
+
+  auto make_check_rules_function(std::shared_future<feedback::rules> rules)
   {
-    return async::launch([=] {
-      if (filename.empty())
-        return filter{ [](auto const&) { return true; } };
+    return [rules](std::string const& filename) {
 
-      auto input_stream = std::ifstream{ filename };
-      return parse_filter_from(input_stream);
-      })
-      .share();
-  }
+      auto messages = async_messages_from(rules.get(), filename);
 
-  auto make_check_rules_function(std::ostream& output, std::string const& rules_file, std::string const& files_to_check)
-  {
-    return[&output,
-      rules_file,
-      rules = read_rules_from(rules_file),
-      check_filename = read_files_to_check_from(files_to_check)](std::string const& filename) {
-      if (not std::invoke(check_filename.get(), filename))
-        return;
-
-      auto messages = async_messages_from(rules_file, rules.get(), filename);
-
-      auto synchronized_out = cxx20::osyncstream{ output };
+      auto synchronized_out = cxx20::osyncstream{ std::cout };
       format::print(synchronized_out, "\n\n# line 1 \"{}\"", filename);
 
       for (auto&& message : messages)
@@ -326,13 +317,30 @@ namespace {
     };
   }
 
-  void print_header(std::ostream& output, feedback::workflow workflow)
+  auto async_workflow_from(std::string const& filename) -> std::shared_future<feedback::workflow>
   {
+    return async::launch([filename] {
+      // FIXME: what does a missing workflow mean?
+      if (filename.empty())
+        return feedback::workflow{};
+
+      return feedback::workflow::parse_from(filename);
+      })
+      .share();
+  }
+
+  void print_header(feedback::rules const& rules, feedback::workflow const& workflow)
+  {
+    using fmt::operator""_a;
+
     format::print(
-      output,
+      std::cout,
       R"_(// DO NOT EDIT: this file is generated automatically
 
 namespace {{ using avoid_compiler_warnings_symbol = int; }}
+
+#define FEEDBACK_RULES "file://{feedback_rules}"
+#define FEEDBACK_WORKFLOW "file://{feedback_workflow}"
 
 #define __STRINGIFY(x) #x
 #define STRINGIFY(x) __STRINGIFY(x)
@@ -345,16 +353,25 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
 # define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): error " STRINGIFY(id) ": " msg))
 # define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): warning " STRINGIFY(id) ": " msg))
 #endif
-)_");
+)_"
+, "feedback_rules"_a = format::as_literal{ rules.origin() }
+, "feedback_workflow"_a = format::as_literal{ workflow.origin() });
 
-    for (auto const& [type, handling] : workflow)
+    for (auto [id, rule] : rules)
       format::print(
-        output,
+        std::cout,
         R"_(
-#define FEEDBACK_{}_MATCH(id, msg) FEEDBACK_{}_RESPONSE(id, msg))_", format::uppercase{ type }, format::uppercase{ to_string(handling.response) });
+#define FEEDBACK_{uppercase_id}_MATCH(match, highlighting) FEEDBACK_{response}_RESPONSE({id}, "{summary} [{type} from " FEEDBACK_RULES "]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |"))_",
+"id"_a = id,
+"uppercase_id"_a = format::uppercase{ id },
+"response"_a = format::uppercase{ to_string(workflow.at(rule.type).response) },
+"type"_a = format::as_literal{ rule.type },
+"summary"_a = format::as_literal{ rule.summary },
+"rationale"_a = format::as_literal{ rule.rationale },
+"workaround"_a = format::as_literal{ rule.workaround });
   }
 
-  void check_source_files(std::string const& source_files, std::function<void(std::string const&)> print_messages_from)
+  void print_matches(std::string const& source_files, std::function<void(std::string const&)> print_messages_from)
   {
     auto tasks = std::vector<async::task>{};
 
@@ -363,18 +380,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
       tasks.emplace_back([=] { print_messages_from(source_file); });
   }
 
-  auto read_workflow_from(std::string const& filename) -> feedback::workflow
-  {
-    if (filename.empty())
-      return {};
-
-    auto ifstream = std::ifstream{ filename };
-    return nlohmann::json::parse(io::content (ifstream)).get<feedback::workflow>();
-  }
-
-  // FIXME: changed_lines => line_changes
   using changed_lines = container::interval_map<int, bool>;
-  // FIXME: changes => all_changes, use filepath
   using changed_files = std::unordered_map<std::string, changed_lines>;
 
   auto parse_diff_block(std::string_view diff_block, changed_lines changes = changed_lines{ false })->changed_lines
@@ -446,43 +452,23 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     return changes;
   }
 
-  auto parse_diff_from(std::string const& filename) -> changed_files
+  auto async_changes_from(std::string const& diff_filename) -> std::shared_future<changed_files>
   {
-    if (filename.empty())
-      return {};
+    return async::launch([diff_filename] {
+      if (diff_filename.empty())
+        return changed_files{};
 
-    auto ifstream = std::ifstream{ filename };
-    auto file_content = io::content(ifstream);
-
-    file_content = R"_(diff --git a/example/diff.txt b/example/diff.txt
-index 0edb85647c2..76445155a9a 100644
---- a/example/diff.txt
-+++ b/example/diff.txt
-@@ -1,13 +1,15 @@
- a
- b
--c
- d
--e
--f
- g
- h
-+1
-+2
- i
- j
-+3
-+4
-+5
- k
- l
- m
-)_";
-
-    return parse_diff(file_content);
+      return parse_diff(async_content_from(diff_filename).get());
+      })
+      .share();
   }
 } // namespace
 
+// make_filter (rule, workflow, changes)
+
+// filter (filename)
+// filter (filename, linenr)
+// make a filter for each rule 
 int main(int argc, char* argv[])
 {
   std::ios::sync_with_stdio(false);
@@ -491,12 +477,14 @@ int main(int argc, char* argv[])
   {
     auto const parameters = parameter::parse(argc, argv);
     auto const redirected_output = io::redirect(std::cout, parameters.output_filename);
-    auto const diff_changes = parse_diff_from(parameters.diff_filename);
-    auto const check_rules_function =
-      make_check_rules_function(std::cout, parameters.rules_filename, parameters.files_to_check);
 
-    print_header(std::cout, read_workflow_from (parameters.workflow_filename));
-    check_source_files(parameters.sources_filename, check_rules_function);
+    auto const rules = async_rules_from(parameters.rules_filename);
+    auto const workflow = async_workflow_from(parameters.workflow_filename);
+    auto const diff = async_changes_from(parameters.diff_filename);
+    auto const check_rules_function = make_check_rules_function(rules);
+
+    print_header(rules.get(), workflow.get());
+    print_matches(parameters.sources_filename, check_rules_function);
   }
   catch (std::exception const& e)
   {

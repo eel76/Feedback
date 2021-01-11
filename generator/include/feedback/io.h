@@ -8,38 +8,38 @@
 
 namespace io {
 
-auto content(std::istream& in)
-{
-  std::stringstream sstr;
-  sstr << in.rdbuf();
-  return sstr.str();
-}
-
-auto redirect(std::ostream& stream, std::string const& file_name)
-{
-  struct redirection
+  auto content(std::istream& in)
   {
-    redirection(std::ostream& stream, std::string const& file_name)
-    : output_stream(stream)
-    , file_stream(file_name)
-    , backup(output_stream.rdbuf(file_stream.rdbuf()))
+    std::stringstream sstr;
+    sstr << in.rdbuf();
+    return sstr.str();
+  }
+
+  auto redirect(std::ostream& stream, std::string const& filename)
+  {
+    struct redirection
     {
-    }
-    ~redirection()
-    {
-      output_stream.rdbuf(backup);
-    }
+      redirection(std::ostream& stream, std::string const& filename)
+        : output_stream(stream)
+        , file_stream(filename)
+        , backup(output_stream.rdbuf(file_stream.rdbuf()))
+      {
+      }
+      ~redirection()
+      {
+        output_stream.rdbuf(backup);
+      }
 
-  private:
-    std::ostream& output_stream;
-    std::ofstream file_stream;
-    std::streambuf* backup;
-  };
+    private:
+      std::ostream& output_stream;
+      std::ofstream file_stream;
+      std::streambuf* backup;
+    };
 
-  if (file_name.empty())
-    return std::optional<redirection>{};
+    if (filename.empty())
+      return std::optional<redirection>{};
 
-  return std::make_optional<redirection>(stream, file_name);
-}
+    return std::make_optional<redirection>(stream, filename);
+  }
 
 } // namespace stream
