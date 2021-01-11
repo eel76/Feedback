@@ -70,7 +70,8 @@ namespace feedback {
     handling.response = json.at("response");
   }
 
-  class workflow : public std::map<std::string, handling>
+  template <class C>
+  class json_container : public C
   {
   public:
     static auto parse_from(std::string const& filename)
@@ -80,7 +81,7 @@ namespace feedback {
       auto json = nlohmann::json{};
       input_stream >> json;
 
-      auto ret = json.get<workflow>();
+      auto ret = json.get<json_container<C>>();
       ret.origin_ = filename;
 
       return ret;
@@ -94,6 +95,8 @@ namespace feedback {
   private:
     std::string origin_;
   };
+
+  using workflow = json_container<std::map<std::string, handling>>;
 
   struct rule
   {
@@ -158,30 +161,7 @@ namespace feedback {
     std::optional<int> nr;
   };
 
-  class rules : public std::map<identifier, rule>
-  {
-  public:
-    static auto parse_from(std::string const& filename)
-    {
-      std::ifstream input_stream{ filename };
-
-      auto json = nlohmann::json{};
-      input_stream >> json;
-
-      auto ret = json.get<rules>();
-      ret.origin_ = filename;
-
-      return ret;
-    }
-
-    auto origin() const
-    {
-      return origin_;
-    }
-
-  private:
-    std::string origin_;
-  };
+  using rules = json_container<std::map<identifier, rule>>;
 
 } // namespace feedback
 
@@ -195,11 +175,6 @@ namespace {
       })
       .share();
   }
-
-  //auto workflow_from(std::string const& text)
-  //{
-  //  return nlohmann::json::parse(text).get<feedback::workflow>();;
-  //}
 
   auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern)
   {
@@ -476,12 +451,13 @@ int main(int argc, char* argv[])
   try
   {
     auto const parameters = parameter::parse(argc, argv);
-    auto const redirected_output = io::redirect(std::cout, parameters.output_filename);
 
     auto const rules = async_rules_from(parameters.rules_filename);
     auto const workflow = async_workflow_from(parameters.workflow_filename);
     auto const diff = async_changes_from(parameters.diff_filename);
     auto const check_rules_function = make_check_rules_function(rules);
+
+    auto const redirected_output = io::redirect(std::cout, parameters.output_filename);
 
     print_header(rules.get(), workflow.get());
     print_matches(parameters.sources_filename, check_rules_function);
