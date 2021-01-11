@@ -314,9 +314,6 @@ highlighting.indentation + highlighting.annotation);
 
 namespace {{ using avoid_compiler_warnings_symbol = int; }}
 
-#define FEEDBACK_RULES "file://{feedback_rules}"
-#define FEEDBACK_WORKFLOW "file://{feedback_workflow}"
-
 #define __STRINGIFY(x) #x
 #define STRINGIFY(x) __STRINGIFY(x)
 #define PRAGMA(x) _Pragma (#x)
@@ -328,15 +325,14 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
 # define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): error " STRINGIFY(id) ": " msg))
 # define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): warning " STRINGIFY(id) ": " msg))
 #endif
-)_"
-, "feedback_rules"_a = format::as_literal{ rules.origin() }
-, "feedback_workflow"_a = format::as_literal{ workflow.origin() });
+)_");
 
     for (auto [id, rule] : rules)
       format::print(
         std::cout,
         R"_(
-#define FEEDBACK_{uppercase_id}_MATCH(match, highlighting) FEEDBACK_{response}_RESPONSE({id}, "{summary} [{type} from " FEEDBACK_RULES "]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |"))_",
+#define FEEDBACK_{uppercase_id}_MATCH(match, highlighting) FEEDBACK_{response}_RESPONSE({id}, "{summary} [{type} from file://{feedback_rules}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |"))_",
+"feedback_rules"_a = format::as_literal{ rules.origin() },
 "id"_a = id,
 "uppercase_id"_a = format::uppercase{ id },
 "response"_a = format::uppercase{ to_string(workflow.at(rule.type).response) },
