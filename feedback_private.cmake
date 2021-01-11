@@ -241,11 +241,12 @@ endfunction ()
 function (CreateFeedbackSourceForSources filename rules workflow)
   WriteFileList ("${filename}.sources.txt" ${ARGN})
   WriteWorkflow ("${filename}.workflow.json" "${workflow}")
+  file (WRITE "${filename}.diff" "")
 
 #  if (FEEDBACK_FILES_TO_CHECK STREQUAL "ALL_VERSIONED_FILES")
     add_custom_command (
       OUTPUT "${filename}"
-      COMMAND "$<TARGET_FILE:generator>" "-o=${filename}" "-w=${filename}.workflow.json" "${rules}" "${filename}.sources.txt"
+      COMMAND "$<TARGET_FILE:generator>" "-o=${filename}" "-w=${filename}.workflow.json" "-d=${filename}.diff" "${rules}" "${filename}.sources.txt"
       DEPENDS generator "${rules}" "${filename}.workflow.json" "${filename}.sources.txt" ${ARGN}
       )
 #  elseif (FEEDBACK_FILES_TO_CHECK STREQUAL "ADDED_OR_MODIFIED_FILES")

@@ -9,6 +9,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <charconv>
 #include <filesystem>
 #include <cxx20/syncstream>
 #include <map>
@@ -371,9 +372,81 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     return nlohmann::json::parse(io::content (ifstream)).get<feedback::workflow>();
   }
 
-  using changes = std::unordered_map<std::string, container::interval_map<int, bool>>;
+  // FIXME: changed_lines => line_changes
+  using changed_lines = container::interval_map<int, bool>;
+  // FIXME: changes => all_changes, use filepath
+  using changed_files = std::unordered_map<std::string, changed_lines>;
 
-  auto parse_diff_from(std::string const& filename) -> changes
+  auto parse_diff_block(std::string_view diff_block, changed_lines changes = changed_lines{ false })->changed_lines
+  {
+    auto starting_line_pattern = regex::compile("@@ [-][,0-9]+ [+]([0-9]+)[, ].*@@");
+    auto line_pattern = regex::compile("\n([+ ])");
+
+    regex::match starting_line;
+    if (!starting_line_pattern.matches(diff_block, { &starting_line }))
+      return changes;
+
+    int line_number = 1;
+
+    auto [p, ec] = std::from_chars(starting_line.data(), starting_line.data() + starting_line.size(), line_number);
+    if (ec == std::errc::invalid_argument)
+      return changes;
+
+    auto line_search = text::forward_search{ diff_block };
+    while (line_search.next(line_pattern))
+    {
+      auto const line = line_search.matched_text();
+
+      if (line[0] == '+')
+        changes.assign(line_number, line_number + 1, true);
+
+      ++line_number;
+    }
+
+    return changes;
+  }
+
+  auto parse_diff_section(std::string_view diff_section, changed_files changes = {}) -> changed_files
+  {
+    auto filename_pattern = regex::compile("\n[-][-][-] a/.+\n[+][+][+] b/(.+)\n");
+    auto block_pattern = regex::compile("\n(@@ [-][,0-9]+ [+][,0-9]+ @@.*\n([-+ ].*\n)*)");
+
+    regex::match filename_match;
+    if (!filename_pattern.matches(diff_section, { &filename_match }))
+      return changes;
+
+    auto const filename = std::string{ filename_match };
+    changes.try_emplace(filename, changed_lines{ false });
+
+    auto file_changes = std::move (changes.at(filename));
+
+    auto search = text::forward_search{ diff_section };
+    while (search.next(block_pattern))
+    {
+      auto const block = search.matched_text();
+      file_changes = parse_diff_block(block, std::move(file_changes));
+    }
+
+    changes.at (filename) = std::move (file_changes);
+    return changes;
+  }
+
+  auto parse_diff(std::string_view diff, changed_files changes = {}) -> changed_files
+  {
+    // FIXME: debug me: auto const section_pattern = regex::compile("(?:^|\n)([a-z].*\n)+([-][-][-] a/.+\n[+][+][+] b/(.+)\n([-+ @].*\n)*)");
+    auto const section_pattern = regex::compile("(?:^|\n)((?:[a-z].*\n)+[-][-][-] a/.+\n[+][+][+] b/(.+)\n([-+ @].*\n)*)");
+
+    auto search = text::forward_search{ diff };
+    while (search.next(section_pattern))
+    {
+      auto const section = search.matched_text();
+      changes = parse_diff_section(section, std::move (changes));
+    }
+
+    return changes;
+  }
+
+  auto parse_diff_from(std::string const& filename) -> changed_files
   {
     if (filename.empty())
       return {};
@@ -406,19 +479,7 @@ index 0edb85647c2..76445155a9a 100644
  m
 )_";
 
-    auto entry = regex::compile("diff --git a/[^\n]+ b/([^\n]+)\n");
-
-    regex::match match;
-    regex::match skipped;
-    regex::match remaining;
-
-    remaining = file_content;
-
-    while (entry.find(remaining, &match, &skipped, &remaining))
-    {
-    }
-
-    return {};
+    return parse_diff(file_content);
   }
 } // namespace
 
@@ -430,7 +491,7 @@ int main(int argc, char* argv[])
   {
     auto const parameters = parameter::parse(argc, argv);
     auto const redirected_output = io::redirect(std::cout, parameters.output_filename);
-    auto const changes = parse_diff_from(parameters.diff_filename);
+    auto const diff_changes = parse_diff_from(parameters.diff_filename);
     auto const check_rules_function =
       make_check_rules_function(std::cout, parameters.rules_filename, parameters.files_to_check);
 
