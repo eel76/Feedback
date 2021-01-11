@@ -45,6 +45,12 @@ struct interval_map
     emplace_hint(m_map, hint, keyEnd, valBehind);
   }
 
+  bool is_constant() const
+  {
+    assert(is_canonical());
+    return (++m_map.begin() == m_map.end());
+  }
+
   bool is_canonical() const
   {
     auto const position = std::adjacent_find(begin(m_map), end(m_map), [](auto&& lhs, auto&& rhs) { return lhs.second == rhs.second; });
