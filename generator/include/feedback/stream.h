@@ -6,7 +6,7 @@
 #include <sstream>
 #include <string>
 
-namespace io {
+namespace stream {
 
   auto content(std::istream& in)
   {

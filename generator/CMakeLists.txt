@@ -17,9 +17,9 @@ add_library (${PROJECT_NAME}.core STATIC
   "include/feedback/async.h"
   "include/feedback/container.h"
   "include/feedback/format.h"
-  "include/feedback/io.h"
   "include/feedback/parameter.h"
   "include/feedback/regex.h"
+  "include/feedback/stream.h"
   "include/feedback/text.h"
   )
 target_link_libraries (${PROJECT_NAME}.core

@@ -1,7 +1,7 @@
 #include "feedback/async.h"
 #include "feedback/container.h"
 #include "feedback/format.h"
-#include "feedback/io.h"
+#include "feedback/stream.h"
 #include "feedback/parameter.h"
 #include "feedback/regex.h"
 #include "feedback/text.h"
@@ -170,7 +170,7 @@ namespace {
   auto content_from(std::string const& filename)
   {
     auto input_stream = std::ifstream{ filename };
-    return io::content(input_stream);
+    return stream::content(input_stream);
   }
 
   auto async_content_from(std::string const& filename)
@@ -271,7 +271,7 @@ namespace {
 
         if (rule.ignored_files.matches(filename))
           continue;
-        
+
         messages.push_back(async::launch(find_matches, id, rule));
       }
 
@@ -432,7 +432,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
         return changed_files{};
 
       auto input_stream = std::ifstream{ filename };
-      return parse_diff (io::content(input_stream));
+      return parse_diff(stream::content(input_stream));
       })
       .share();
   }
@@ -493,7 +493,7 @@ int main(int argc, char* argv[])
     auto const workflow_filter = make_workflow_filter(workflow, diff);
     auto const print_matches_function = make_print_matches_function(rules, workflow_filter);
 
-    auto const redirected_output = io::redirect(std::cout, parameters.output_filename);
+    auto const redirected_output = stream::redirect(std::cout, parameters.output_filename);
 
     print_header(rules, workflow);
     print_matches(parameters.sources_filename, print_matches_function);
