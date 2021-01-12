@@ -182,7 +182,42 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow rele
 
     add_custom_command (
       OUTPUT "${source_dir}/all.diff"
-      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/all.diff" "@"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/all.diff" "@{push}"
+      WORKING_DIRECTORY "${worktree}"
+      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+      )
+
+    add_custom_command (
+      OUTPUT "${source_dir}/modified.diff"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/modified.diff"
+      WORKING_DIRECTORY "${worktree}"
+      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+      )
+
+    add_custom_command (
+      OUTPUT "${source_dir}/modified_or_staged.diff"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/modified_or_staged.diff" "@"
+      WORKING_DIRECTORY "${worktree}"
+      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+      )
+
+    add_custom_command (
+      OUTPUT "${source_dir}/staged.diff"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/staged.diff" "--staged" "@"
+      WORKING_DIRECTORY "${worktree}"
+      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+      )
+
+    add_custom_command (
+      OUTPUT "${source_dir}/staged_or_committed.diff"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/staged_or_committed.diff" "--staged" "@{push}"
+      WORKING_DIRECTORY "${worktree}"
+      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+      )
+
+    add_custom_command (
+      OUTPUT "${source_dir}/committed.diff"
+      COMMAND "$<TARGET_FILE:Git::Git>" "log" "--unified=0" "--branches" "--not" "--remotes" "--format=format:" ">" "${source_dir}/committed.diff"
       WORKING_DIRECTORY "${worktree}"
       DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
       )

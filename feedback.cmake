@@ -70,7 +70,7 @@ function (Feedback_Add name)
   endif ()
 
   if (Feedback_RELEVANT_CHANGES STREQUAL "configurable")
-    set ("${name}_RELEVANT_CHANGES" "all" CACHE STRING "Relevant changes for '${name}' feedback")
+    set ("${name}_RELEVANT_CHANGES" "modified_or_staged" CACHE STRING "Relevant changes for '${name}' feedback")
     set_property(CACHE "${name}_RELEVANT_CHANGES" PROPERTY STRINGS "all" "modified" "modified_or_staged" "staged" "staged_or_committed" "committed")
 
     set (Feedback_RELEVANT_CHANGES "${${name}_RELEVANT_CHANGES}")
