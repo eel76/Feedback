@@ -182,35 +182,35 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow rele
 
     add_custom_command (
       OUTPUT "${source_dir}/all.diff"
-      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/all.diff" "@{push}"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@{push}" ">" "${source_dir}/all.diff"
       WORKING_DIRECTORY "${worktree}"
       DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
       )
 
     add_custom_command (
       OUTPUT "${source_dir}/modified.diff"
-      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/modified.diff"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" ">" "${source_dir}/modified.diff"
       WORKING_DIRECTORY "${worktree}"
       DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
       )
 
     add_custom_command (
       OUTPUT "${source_dir}/modified_or_staged.diff"
-      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/modified_or_staged.diff" "@"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${source_dir}/modified_or_staged.diff"
       WORKING_DIRECTORY "${worktree}"
       DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
       )
 
     add_custom_command (
       OUTPUT "${source_dir}/staged.diff"
-      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/staged.diff" "--staged" "@"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--staged" "@" ">" "${source_dir}/staged.diff"
       WORKING_DIRECTORY "${worktree}"
       DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
       )
 
     add_custom_command (
       OUTPUT "${source_dir}/staged_or_committed.diff"
-      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/staged_or_committed.diff" "--staged" "@{push}"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--staged" "@{push}" ">" "${source_dir}/staged_or_committed.diff"
       WORKING_DIRECTORY "${worktree}"
       DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
       )
