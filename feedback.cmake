@@ -66,14 +66,14 @@ function (Feedback_Add name)
     set ("${name}_WORKFLOW" "developer" CACHE STRING "Workflow for '${name}' feedback")
     set_property(CACHE "${name}_WORKFLOW" PROPERTY STRINGS "ci" "maintainer" "component_builder" "developer" "solution_provider" "disabled")
 
-    set (Feedback_WORKFLOW "${name}_WORKFLOW")
+    set (Feedback_WORKFLOW "${${name}_WORKFLOW}")
   endif ()
 
   if (Feedback_RELEVANT_CHANGES STREQUAL "configurable")
     set ("${name}_RELEVANT_CHANGES" "all" CACHE STRING "Relevant changes for '${name}' feedback")
     set_property(CACHE "${name}_RELEVANT_CHANGES" PROPERTY STRINGS "all" "modified" "modified_or_staged" "staged" "staged_or_committed" "committed")
 
-    set (Feedback_RELEVANT_CHANGES "${name}_RELEVANT_CHANGES")
+    set (Feedback_RELEVANT_CHANGES "${${name}_RELEVANT_CHANGES}")
   endif ()
 
   set (is_disabled TRUE)
@@ -86,7 +86,7 @@ function (Feedback_Add name)
 
   if (NOT is_disabled)
     get_filename_component (Feedback_RULES "${Feedback_RULES}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
-    ConfigureFeedbackTargetFromTargets ("${name}" "${Feedback_RULES}" "${Feedback_WORKFLOW}" ${Feedback_TARGETS})
+    ConfigureFeedbackTargetFromTargets ("${name}" "${Feedback_RULES}" "${Feedback_WORKFLOW}" "${Feedback_RELEVANT_CHANGES}" ${Feedback_TARGETS})
   endif ()
 endfunction ()
 

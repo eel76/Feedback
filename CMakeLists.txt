@@ -30,4 +30,3 @@ Feedback_InternalTargets (${generator_targets})
 if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR FEEDBACK_BUILD_TESTING) AND BUILD_TESTING)
   add_subdirectory(tests)
 endif()
-

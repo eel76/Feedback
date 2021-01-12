@@ -19,7 +19,7 @@ function (Feedback_InternalTargets)
 endfunction ()
 
 function (GetFeedbackSourceDir source_dir_variable)
-  set (${source_dir_variable} "${CMAKE_BINARY_DIR}/FeedbackSourceDir" PARENT_SCOPE)
+  set (${source_dir_variable} "${CMAKE_BINARY_DIR}/feedback" PARENT_SCOPE)
 endfunction ()
 
 function (ToAbsolutePath paths_variable base_dir)
@@ -104,35 +104,6 @@ function (Feedback_RemoveExcludedTargets included_targets_variable)
   set (${included_targets_variable} "${included_targets}" PARENT_SCOPE)
 endfunction ()
 
-#function (ConfigureFeedbackOptions)
-#  # set (FEEDBACK_FILES_TO_CHECK ADDED_OR_MODIFIED_FILES CACHE STRING "files to check")
-#  set (FEEDBACK_FILES_TO_CHECK ALL_VERSIONED_FILES CACHE STRING "files to check")
-#  mark_as_advanced (FEEDBACK_FILES_TO_CHECK)
-#  set_property (CACHE FEEDBACK_FILES_TO_CHECK PROPERTY STRINGS ALL_VERSIONED_FILES ADDED_OR_MODIFIED_FILES CUSTOM_FILE_LIST)
-
-#  set (FEEDBACK_FILE_LIST "" CACHE FILEPATH "file list")
-#  mark_as_advanced (FEEDBACK_FILE_LIST)
-#endfunction ()
-
-#function (GetAddedOrModifiedFileListPath added_or_modified_file_list_variable)
-#  if (FEEDBACK_FILES_TO_CHECK STREQUAL "CUSTOM_FILE_LIST")
-#    set (${added_or_modified_file_list_variable} "${FEEDBACK_FILE_LIST}" PARENT_SCOPE)
-#    return ()
-#  endif ()
-
-#  GetFeedbackSourceDir (source_dir)
-#  set (${added_or_modified_file_list_variable} "${source_dir}/added_or_modified_file_list.txt" PARENT_SCOPE)
-#endfunction ()
-
-#function (RelevantSourcesFromTargetList relevant_sources_variable)
-#  foreach (target IN LISTS ARGN)
-#    RelevantSourcesFromTarget (sources "${target}")
-#    list (APPEND relevant_sources ${sources})
-#  endforeach ()
-
-#  set (${relevant_sources_variable} ${relevant_sources} PARENT_SCOPE)
-#endfunction ()
-
 function (RemoveFirstElementsFromList chunk_variable count list_variable)
   set (list ${${list_variable}})
 
@@ -159,17 +130,89 @@ function (GroupTargetsInFolder folder)
   endforeach()
 endfunction ()
 
-function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow)
+
+function (GetWorktree worktree_variable)
+  cmake_parse_arguments (Worktree "" "HINT" "" ${ARGN})
+
+  if (DEFINED Worktree_UNPARSED_ARGUMENTS)
+    message (FATAL_ERROR "Unparsed arguments: ${Worktree_UNPARSED_ARGUMENTS}")
+  endif ()
+
+  set (worktree "${CMAKE_SOURCE_DIR}")
+
+  if (DEFINED Worktree_HINT)
+    set (worktree "${Worktree_HINT}")
+  endif ()
+
+  while (NOT EXISTS "${worktree}/.git")
+    message (STATUS "worktree check: ${worktree}")
+
+    if (NOT IS_DIRECTORY "${worktree}")
+      message (FATAL_ERROR "Worktree not found")
+    endif ()
+
+    get_filename_component(worktree "${worktree}" DIRECTORY)
+  endwhile ()
+
+  set (${worktree_variable} "${worktree}" PARENT_SCOPE)
+endfunction ()
+
+function (GetRepository repository_variable)
+  GetWorktree (worktree ${ARGN})
+
+  if (NOT IS_DIRECTORY "${worktree}/.git")
+    file (READ "${worktree}/.git" gitdir)
+    string (REGEX MATCH "gitdir[:] (.*)" gitdir "${gitdir}")
+    GetWorktree (worktree HINT "${gitdir}")
+  endif ()
+
+  set (${repository_variable} "${worktree}" PARENT_SCOPE)
+endfunction ()
+
+function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow relevant_changes)
+
+  GetFeedbackSourceDir (source_dir)
+
+  if (NOT TARGET DIFF)
+
+    GetWorktree (worktree)
+    message (STATUS "worktree: ${worktree}")
+
+    GetRepository (repository HINT "${worktree}")
+    message (STATUS "repository: ${repository}")
+
+    file (GLOB_RECURSE refs CONFIGURE_DEPENDS "${repository}/.git/refs/*")
+    message (STATUS "refs: ${refs}")
+
+#    add_custom_command (
+#      OUTPUT "all.git.diff"
+#      COMMAND "$<TARGET_FILE:Git>" "diff" "--output=all.git.diff" "@"
+#      COMMAND "${CMAKE_COMMAND}" "-E" "copy_if_different" "all.git.diff" "all.diff"
+#      DEPENDS Git
+#      BYPRODUCTS "all.diff"
+#      )
+
+    find_package(Git REQUIRED)
+
+    add_custom_command (
+      OUTPUT "${source_dir}/all.diff"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/all.diff" "@"
+      WORKING_DIRECTORY "${worktree}"
+      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+      )
+
+    add_library(DIFF INTERFACE)
+  endif ()
+
   Feedback_RemoveExcludedTargets (ARGN ${ARGN})
-  CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${rules}" "${workflow}" ${ARGN})
+  CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${rules}" "${workflow}" "${source_dir}/${relevant_changes}.diff" ${ARGN})
 
   add_library ("${feedback_target}" SHARED EXCLUDE_FROM_ALL "${rules}" ${feedback_sources})
   target_compile_options(${feedback_target} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
   target_compile_options(${feedback_target} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:-WX->)
 
-  Feedback_Exclude ("${feedback_target}")
-  GroupTargetsInFolder (feedback "${feedback_target}")
-  
+  Feedback_InternalTargets ("${feedback_target}")
+
   foreach (target IN LISTS ARGN)
     add_dependencies ("${target}" "${feedback_target}")
   endforeach()
@@ -235,31 +278,21 @@ function (WriteWorkflow filename workflow)
 
   string (APPEND content "\n}")
 
-  file (WRITE "${filename}" "${content}")
+  WriteFileIfDifferent ("${filename}" "${content}")
 endfunction ()
 
-function (CreateFeedbackSourceForSources filename rules workflow)
+function (CreateFeedbackSourceForSources filename rules workflow diff)
   WriteFileList ("${filename}.sources.txt" ${ARGN})
   WriteWorkflow ("${filename}.workflow.json" "${workflow}")
-  file (WRITE "${filename}.diff" "")
 
-#  if (FEEDBACK_FILES_TO_CHECK STREQUAL "ALL_VERSIONED_FILES")
-    add_custom_command (
-      OUTPUT "${filename}"
-      COMMAND "$<TARGET_FILE:generator>" "-o=${filename}" "-w=${filename}.workflow.json" "-d=${filename}.diff" "${rules}" "${filename}.sources.txt"
-      DEPENDS generator "${rules}" "${filename}.workflow.json" "${filename}.sources.txt" ${ARGN}
-      )
-#  elseif (FEEDBACK_FILES_TO_CHECK STREQUAL "ADDED_OR_MODIFIED_FILES")
-#    GetAddedOrModifiedFileListPath (added_or_modified_file_list)
-#    add_custom_command (
-#      OUTPUT "${filename}"
-#      COMMAND "$<TARGET_FILE:generator>" "-f=${added_or_modified_file_list}" "-o=${filename}" "${json_filename}" "${filename}.sources.txt"
-#      DEPENDS generator "${added_or_modified_file_list}" "${json_filename}" ${ARGN}
-#      )
-#  endif ()
+  add_custom_command (
+    OUTPUT "${filename}"
+    COMMAND "$<TARGET_FILE:generator>" "-o=${filename}" "-w=${filename}.workflow.json" "-d=${diff}" "${rules}" "${filename}.sources.txt"
+    DEPENDS generator "${rules}" "${filename}.workflow.json" "${diff}" "${filename}.sources.txt" ${ARGN}
+    )
 endfunction ()
 
-function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_target rules workflow target)
+function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_target rules workflow diff target)
   RelevantSourcesFromTarget (relevant_sources "${target}")
   GetFeedbackSourceDir (source_dir)
 
@@ -270,15 +303,15 @@ function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_targ
     list (APPEND feedback_sources "${feedback_source}")
 
     RemoveFirstElementsFromList (sources 128 relevant_sources)
-    CreateFeedbackSourceForSources ("${feedback_source}" "${rules}" "${workflow}" ${sources})
+    CreateFeedbackSourceForSources ("${feedback_source}" "${rules}" "${workflow}" "${diff}" ${sources})
   endwhile ()
 
   set (${feedback_sources_variable} ${feedback_sources} PARENT_SCOPE)
 endfunction ()
 
-function (CreateFeedbackSourcesFromTargets all_sources_variable feedback_target rules workflow)
+function (CreateFeedbackSourcesFromTargets all_sources_variable feedback_target rules workflow diff)
   foreach (target IN LISTS ARGN)
-    CreateFeedbackSourcesForTarget (sources "${feedback_target}" "${rules}" "${workflow}" "${target}")
+    CreateFeedbackSourcesForTarget (sources "${feedback_target}" "${rules}" "${workflow}" "${diff}" "${target}")
     list (APPEND all_sources ${sources})
   endforeach()
 
