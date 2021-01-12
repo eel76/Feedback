@@ -366,7 +366,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
   class changed_files : public std::unordered_map<std::string, changed_lines>
   {
   public:
-    auto lines_from(std::string const& filename) const -> changed_lines
+    auto lines_from(std::string_view filename) const -> changed_lines
     {
       for (auto const& [changed_filename, changed_code_lines] : *this)
         if (text::ends_with(filename, changed_filename))
@@ -460,7 +460,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
 
   auto make_is_relevant_function(std::shared_future<feedback::workflow> shared_workflow, std::shared_future<changed_files> shared_changes)
   {
-    return [=](std::string const& filename)
+    return [=](std::string_view filename)
     {
       auto const shared_file_modifications = async::share([=]
         {
