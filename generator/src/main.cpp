@@ -167,13 +167,17 @@ namespace feedback {
 
 namespace {
 
+  auto content_from(std::string const& filename)
+  {
+    auto input_stream = std::ifstream{ filename };
+    return io::content(input_stream);
+  }
+
   auto async_content_from(std::string const& filename)
   {
     return async::launch([=] {
-      auto input_stream = std::ifstream{ filename };
-      return io::content(input_stream);
-      })
-      .share();
+      return content_from(filename);
+      }).share();
   }
 
   auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern)
@@ -209,17 +213,10 @@ namespace {
     std::string annotation;
   };
 
-  using filter = std::function<bool(feedback::rule const& rule, std::string const&, int)>;
-
-  auto make_check_rule_in_file_function(/* std::shared_future<std::string> shared_content, */ std::string const& filename, ::filter filter)
+  template <class FILTER>
+  auto find_matches_function(std::shared_future<std::string> shared_content, FILTER is_line_checked)
   {
-    return[shared_content = async_content_from(filename), filename, filter](auto const& id, auto const& rule) {
-
-      if (not rule.matched_files.matches(filename))
-        return fmt::format("\n// rule {} not matched for current file name", id);
-
-      if (rule.ignored_files.matches(filename))
-        return fmt::format("\n// rule {} ignored for current file name", id);
+    return[shared_content, is_line_checked](auto const& id, auto const& rule) -> std::string {
 
       auto out = std::ostringstream{};
 
@@ -227,15 +224,11 @@ namespace {
       while (search.next(rule.matched_text))
       {
         auto const matched_lines = search.matched_lines();
-
         if (rule.ignored_text.matches(matched_lines))
-        {
-          format::print(out, "\n// ignored match in line {}", search.line());
           continue;
-        }
 
         auto const line_number = search.line() + 1;
-        if (!filter(rule, filename, line_number))
+        if (!is_line_checked(rule, line_number))
           continue;
 
         auto const marked_text = search_marked_text(search.matched_text(), rule.marked_text);
@@ -255,22 +248,32 @@ namespace {
     };
   }
 
-  auto make_print_matches_function(std::shared_future<feedback::rules> shared_rules, ::filter filter)
+  template <class FILTER>
+  auto make_print_matches_function(std::shared_future<feedback::rules> shared_rules, FILTER is_line_in_file_checked)
   {
-    return [shared_rules, filter](std::string const& filename) {
+    return [shared_rules, is_line_in_file_checked](std::string const& filename) {
 
-      //auto const shared_content = async_content_from(filename);
+      auto const shared_content = async_content_from(filename);
 
-      // filter kommt rein ...
+      auto const is_line_checked = [filename, is_line_in_file_checked](feedback::rule const& rule, int line)
+      {
+        return is_line_in_file_checked(rule, filename, line);
+      };
 
-      // neuer filter übergibt dem alten filter immer filename als erstes argument
-
-      auto const check_rule_in_file_function = make_check_rule_in_file_function(/* shared_content, */ filename, filter);
+      auto const find_matches = find_matches_function(shared_content, is_line_checked);
 
       auto messages = std::vector<std::future<std::string>>{};
 
       for (auto const& [id, rule] : shared_rules.get())
-        messages.push_back(async::launch(check_rule_in_file_function, id, rule));
+      {
+        if (not rule.matched_files.matches(filename))
+          continue;
+
+        if (rule.ignored_files.matches(filename))
+          continue;
+        
+        messages.push_back(async::launch(find_matches, id, rule));
+      }
 
       auto synchronized_out = cxx20::osyncstream{ std::cout };
       format::print(synchronized_out, "\n\n# line 1 \"{}\"", filename);
@@ -288,7 +291,7 @@ namespace {
       .share();
   }
 
-  auto async_workflow_from(std::string const& filename) -> std::shared_future<feedback::workflow>
+  auto async_workflow_from(std::string const& filename)
   {
     return async::launch([filename] {
       // FIXME: what does a missing workflow mean?
@@ -422,13 +425,14 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     return changes;
   }
 
-  auto async_changes_from(std::string const& diff_filename) -> std::shared_future<changed_files>
+  auto async_diff_from(std::string const& filename) -> std::shared_future<changed_files>
   {
-    return async::launch([diff_filename] {
-      if (diff_filename.empty())
+    return async::launch([filename] {
+      if (filename.empty())
         return changed_files{};
 
-      return parse_diff(async_content_from(diff_filename).get());
+      auto input_stream = std::ifstream{ filename };
+      return parse_diff (io::content(input_stream));
       })
       .share();
   }
@@ -440,7 +444,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     return (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix));
   }
 
-  auto make_workflow_filter(std::shared_future<feedback::workflow> shared_workflow, std::shared_future<changed_files> shared_changes) -> filter
+  auto make_workflow_filter(std::shared_future<feedback::workflow> shared_workflow, std::shared_future<changed_files> shared_changes)
   {
     return [shared_workflow, shared_changes](feedback::rule const& rule, std::string const& filename, int line_number)
     {
@@ -484,7 +488,8 @@ int main(int argc, char* argv[])
 
     auto const rules = async_rules_from(parameters.rules_filename);
     auto const workflow = async_workflow_from(parameters.workflow_filename);
-    auto const diff = async_changes_from(parameters.diff_filename);
+    auto const diff = async_diff_from(parameters.diff_filename);
+
     auto const workflow_filter = make_workflow_filter(workflow, diff);
     auto const print_matches_function = make_print_matches_function(rules, workflow_filter);
 
