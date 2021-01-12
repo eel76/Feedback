@@ -145,8 +145,6 @@ function (GetWorktree worktree_variable)
   endif ()
 
   while (NOT EXISTS "${worktree}/.git")
-    message (STATUS "worktree check: ${worktree}")
-
     if (NOT IS_DIRECTORY "${worktree}")
       message (FATAL_ERROR "Worktree not found")
     endif ()
@@ -175,24 +173,12 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow rele
 
   if (NOT TARGET DIFF)
 
-    GetWorktree (worktree)
-    message (STATUS "worktree: ${worktree}")
+    find_package(Git REQUIRED)
 
+    GetWorktree (worktree)
     GetRepository (repository HINT "${worktree}")
-    message (STATUS "repository: ${repository}")
 
     file (GLOB_RECURSE refs CONFIGURE_DEPENDS "${repository}/.git/refs/*")
-    message (STATUS "refs: ${refs}")
-
-#    add_custom_command (
-#      OUTPUT "all.git.diff"
-#      COMMAND "$<TARGET_FILE:Git>" "diff" "--output=all.git.diff" "@"
-#      COMMAND "${CMAKE_COMMAND}" "-E" "copy_if_different" "all.git.diff" "all.diff"
-#      DEPENDS Git
-#      BYPRODUCTS "all.diff"
-#      )
-
-    find_package(Git REQUIRED)
 
     add_custom_command (
       OUTPUT "${source_dir}/all.diff"
@@ -200,6 +186,15 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow rele
       WORKING_DIRECTORY "${worktree}"
       DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
       )
+
+#    add_custom_command (
+#      OUTPUT "${source_dir}/all.git.diff"
+#      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${source_dir}/all.git.diff" "@"
+#      COMMAND "${CMAKE_COMMAND}" "-E" "copy_if_different" "${source_dir}/all.git.diff" "${source_dir}/all.diff"
+#      WORKING_DIRECTORY "${worktree}"
+#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+#      BYPRODUCTS "${source_dir}/all.diff"
+#      )
 
     add_library(DIFF INTERFACE)
   endif ()
@@ -218,30 +213,6 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow rele
   endforeach()
 endfunction ()
 
-#function (ConfigureFeedbackForTargets json_filename)
-  #GetFeedbackSourceDir (source_dir)
-  #set (cmake_lists_file "${source_dir}/CMakeLists.txt")
-  
-  #if (NOT CMAKE_CURRENT_LIST_FILE STREQUAL cmake_lists_file)
-#  get_filename_component (json_filename "${json_filename}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
-  #  file (WRITE "${cmake_lists_file}" "ConfigureFeedbackForTargets (\"${json_filename}\" ${ARGN})")
-  #  add_subdirectory ("${source_dir}" "${source_dir}-Build")
-  
-  #  return ()
-  #endif ()
-
-#  message (STATUS "Configuring feedback")
-
-#  ConfigureFeedbackOptions ()
-#  ConfigureFeedbackTargetFromTargets (ALL_FEEDBACK "${json_filename}" ${ARGN})
-
-#  if (FEEDBACK_FILES_TO_CHECK STREQUAL "ADDED_OR_MODIFIED_FILES")
-#    GetRepositoryPath (repository)
-#    GetAddedOrModifiedFileListPath (added_or_modified_file_list)
-#    GetFeedbackSourceDir (source_dir)
-#    GetFeedbackScript (script)
-#    RelevantSourcesFromTargetList(all_relevant_sources ${ARGN})
-
 #    add_custom_command (
 #      OUTPUT "${source_dir}/added_or_modified.cpp"
 #      COMMAND "${CMAKE_COMMAND}" -D "SCRIPT_FUNCTION=WriteAddedOrModifiedFileList" -D "PARAMETER_REPOSITORY=${repository}" -D "PARAMETER_OUTPUT=${added_or_modified_file_list}" -P "${script}"
@@ -249,16 +220,6 @@ endfunction ()
 #      DEPENDS "${script}" ${all_relevant_sources}
 #      BYPRODUCTS "${added_or_modified_file_list}"
 #      )
-
-#    add_library (ADDED_OR_MODIFIED_FILE_LIST MODULE EXCLUDE_FROM_ALL "${source_dir}/added_or_modified.cpp")
-#    ExcludeFromFeedback (ADDED_OR_MODIFIED_FILE_LIST)
-#    GroupInFeedbackFolder (ADDED_OR_MODIFIED_FILE_LIST)
-
-#    add_dependencies(ALL_FEEDBACK ADDED_OR_MODIFIED_FILE_LIST)
-#  endif ()
-
-#  message (STATUS "Configuration done")
-#endfunction ()
 
 function (WriteWorkflow filename workflow)
   unset (content)
