@@ -51,27 +51,35 @@ function (Feedback_Add name)
   endif ()
 
   if (NOT DEFINED Feedback_WORKFLOW)
-    set (Feedback_WORKFLOW "developer")
+    set (Feedback_WORKFLOW "configurable")
   endif ()
 
   if (NOT DEFINED Feedback_RELEVANT_CHANGES)
-    set (Feedback_RELEVANT_CHANGES "all")
+    set (Feedback_RELEVANT_CHANGES "configurable")
   endif ()
 
   if (NOT DEFINED Feedback_TARGETS)
     message (FATAL_ERROR "No targets given.")
   endif ()
 
-  set ("${name}_WORKFLOW" "${Feedback_WORKFLOW}" CACHE STRING "Workflow for '${name}' feedback")
-  set_property(CACHE "${name}_WORKFLOW" PROPERTY STRINGS "ci" "maintainer" "component_builder" "developer" "solution_provider" "disabled")
+  if (Feedback_WORKFLOW STREQUAL "configurable")
+    set ("${name}_WORKFLOW" "developer" CACHE STRING "Workflow for '${name}' feedback")
+    set_property(CACHE "${name}_WORKFLOW" PROPERTY STRINGS "ci" "maintainer" "component_builder" "developer" "solution_provider" "disabled")
 
-  set ("${name}_RELEVANT_CHANGES" "all" CACHE STRING "Relevant changes for '${name}' feedback")
-  set_property(CACHE "${name}_RELEVANT_CHANGES" PROPERTY STRINGS "all" "modified" "modified_or_staged" "staged" "staged_or_committed" "committed")
+    set (Feedback_WORKFLOW "${name}_WORKFLOW")
+  endif ()
+
+  if (Feedback_RELEVANT_CHANGES STREQUAL "configurable")
+    set ("${name}_RELEVANT_CHANGES" "all" CACHE STRING "Relevant changes for '${name}' feedback")
+    set_property(CACHE "${name}_RELEVANT_CHANGES" PROPERTY STRINGS "all" "modified" "modified_or_staged" "staged" "staged_or_committed" "committed")
+
+    set (Feedback_RELEVANT_CHANGES "${name}_RELEVANT_CHANGES")
+  endif ()
 
   set (is_disabled TRUE)
 
-  foreach (type IN LISTS "FEEDBACK_WORKFLOW_${${name}_WORKFLOW}_TYPES")
-    if (" all_files all_lines changed_files changed_lines " MATCHES " ${FEEDBACK_WORKFLOW_${${name}_WORKFLOW}_CHECK_${type}} ")
+  foreach (type IN LISTS "FEEDBACK_WORKFLOW_${Feedback_WORKFLOW}_TYPES")
+    if (" all_files all_lines changed_files changed_lines " MATCHES " ${FEEDBACK_WORKFLOW_${Feedback_WORKFLOW}_CHECK_${type}} ")
       set (is_disabled FALSE)
     endif ()
   endforeach ()

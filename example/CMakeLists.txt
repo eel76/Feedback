@@ -11,4 +11,4 @@ add_executable (excluded_example main.cpp)
 set_target_properties(excluded_example PROPERTIES EXCLUDE_FROM_FEEDBACK TRUE)
 
 Feedback_FindTargets (all_targets DIRECTORY .)
-Feedback_Add (example_feedback RULES example_rules.json TARGETS ${all_targets})
+Feedback_Add (EXAMPLE_FEEDBACK RULES example_rules.json TARGETS ${all_targets})
