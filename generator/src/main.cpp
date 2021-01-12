@@ -462,6 +462,11 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
   {
     return [=](std::string const& filename)
     {
+      auto const shared_file_modifications = async::share([=]
+        {
+          return shared_changes.get().lines_from(filename);
+        });
+
       return [=](feedback::rule const& rule)
       {
         auto const rule_matched_filename = rule.matched_files.matches(filename);
@@ -479,27 +484,19 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
           case feedback::check::NO_FILES:
             file_is_relevant = false;
             break;
+          case feedback::check::CHANGED_CODE_LINES:
+            line_is_relevant = [modified = shared_file_modifications.get()](int line)
+            {
+              return modified[line];
+            };
+            [[fallthrough]];
+          case feedback::check::CHANGED_FILES:
+            file_is_relevant = not shared_file_modifications.get().empty();
+            break;
           case feedback::check::ALL_CODE_LINES:
             [[fallthrough]];
           case feedback::check::ALL_FILES:
             break;
-          case feedback::check::CHANGED_FILES:
-          {
-            auto const modified = shared_changes.get().lines_from(filename);
-            file_is_relevant = not modified.empty();
-          }
-          break;
-          case feedback::check::CHANGED_CODE_LINES:
-          {
-            auto const modified = shared_changes.get().lines_from(filename);
-            file_is_relevant = not modified.empty();
-
-            line_is_relevant = [=](int line)
-            {
-              return modified[line];
-            };
-          }
-          break;
           }
         }
 
