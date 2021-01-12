@@ -167,6 +167,9 @@ namespace feedback {
 
 namespace {
 
+  template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+  template<class... Ts> overloaded(Ts...)->overloaded<Ts...>;
+
   auto content_from(std::string const& filename) -> std::string
   {
     auto input_stream = std::ifstream{ filename };
@@ -201,7 +204,7 @@ namespace {
       indentation.append(match.data() - text.data(), ' ');
       annotation.append(text::first_line_of(match).length(), '~');
 
-      if (!annotation.empty())
+      if (not annotation.empty())
         annotation[0] = '^';
     }
 
@@ -211,10 +214,10 @@ namespace {
     std::string annotation;
   };
 
-  template <class FILTER>
-  auto find_matches_function(std::shared_future<std::string> shared_content, FILTER is_line_checked)
+  template <class FUNCTION>
+  auto find_matches_function(std::shared_future<std::string> shared_content, FUNCTION is_relevant)
   {
-    return[shared_content, is_line_checked](auto const& id, auto const& rule) -> std::string {
+    return[=](auto const& id, auto const& rule) -> std::string {
 
       auto out = std::ostringstream{};
 
@@ -226,7 +229,7 @@ namespace {
           continue;
 
         auto const line_number = search.line() + 1;
-        if (!is_line_checked(rule, line_number))
+        if (not is_relevant(line_number))
           continue;
 
         auto const marked_text = search_marked_text(search.matched_text(), rule.marked_text);
@@ -246,32 +249,19 @@ namespace {
     };
   }
 
-  template <class FILTER>
-  auto make_print_matches_function(std::shared_future<feedback::rules> shared_rules, FILTER is_line_in_file_checked)
+  template <class FUNCTION>
+  auto make_print_matches_function(std::shared_future<feedback::rules> shared_rules, FUNCTION is_relevant)
   {
-    return [shared_rules, is_line_in_file_checked](std::string const& filename) {
+    return [=](std::string const& filename) {
 
       auto const shared_content = async_content_from(filename);
-
-      auto const is_line_checked = [filename, is_line_in_file_checked](feedback::rule const& rule, int line)
-      {
-        return is_line_in_file_checked(rule, filename, line);
-      };
-
-      auto const find_matches = find_matches_function(shared_content, is_line_checked);
+      auto const is_file_relevant = is_relevant(filename);
 
       auto messages = std::vector<std::future<std::string>>{};
 
       for (auto const& [id, rule] : shared_rules.get())
-      {
-        if (not rule.matched_files.matches(filename))
-          continue;
-
-        if (rule.ignored_files.matches(filename))
-          continue;
-
-        messages.push_back(async::launch(find_matches, id, rule));
-      }
+        if (auto const is_rule_in_file_relevant = is_file_relevant(rule); is_rule_in_file_relevant())
+          messages.push_back(async::launch(find_matches_function(shared_content, is_rule_in_file_relevant), id, rule));
 
       auto synchronized_out = cxx20::osyncstream{ std::cout };
       format::print(synchronized_out, "\n\n# line 1 \"{}\"", filename);
@@ -338,25 +328,61 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
 "workaround"_a = format::as_literal{ rule.workaround });
   }
 
-  void print_matches(std::string const& source_files, std::function<void(std::string const&)> print_matches_from)
+  template <class FUNCTION>
+  void print_matches(std::string const& sources_filename, FUNCTION print_matches_from)
   {
     auto tasks = std::vector<async::task>{};
 
-    auto content = std::ifstream{ source_files };
-    for (std::string source_file; std::getline(content, source_file);)
-      tasks.emplace_back([=] { print_matches_from(source_file); });
+    auto content = std::ifstream{ sources_filename };
+    for (std::string source; std::getline(content, source);)
+      tasks.emplace_back([=] { print_matches_from(source); });
   }
 
-  using changed_lines = container::interval_map<int, bool>;
-  using changed_files = std::unordered_map<std::string, changed_lines>;
+  class changed_lines
+  {
+  public:
+    auto empty() const
+    {
+      if (not modified.is_constant())
+        return false;
 
-  auto parse_diff_block(std::string_view diff_block, changed_lines changes = changed_lines{ false }) -> changed_lines
+      return not modified[1];
+    }
+
+    auto operator[] (int line) const
+    {
+      return modified[line];
+    }
+
+    void add(int line)
+    {
+      modified.assign(line, line + 1, true);
+    }
+
+  private:
+    container::interval_map<int, bool> modified{ false };
+  };
+
+  class changed_files : public std::unordered_map<std::string, changed_lines>
+  {
+  public:
+    auto lines_from(std::string const& filename) const -> changed_lines
+    {
+      for (auto const& [changed_filename, changed_code_lines] : *this)
+        if (text::ends_with(filename, changed_filename))
+          return changed_code_lines;
+
+      return {};
+    }
+  };
+
+  auto parse_diff_block(std::string_view diff_block, changed_lines changes = {}) -> changed_lines
   {
     auto starting_line_pattern = regex::compile("@@ [-][,0-9]+ [+]([0-9]+)[, ].*@@");
     auto line_pattern = regex::compile("\n([+ ])");
 
     regex::match starting_line;
-    if (!starting_line_pattern.matches(diff_block, { &starting_line }))
+    if (not starting_line_pattern.matches(diff_block, { &starting_line }))
       return changes;
 
     int line_number = 1;
@@ -371,7 +397,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
       auto const line = line_search.matched_text();
 
       if (line[0] == '+')
-        changes.assign(line_number, line_number + 1, true);
+        changes.add(line_number);
 
       ++line_number;
     }
@@ -385,11 +411,11 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     auto block_pattern = regex::compile("\n(@@ [-][,0-9]+ [+][,0-9]+ @@.*\n([-+ ].*\n)*)");
 
     regex::match filename_match;
-    if (!filename_pattern.matches(diff_section, { &filename_match }))
+    if (not filename_pattern.matches(diff_section, { &filename_match }))
       return changes;
 
     auto const filename = std::string{ filename_match };
-    changes.try_emplace(filename, changed_lines{ false });
+    changes.try_emplace(filename);
 
     auto file_changes = std::move(changes.at(filename));
 
@@ -432,42 +458,62 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     return async::share([=] { return diff_from(filename); });
   }
 
-  bool ends_with(std::string const& str, std::string const& suffix) {
-    if (str.length() < suffix.length())
-      return false;
-
-    return (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix));
-  }
-
-  auto make_filter_function(std::shared_future<feedback::workflow> shared_workflow, std::shared_future<changed_files> shared_changes)
+  auto make_is_relevant_function(std::shared_future<feedback::workflow> shared_workflow, std::shared_future<changed_files> shared_changes)
   {
-    return [shared_workflow, shared_changes](feedback::rule const& rule, std::string const& filename, int line_number)
+    return [=](std::string const& filename)
     {
-      auto const& workflow = shared_workflow.get();
+      return [=](feedback::rule const& rule)
+      {
+        auto const rule_matched_filename = rule.matched_files.matches(filename);
+        auto const rule_ignored_filename = rule.ignored_files.matches(filename);
 
-      switch (workflow.at(rule.type).check)
-      {
-      case feedback::check::NO_CODE_LINES: [[fallthrough]];
-      case feedback::check::NO_FILES: return false;
-      case feedback::check::ALL_CODE_LINES: [[fallthrough]];
-      case feedback::check::ALL_FILES: return true;
-      case feedback::check::CHANGED_FILES:
-      {
-        for (auto const& [changed_filename, changed_code_lines] : shared_changes.get())
-          if (ends_with(filename, changed_filename))
-            return !changed_code_lines.is_constant();
-      }
-      break;
-      case feedback::check::CHANGED_CODE_LINES:
-      {
-        for (auto const& [changed_filename, changed_code_lines] : shared_changes.get())
-          if (ends_with(filename, changed_filename))
-            return !changed_code_lines.is_constant();
-      }
-      break;
-      }
+        auto file_is_relevant = rule_matched_filename and not rule_ignored_filename;
+        auto line_is_relevant = std::function<bool(int)>{ [](int) { return true; } };
 
-      return false;
+        if (file_is_relevant)
+        {
+          switch (shared_workflow.get().at(rule.type).check)
+          {
+          case feedback::check::NO_CODE_LINES:
+            [[fallthrough]];
+          case feedback::check::NO_FILES:
+            file_is_relevant = false;
+            break;
+          case feedback::check::ALL_CODE_LINES:
+            [[fallthrough]];
+          case feedback::check::ALL_FILES:
+            break;
+          case feedback::check::CHANGED_FILES:
+          {
+            auto const modified = shared_changes.get().lines_from(filename);
+            file_is_relevant = not modified.empty();
+          }
+          break;
+          case feedback::check::CHANGED_CODE_LINES:
+          {
+            auto const modified = shared_changes.get().lines_from(filename);
+            file_is_relevant = not modified.empty();
+
+            line_is_relevant = [=](int line)
+            {
+              return modified[line];
+            };
+          }
+          break;
+          }
+        }
+
+        return overloaded{
+          [=]()
+          {
+            return file_is_relevant;
+          },
+          [=](int line)
+          {
+            return file_is_relevant and line_is_relevant(line);
+          }
+        };
+      };
     };
   }
 
@@ -487,8 +533,8 @@ int main(int argc, char* argv[])
 
     auto const redirected_output = stream::redirect(std::cout, parameters.output_filename);
 
-    auto const filter_function = make_filter_function(shared_workflow, shared_diff);
-    auto const print_matches_function = make_print_matches_function(shared_rules, filter_function);
+    auto const is_relevant_function = make_is_relevant_function(shared_workflow, shared_diff);
+    auto const print_matches_function = make_print_matches_function(shared_rules, is_relevant_function);
 
     print_header(shared_rules, shared_workflow);
     print_matches(parameters.sources_filename, print_matches_function);
