@@ -1,36 +1,44 @@
 #pragma once
 
-#include <mutex>
-#include <sstream>
-#include <unordered_map>
+#include <version>
+#ifdef __cpp_lib_syncbuf
+# include <syncstream>
+#else
+# include <mutex>
+# include <sstream>
+# include <unordered_map>
+#endif
 
 namespace cxx20 {
 
-// will become available in C++ 20
-struct osyncstream : public std::ostringstream
-{
-  explicit osyncstream(std::ostream& output_stream)
-  : output(output_stream)
+#ifdef __cpp_lib_syncbuf
+  using osyncstream = std::osyncstream;
+#else
+  struct osyncstream : public std::ostringstream
   {
-  }
-  ~osyncstream()
-  {
-    emit();
-  }
+    explicit osyncstream(std::ostream& output_stream)
+      : output(output_stream)
+    {
+    }
+    ~osyncstream()
+    {
+      emit();
+    }
 
-  void emit()
-  {
-    std::ostringstream const tmp{ std::move(*this) };
+    void emit()
+    {
+      std::ostringstream const tmp{ std::move(*this) };
 
-    static std::unordered_map<std::ostream*, std::mutex> locks;
+      static std::unordered_map<std::ostream*, std::mutex> locks;
 
-    auto const locked = std::scoped_lock{ locks[&output] };
-    output << tmp.str();
-  }
+      auto const locked = std::scoped_lock{ locks[&output] };
+      output << tmp.str();
+    }
 
-private:
-  std::ostream& output;
-};
+  private:
+    std::ostream& output;
+  };
+#endif
 
 } // namespace cxx20
 
