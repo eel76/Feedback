@@ -175,7 +175,7 @@ namespace {
 
   auto async_content_from(std::string const& filename) -> std::shared_future<std::string>
   {
-    return async::launch([=] { return content_from(filename); }).share();
+    return async::share([=] { return content_from(filename); });
   }
 
   auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern)
@@ -283,22 +283,18 @@ namespace {
 
   auto async_rules_from(std::string const& filename)
   {
-    return async::launch([=] {
-      return feedback::rules::parse_from(filename);
-      })
-      .share();
+    return async::share([=] { return feedback::rules::parse_from(filename); });
   }
 
   auto async_workflow_from(std::string const& filename)
   {
-    return async::launch([=] {
+    return async::share([=] {
       // FIXME: what does a missing workflow mean?
       if (filename.empty())
         return feedback::workflow{};
 
       return feedback::workflow::parse_from(filename);
-      })
-      .share();
+      });
   }
 
   void print_header(std::shared_future<feedback::rules> const& shared_rules, std::shared_future<feedback::workflow> const& shared_workflow)
@@ -433,7 +429,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
 
   auto async_diff_from(std::string const& filename) -> std::shared_future<changed_files>
   {
-    return async::launch([=] { return diff_from(filename); }).share();
+    return async::share([=] { return diff_from(filename); });
   }
 
   bool ends_with(std::string const& str, std::string const& suffix) {
