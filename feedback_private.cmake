@@ -162,7 +162,7 @@ function (GetRepository repository_variable)
 
   if (NOT IS_DIRECTORY "${worktree}/.git")
     file (READ "${worktree}/.git" gitdir)
-    string (REGEX MATCH "gitdir[:] (.*)" gitdir "${gitdir}")
+    string (REGEX REPLACE ".*gitdir[:] +(.*)\n.*" "\\1" gitdir "${gitdir}")
     GetWorktree (worktree HINT "${gitdir}")
   endif ()
 
