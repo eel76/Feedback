@@ -42,20 +42,20 @@ namespace feedback {
     enum class check
   {
     ALL_FILES,
-    ALL_CODE_LINES,
+    ALL_LINES,
     CHANGED_FILES,
-    CHANGED_CODE_LINES,
+    CHANGED_LINES,
     NO_FILES,
-    NO_CODE_LINES
+    NO_LINES
   };
 
   NLOHMANN_JSON_SERIALIZE_ENUM(check, {
       {check::ALL_FILES, "all_files"},
-      {check::ALL_CODE_LINES, "all_code_lines"},
+      {check::ALL_LINES, "all_lines"},
       {check::CHANGED_FILES, "changed_files"},
-      {check::CHANGED_CODE_LINES, "changed_code_lines"},
+      {check::CHANGED_LINES, "changed_lines"},
       {check::NO_FILES, "no_files"},
-      {check::NO_CODE_LINES, "no_code_lines"}
+      {check::NO_LINES, "no_lines"}
     })
 
     struct handling
@@ -479,12 +479,12 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
         {
           switch (shared_workflow.get().at(rule.type).check)
           {
-          case feedback::check::NO_CODE_LINES:
+          case feedback::check::NO_LINES:
             [[fallthrough]];
           case feedback::check::NO_FILES:
             file_is_relevant = false;
             break;
-          case feedback::check::CHANGED_CODE_LINES:
+          case feedback::check::CHANGED_LINES:
             line_is_relevant = [modified = shared_file_modifications.get()](int line)
             {
               return modified[line];
@@ -493,7 +493,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
           case feedback::check::CHANGED_FILES:
             file_is_relevant = not shared_file_modifications.get().empty();
             break;
-          case feedback::check::ALL_CODE_LINES:
+          case feedback::check::ALL_LINES:
             [[fallthrough]];
           case feedback::check::ALL_FILES:
             break;
