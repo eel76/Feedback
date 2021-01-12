@@ -167,17 +167,15 @@ namespace feedback {
 
 namespace {
 
-  auto content_from(std::string const& filename)
+  auto content_from(std::string const& filename) -> std::string
   {
     auto input_stream = std::ifstream{ filename };
     return stream::content(input_stream);
   }
 
-  auto async_content_from(std::string const& filename)
+  auto async_content_from(std::string const& filename) -> std::shared_future<std::string>
   {
-    return async::launch([=] {
-      return content_from(filename);
-      }).share();
+    return async::launch([=] { return content_from(filename); }).share();
   }
 
   auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern)
@@ -285,7 +283,7 @@ namespace {
 
   auto async_rules_from(std::string const& filename)
   {
-    return async::launch([filename] {
+    return async::launch([=] {
       return feedback::rules::parse_from(filename);
       })
       .share();
@@ -293,7 +291,7 @@ namespace {
 
   auto async_workflow_from(std::string const& filename)
   {
-    return async::launch([filename] {
+    return async::launch([=] {
       // FIXME: what does a missing workflow mean?
       if (filename.empty())
         return feedback::workflow{};
@@ -356,7 +354,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
   using changed_lines = container::interval_map<int, bool>;
   using changed_files = std::unordered_map<std::string, changed_lines>;
 
-  auto parse_diff_block(std::string_view diff_block, changed_lines changes = changed_lines{ false })->changed_lines
+  auto parse_diff_block(std::string_view diff_block, changed_lines changes = changed_lines{ false }) -> changed_lines
   {
     auto starting_line_pattern = regex::compile("@@ [-][,0-9]+ [+]([0-9]+)[, ].*@@");
     auto line_pattern = regex::compile("\n([+ ])");
@@ -425,16 +423,17 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     return changes;
   }
 
+  auto diff_from(std::string const& filename) -> changed_files
+  {
+    if (filename.empty())
+      return {};
+
+    return parse_diff(content_from(filename));
+  }
+
   auto async_diff_from(std::string const& filename) -> std::shared_future<changed_files>
   {
-    return async::launch([filename] {
-      if (filename.empty())
-        return changed_files{};
-
-      auto input_stream = std::ifstream{ filename };
-      return parse_diff(stream::content(input_stream));
-      })
-      .share();
+    return async::launch([=] { return diff_from(filename); }).share();
   }
 
   bool ends_with(std::string const& str, std::string const& suffix) {
@@ -444,7 +443,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     return (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix));
   }
 
-  auto make_workflow_filter(std::shared_future<feedback::workflow> shared_workflow, std::shared_future<changed_files> shared_changes)
+  auto make_filter_function(std::shared_future<feedback::workflow> shared_workflow, std::shared_future<changed_files> shared_changes)
   {
     return [shared_workflow, shared_changes](feedback::rule const& rule, std::string const& filename, int line_number)
     {
@@ -486,16 +485,16 @@ int main(int argc, char* argv[])
   {
     auto const parameters = parameter::parse(argc, argv);
 
-    auto const rules = async_rules_from(parameters.rules_filename);
-    auto const workflow = async_workflow_from(parameters.workflow_filename);
-    auto const diff = async_diff_from(parameters.diff_filename);
-
-    auto const workflow_filter = make_workflow_filter(workflow, diff);
-    auto const print_matches_function = make_print_matches_function(rules, workflow_filter);
+    auto const shared_rules = async_rules_from(parameters.rules_filename);
+    auto const shared_workflow = async_workflow_from(parameters.workflow_filename);
+    auto const shared_diff = async_diff_from(parameters.diff_filename);
 
     auto const redirected_output = stream::redirect(std::cout, parameters.output_filename);
 
-    print_header(rules, workflow);
+    auto const filter_function = make_filter_function(shared_workflow, shared_diff);
+    auto const print_matches_function = make_print_matches_function(shared_rules, filter_function);
+
+    print_header(shared_rules, shared_workflow);
     print_matches(parameters.sources_filename, print_matches_function);
   }
   catch (std::exception const& e)
