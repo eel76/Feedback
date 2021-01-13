@@ -50,42 +50,74 @@ A feedback can then be created like this:
 
 [source,cmake]
 ----
+# add_library (...)
 add_executable (example main.cpp)
 
-# Recommended setting
-set_property(GLOBAL PROPERTY USE_FOLDERS true)
+Feedback_FindTargets (all_targets DIRECTORY .)
+Feedback_Add (CodingGuidelines RULES rules.json TARGETS ${all_targets})
 
-ConfigureFeedbackForTargets (warnings.json example)
+# Optional, but recommended setting to group all feedback targets
+set_property(GLOBAL PROPERTY USE_FOLDERS true)
 ----
 
-Where your feedback rules (`warnings.json`) are like this:
+Where your feedback rules (`rules.json`) are like this:
 
 [source,json]
 ----
 {
-  "CG1": {
-    "severity": "error",
+  "RULE1": {
+    "type": "requirement",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
-    "ignored_files": "/vg/random/|/vg[.]approval/",
-    "matched_text": "(std|cxx11) *:: *(normal_distribution|poisson_distribution|uniform_int_distribution|uniform_real_distribution)",
-    "ignored_text": "//.*(std|cxx11) *:: *(normal_distribution|poisson_distribution|uniform_int_distribution|uniform_real_distribution)",
+    "ignored_files": "^$",
+    "matched_text": "\t",
+    "ignored_text": "^$",
     "marked_text": ".*",
-    "summary": "Avoid random number distributions from std",
-    "rationale": "We want consistent results across all platforms. Unfortunately algorithms for distributions are not mandated, so implementations can vary. See also: https://www.reddit.com/r/cpp/comments/30w7cs/inconsistency_in_c_random/",
-    "workaround": "Please use a random number distribution from vg::random instead"
+    "summary": "Don't use tabulators in source files",
+    "rationale": "Developers who use spaces make more money than those who use tabs. See also: https://stackoverflow.blog/2017/06/15/developers-use-spaces-make-money-use-tabs/",
+    "workaround": "Please replace all tabulators with spaces and adjust your editor settings accordingly."
   },
-  "CG2": {
-    "severity": "error",
+  "RULE2": {
+    "type": "guideline",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
-    "ignored_files": "/vg/random/|/vg[.]approval/",
-    "matched_text": "(std|cxx11) *:: *linear_congruential_engine",
-    "ignored_text": "//.*(std|cxx11) *:: *linear_congruential_engine",
-    "marked_text": ".*",
-    "summary": "Avoid std::linear_congruential_engine",
-    "rationale": "We want consistent results across all platforms. However, clang does not conform to the mandated standard algorithm and its generator produces different values.",
-    "workaround": "Please use vg::random::linear_congruential_engine instead."
+    "ignored_files": "^$",
+    "matched_text": "^ *# *include *([<][^>]*|[\"][^\"]*)[\\\\]",
+    "ignored_text": "^$",
+    "marked_text": "[\\\\]",
+    "summary": "Don't use backslashes in include directives",
+    "rationale": "Non Windows systems may not recognize a backslash as path delimiter.",
+    "workaround": "Please replace all backslashes with forward slashes in include directives."
+  },
+  "RULE3": {
+    "type": "improvement",
+    "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
+    "ignored_files": "^$",
+    "matched_text": "^ *# *include *([<][^>]*|[\"][^\"]*)//",
+    "ignored_text": "^$",
+    "marked_text": "//",
+    "summary": "Duplicate forward slash in include directive",
+    "rationale": "Such typos are ignored by most compilers, but they complicate automated refactorings.",
+    "workaround": "Please remove the redundant forward slash."
+  },
+  "RULE4": {
+    "type": "suggestion",
+    "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
+    "ignored_files": "^$",
+    "matched_text": "// *(TODO|FIXME|REVIEW|OPTIMIZE|HACK|XXX|BUG)",
+    "ignored_text": "^$",
+    "marked_text": "[A-Z]+",
+    "summary": "Unfinished task (TODO/FIXME/HACK/...)",
+    "rationale": "Task markers should be used only rarely and temporarily in our code base because they indicate a technical debt. They tend to rot over time and will be forgotton eventually.",
+    "workaround": "Please finish this task if possible. Remove its marker from our code base either way. Use an issue tracker like JIRA for important tasks."
   }
 }
+----
+
+You can exclude certain targets from any feedback:
+
+[source,cmake]
+----
+add_executable (excluded_example ...)
+set_target_properties (excluded_example PROPERTIES EXCLUDE_FROM_FEEDBACK TRUE)
 ----
 
 // end::using[]
