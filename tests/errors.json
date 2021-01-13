@@ -63,7 +63,7 @@
     "marked_text": ".*",
     "summary": "Internal source files don't need a copyright notice",
     "rationale": "See also http://confluence.volumegraphics.com:8090/x/EQAEAw for more information.",
-    "workaround": "Please remove the copyright notice from the source file or add an exception to this coding guideline."
+    "workaround": "Please remove the copyright notice from the source file or add an exception to this rule."
   },
   "CG7": {
     "severity": "info",
