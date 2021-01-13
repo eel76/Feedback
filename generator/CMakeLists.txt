@@ -12,6 +12,7 @@ add_subdirectory (extern)
 add_library (${PROJECT_NAME}.core STATIC
   "src/parameter.cpp"
   "src/regex.cpp"
+  "src/scm.cpp"
   "src/text.cpp"
   "include/cxx20/syncstream"
   "include/feedback/async.h"
@@ -19,6 +20,7 @@ add_library (${PROJECT_NAME}.core STATIC
   "include/feedback/format.h"
   "include/feedback/parameter.h"
   "include/feedback/regex.h"
+  "include/feedback/scm.h"
   "include/feedback/stream.h"
   "include/feedback/text.h"
   )

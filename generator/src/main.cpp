@@ -1,8 +1,8 @@
 #include "feedback/async.h"
-#include "feedback/container.h"
 #include "feedback/format.h"
 #include "feedback/parameter.h"
 #include "feedback/regex.h"
+#include "feedback/scm.h"
 #include "feedback/stream.h"
 #include "feedback/text.h"
 
@@ -10,7 +10,6 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
-#include <charconv>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -279,120 +278,20 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
       tasks.emplace_back([=] { print_matches_from(source); });
   }
 
-  class changed_lines {
-  public:
-    auto empty() const {
-      if (not modified.is_constant())
-        return false;
-
-      return not modified[1];
-    }
-
-    auto operator[](int line) const {
-      return modified[line];
-    }
-
-    void add(int line) {
-      modified.assign(line, line + 1, true);
-    }
-
-  private:
-    container::interval_map<int, bool> modified{ false };
-  };
-
-  class changed_files {
-  public:
-    auto lines_from(std::string_view filename) const -> changed_lines {
-      for (auto const& [changed_filename, changed_code_lines] : modifications)
-        if (text::ends_with(filename, changed_filename))
-          return changed_code_lines;
-
-      return {};
-    }
-
-    auto operator[](std::string filename) -> changed_lines& {
-      return modifications[filename];
-    }
-
-  private:
-    std::unordered_map<std::string, changed_lines> modifications;
-  };
-
-  auto parse_diff_block(std::string_view diff_block, changed_lines changes = {}) -> changed_lines {
-    auto starting_line_pattern = regex::compile("@@ [-][,0-9]+ [+]([0-9]+)[, ].*@@");
-    auto line_pattern          = regex::compile("\n([+ ])");
-
-    regex::match starting_line;
-    if (not starting_line_pattern.matches(diff_block, { &starting_line }))
-      return changes;
-
-    int line_number = 1;
-
-    auto [p, ec] = std::from_chars(starting_line.data(), starting_line.data() + starting_line.size(), line_number);
-    if (ec == std::errc::invalid_argument)
-      return changes;
-
-    auto line_search = text::forward_search{ diff_block };
-    while (line_search.next(line_pattern)) {
-      auto const line = line_search.matched_text();
-
-      if (line[0] == '+')
-        changes.add(line_number);
-
-      ++line_number;
-    }
-
-    return changes;
-  }
-
-  auto parse_diff_section(std::string_view diff_section, changed_files changes = {}) -> changed_files {
-    auto filename_pattern = regex::compile("\n[-][-][-] a/.+\n[+][+][+] b/(.+)\n");
-    auto block_pattern    = regex::compile("\n(@@ [-][,0-9]+ [+][,0-9]+ @@.*\n([-+ ].*\n)*)");
-
-    regex::match filename;
-    if (not filename_pattern.matches(diff_section, { &filename }))
-      return changes;
-
-    auto& file_changes = changes[std::string{ filename }];
-
-    auto search = text::forward_search{ diff_section };
-    while (search.next(block_pattern)) {
-      auto const block = search.matched_text();
-      file_changes     = parse_diff_block(block, std::move(file_changes));
-    }
-
-    return changes;
-  }
-
-  auto parse_diff(std::string_view diff, changed_files changes = {}) -> changed_files {
-    // FIXME: debug me: auto const section_pattern = regex::compile("(?:^|\n)([a-z].*\n)+([-][-][-] a/.+\n[+][+][+] b/(.+)\n([-+ @].*\n)*)");
-    auto const section_pattern =
-    regex::compile("(?:^|\n)((?:[a-z].*\n)+[-][-][-] a/.+\n[+][+][+] b/(.+)\n([-+ @].*\n)*)");
-
-    auto search = text::forward_search{ diff };
-    while (search.next(section_pattern)) {
-      auto const section = search.matched_text();
-      changes            = parse_diff_section(section, std::move(changes));
-    }
-
-    return changes;
-  }
-
-  auto diff_from(std::string const& filename) -> changed_files {
+  auto diff_from(std::string const& filename) -> scm::diff {
     if (filename.empty())
       return {};
 
-    return parse_diff(content_from(filename));
+    return scm::diff::parse_from(content_from(filename));
   }
 
-  auto async_diff_from(std::string const& filename) -> std::shared_future<changed_files> {
+  auto async_diff_from(std::string const& filename) -> std::shared_future<scm::diff> {
     return async::share([=] { return diff_from(filename); });
   }
 
-  auto make_is_relevant_function(std::shared_future<feedback::workflow> shared_workflow,
-                                 std::shared_future<changed_files>      shared_changes) {
+  auto make_is_relevant_function(std::shared_future<feedback::workflow> shared_workflow, std::shared_future<scm::diff> shared_diff) {
     return [=](std::string_view filename) {
-      auto const shared_file_modifications = async::share([=] { return shared_changes.get().lines_from(filename); });
+      auto const shared_file_modifications = async::share([=] { return shared_diff.get().changes_from(filename); });
 
       return [=](feedback::rule const& rule) {
         auto const rule_matched_filename = rule.matched_files.matches(filename);
