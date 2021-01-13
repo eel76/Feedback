@@ -41,10 +41,14 @@ Cpp11BracedListStyle: false
 DerivePointerBinding: false
 FixNamespaceComments: false
 IncludeCategories:
-  - Regex:           '^["]'
+  - Regex:           '^["]feedback'
     Priority:        2
-  - Regex:           '^[<]'
+  - Regex:           '^["]'
     Priority:        3
+  - Regex:           '^[<][^>]*[/][^>]*[>]'
+    Priority:        4
+  - Regex:           '^[<][^/>]+[>]'
+    Priority:        5
   - Regex:           '.*'
     Priority:        1
 IndentCaseLabels: false
