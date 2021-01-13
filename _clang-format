@@ -1,34 +1,37 @@
 BasedOnStyle: Google
 
-AccessModifierOffset: 0
+AccessModifierOffset: -2
 AlignConsecutiveAssignments: true
 AlignConsecutiveDeclarations: true
-AlignEscapedNewlinesLeft: false
+AlignConsecutiveMacros: true
+AlignEscapedNewlines: Left
 AlignOperands: true
 AlignTrailingComments: true
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortFunctionsOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: false
+AllowShortLambdasOnASingleLine: All
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakBeforeMultilineStrings: false
-AlwaysBreakTemplateDeclarations: true
+AlwaysBreakTemplateDeclarations: false
 BinPackParameters: false
 BraceWrapping:
-    AfterClass: true
+    AfterClass: false
     AfterControlStatement: false
     AfterEnum : false
     AfterFunction : false
     AfterNamespace : false
-    AfterStruct : true
-    AfterUnion : true
-    BeforeCatch : false
+    AfterStruct : false
+    AfterUnion : false
+    BeforeCatch : true
     BeforeElse : false
+#    BeforeLambdaBody : true
     IndentBraces : false
 BreakBeforeBinaryOperators: false
 BreakBeforeBraces: Custom
 BreakBeforeTernaryOperators: false
 BreakConstructorInitializersBeforeComma: false
-ColumnLimit: 80
+ColumnLimit: 120
 CommentPragmas: ''
 CompactNamespaces: true
 ConstructorInitializerAllOnOneLineOrOnePerLine: false
@@ -47,6 +50,7 @@ IncludeCategories:
 IndentCaseLabels: false
 IndentFunctionDeclarationAfterType: false
 IndentWidth: 2
+KeepEmptyLinesAtTheStartOfBlocks: false
 Language: Cpp
 MaxEmptyLinesToKeep: 1
 NamespaceIndentation: All
