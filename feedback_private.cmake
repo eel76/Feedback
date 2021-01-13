@@ -167,7 +167,7 @@ function (GetRepository repository_variable)
   set (${repository_variable} "${worktree}" PARENT_SCOPE)
 endfunction ()
 
-function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow relevant_changes)
+function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow changes)
 
   GetFeedbackSourceDir (source_dir)
 
@@ -175,52 +175,54 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow rele
 
     find_package(Git REQUIRED)
 
-    GetWorktree (worktree)
-    GetRepository (repository HINT "${worktree}")
+#    GetWorktree (worktree)
+#    GetRepository (repository HINT "${worktree}")
 
-    file (GLOB_RECURSE refs CONFIGURE_DEPENDS "${repository}/.git/refs/*")
+#    file (GLOB_RECURSE refs CONFIGURE_DEPENDS "${repository}/.git/refs/*")
 
-    add_custom_command (
-      OUTPUT "${source_dir}/all.diff"
-      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@{push}" ">" "${source_dir}/all.diff"
-      WORKING_DIRECTORY "${worktree}"
-      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
-      )
+#    add_custom_command (
+#      OUTPUT "${source_dir}/all.diff"
+#      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@{push}" ">" "${source_dir}/all.diff"
+#      WORKING_DIRECTORY "${worktree}"
+#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+#      )
 
-    add_custom_command (
-      OUTPUT "${source_dir}/modified.diff"
-      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" ">" "${source_dir}/modified.diff"
-      WORKING_DIRECTORY "${worktree}"
-      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
-      )
+#    add_custom_command (
+#      OUTPUT "${source_dir}/modified.diff"
+#      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" ">" "${source_dir}/modified.diff"
+#      WORKING_DIRECTORY "${worktree}"
+#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+#      )
 
-    add_custom_command (
-      OUTPUT "${source_dir}/modified_or_staged.diff"
-      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${source_dir}/modified_or_staged.diff"
-      WORKING_DIRECTORY "${worktree}"
-      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
-      )
+#    add_custom_command (
+#      OUTPUT "${source_dir}/modified_or_staged.diff"
+#      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${source_dir}/modified_or_staged.diff"
+#      WORKING_DIRECTORY "${worktree}"
+#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+#      )
 
-    add_custom_command (
-      OUTPUT "${source_dir}/staged.diff"
-      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--staged" "@" ">" "${source_dir}/staged.diff"
-      WORKING_DIRECTORY "${worktree}"
-      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
-      )
+#    add_custom_command (
+#      OUTPUT "${source_dir}/staged.diff"
+#      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--staged" "@" ">" "${source_dir}/staged.diff"
+#      WORKING_DIRECTORY "${worktree}"
+#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+#      )
 
-    add_custom_command (
-      OUTPUT "${source_dir}/staged_or_committed.diff"
-      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--staged" "@{push}" ">" "${source_dir}/staged_or_committed.diff"
-      WORKING_DIRECTORY "${worktree}"
-      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
-      )
+#    add_custom_command (
+#      OUTPUT "${source_dir}/staged_or_committed.diff"
+#      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--staged" "@{push}" ">" "${source_dir}/staged_or_committed.diff"
+#      WORKING_DIRECTORY "${worktree}"
+#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+#      )
 
-    add_custom_command (
-      OUTPUT "${source_dir}/committed.diff"
-      COMMAND "$<TARGET_FILE:Git::Git>" "log" "--unified=0" "--branches" "--not" "--remotes" "--format=format:" ">" "${source_dir}/committed.diff"
-      WORKING_DIRECTORY "${worktree}"
-      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
-      )
+#    add_custom_command (
+#      OUTPUT "${source_dir}/committed.diff"
+#      COMMAND "$<TARGET_FILE:Git::Git>" "log" "--unified=0" "--branches" "--not" "--remotes" "--format=format:" ">" "${source_dir}/committed.diff"
+#      WORKING_DIRECTORY "${worktree}"
+#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
+#      )
+
+
 
 #    add_custom_command (
 #      OUTPUT "${source_dir}/all.git.diff"
@@ -235,7 +237,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow rele
   endif ()
 
   Feedback_RemoveExcludedTargets (ARGN ${ARGN})
-  CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${rules}" "${workflow}" "${source_dir}/${relevant_changes}.diff" ${ARGN})
+  CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${rules}" "${workflow}" "${changes}" ${ARGN})
 
   add_library ("${feedback_target}" SHARED EXCLUDE_FROM_ALL "${rules}" ${feedback_sources})
   target_compile_options(${feedback_target} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
@@ -277,18 +279,37 @@ function (WriteWorkflow filename workflow)
   WriteFileIfDifferent ("${filename}" "${content}")
 endfunction ()
 
-function (CreateFeedbackSourceForSources filename rules workflow diff)
-  WriteFileList ("${filename}.sources.txt" ${ARGN})
+function (CreateDiff output changes)
+  GetWorktree (worktree)
+  GetRepository (repository HINT "${worktree}")
+
+  if (changes STREQUAL "modified_or_staged")
+    add_custom_command (
+      OUTPUT "${output}"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${output}"
+      WORKING_DIRECTORY "${worktree}"
+      DEPENDS Git::Git "${repository}/.git/HEAD" "${repository}/.git/index" ${ARGN}
+      )
+  else ()
+    message (FATAL_ERROR "missing")
+  endif ()
+endfunction ()
+
+function (CreateFeedbackSourceForSources filename rules workflow changes)
+  # können wir eine CMake rule definieren, so dass die liste bei bedarf neu gemacht wird
   WriteWorkflow ("${filename}.workflow.json" "${workflow}")
+  # können wir eine CMake rule definieren, so dass die liste bei bedarf neu gemacht wird
+  WriteFileList ("${filename}.sources.txt" ${ARGN})
+  CreateDiff ("${filename}.diff" "${changes}" ${ARGN})
 
   add_custom_command (
     OUTPUT "${filename}"
-    COMMAND "$<TARGET_FILE:generator>" "-o=${filename}" "-w=${filename}.workflow.json" "-d=${diff}" "${rules}" "${filename}.sources.txt"
-    DEPENDS generator "${rules}" "${filename}.workflow.json" "${diff}" "${filename}.sources.txt" ${ARGN}
+    COMMAND "$<TARGET_FILE:generator>" "-o=${filename}" "-w=${filename}.workflow.json" "-d=${filename}.diff" "${rules}" "${filename}.sources.txt"
+    DEPENDS generator "${rules}" "${filename}.workflow.json" "${filename}.diff" "${filename}.sources.txt" ${ARGN}
     )
 endfunction ()
 
-function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_target rules workflow diff target)
+function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_target rules workflow changes target)
   RelevantSourcesFromTarget (relevant_sources "${target}")
   GetFeedbackSourceDir (source_dir)
 
@@ -299,15 +320,15 @@ function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_targ
     list (APPEND feedback_sources "${feedback_source}")
 
     RemoveFirstElementsFromList (sources 128 relevant_sources)
-    CreateFeedbackSourceForSources ("${feedback_source}" "${rules}" "${workflow}" "${diff}" ${sources})
+    CreateFeedbackSourceForSources ("${feedback_source}" "${rules}" "${workflow}" "${changes}" ${sources})
   endwhile ()
 
   set (${feedback_sources_variable} ${feedback_sources} PARENT_SCOPE)
 endfunction ()
 
-function (CreateFeedbackSourcesFromTargets all_sources_variable feedback_target rules workflow diff)
+function (CreateFeedbackSourcesFromTargets all_sources_variable feedback_target rules workflow changes)
   foreach (target IN LISTS ARGN)
-    CreateFeedbackSourcesForTarget (sources "${feedback_target}" "${rules}" "${workflow}" "${diff}" "${target}")
+    CreateFeedbackSourcesForTarget (sources "${feedback_target}" "${rules}" "${workflow}" "${changes}" "${target}")
     list (APPEND all_sources ${sources})
   endforeach()
 
