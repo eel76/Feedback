@@ -8,45 +8,36 @@
 #include <string_view>
 
 namespace {
-auto as_string_piece(std::string_view sv)
-{
-  return re2::StringPiece{ sv.data(), sv.length() };
-}
+  auto as_string_piece(std::string_view sv) {
+    return re2::StringPiece{ sv.data(), sv.length() };
+  }
 
-auto as_string_view(re2::StringPiece const& match)
-{
-  return std::string_view{ match.data(), match.length() };
-}
+  auto as_string_view(re2::StringPiece const& match) {
+    return std::string_view{ match.data(), match.length() };
+  }
 } // namespace
 
-class regex::precompiled::impl : public re2::RE2
-{
+class regex::precompiled::impl : public re2::RE2 {
 public:
-  explicit impl(std::string_view pattern)
-  : RE2(as_string_piece(pattern), RE2::Quiet)
-  {
+  explicit impl(std::string_view pattern) : RE2(as_string_piece(pattern), RE2::Quiet) {
   }
 };
 
-regex::precompiled::precompiled(std::string_view pattern)
-: engine(std::make_shared<impl>(pattern))
-{
+regex::precompiled::precompiled(std::string_view pattern) : engine(std::make_shared<impl>(pattern)) {
   if (not engine->ok())
     throw std::invalid_argument{ std::string{ "Invalid regex: " }.append(engine->error()) };
 }
 
-auto regex::precompiled::matches(std::string_view input) const -> bool
-{
+auto regex::precompiled::matches(std::string_view input) const -> bool {
   return matches(input, {});
 }
 
-auto regex::precompiled::matches(std::string_view input, std::initializer_list<match*> captures_ret) const -> bool
-{
+auto regex::precompiled::matches(std::string_view input, std::initializer_list<match*> captures_ret) const -> bool {
   auto constexpr max_captures = 64;
 
   std::array<re2::StringPiece, max_captures> re2_captures;
-  std::array<re2::RE2::Arg, max_captures> re2_args;
-  std::array<re2::RE2::Arg*, max_captures> re2_args_p;
+  std::array<re2::RE2::Arg, max_captures>    re2_args;
+  std::array<re2::RE2::Arg*, max_captures>   re2_args_p;
 
   if (captures_ret.size() > re2_captures.size())
     return false;
@@ -64,11 +55,9 @@ auto regex::precompiled::matches(std::string_view input, std::initializer_list<m
   return true;
 }
 
-auto regex::precompiled::find(std::string_view input, match* match_ret, match* skipped_ret, match* remaining_ret) const
-  -> bool
-{
+auto regex::precompiled::find(std::string_view input, match* match_ret, match* skipped_ret, match* remaining_ret) const -> bool {
   auto remaining = as_string_piece(input);
-  auto match = re2::StringPiece{};
+  auto match     = re2::StringPiece{};
 
   if (not RE2::FindAndConsume(&remaining, *engine, &match))
     return false;
@@ -87,12 +76,10 @@ auto regex::precompiled::find(std::string_view input, match* match_ret, match* s
   return true;
 }
 
-auto regex::compile(std::string_view pattern) -> precompiled
-{
+auto regex::compile(std::string_view pattern) -> precompiled {
   return precompiled{ pattern };
 }
 
-auto regex::capture(std::string_view pattern) -> std::string
-{
+auto regex::capture(std::string_view pattern) -> std::string {
   return std::string{ "(" }.append(pattern).append(")");
 }
