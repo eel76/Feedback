@@ -300,15 +300,22 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     container::interval_map<int, bool> modified{ false };
   };
 
-  class changed_files : public std::unordered_map<std::string, changed_lines> {
+  class changed_files {
   public:
     auto lines_from(std::string_view filename) const -> changed_lines {
-      for (auto const& [changed_filename, changed_code_lines] : *this)
+      for (auto const& [changed_filename, changed_code_lines] : modifications)
         if (text::ends_with(filename, changed_filename))
           return changed_code_lines;
 
       return {};
     }
+
+    auto operator[](std::string filename) -> changed_lines& {
+      return modifications[filename];
+    }
+
+  private:
+    std::unordered_map<std::string, changed_lines> modifications;
   };
 
   auto parse_diff_block(std::string_view diff_block, changed_lines changes = {}) -> changed_lines {
@@ -342,14 +349,11 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     auto filename_pattern = regex::compile("\n[-][-][-] a/.+\n[+][+][+] b/(.+)\n");
     auto block_pattern    = regex::compile("\n(@@ [-][,0-9]+ [+][,0-9]+ @@.*\n([-+ ].*\n)*)");
 
-    regex::match filename_match;
-    if (not filename_pattern.matches(diff_section, { &filename_match }))
+    regex::match filename;
+    if (not filename_pattern.matches(diff_section, { &filename }))
       return changes;
 
-    auto const filename = std::string{ filename_match };
-    changes.try_emplace(filename);
-
-    auto file_changes = std::move(changes.at(filename));
+    auto& file_changes = changes[std::string{ filename }];
 
     auto search = text::forward_search{ diff_section };
     while (search.next(block_pattern)) {
@@ -357,7 +361,6 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
       file_changes     = parse_diff_block(block, std::move(file_changes));
     }
 
-    changes.at(filename) = std::move(file_changes);
     return changes;
   }
 
