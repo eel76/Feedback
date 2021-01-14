@@ -10,10 +10,24 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <execution>
 #include <filesystem>
 #include <map>
 #include <optional>
 #include <type_traits>
+
+namespace {
+  template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+  template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+  auto content_from(std::string const& filename) -> std::string {
+    if (filename.empty())
+      return {};
+
+    auto input_stream = std::ifstream{ filename };
+    return stream::content(input_stream);
+  }
+} // namespace
 
 namespace feedback {
 
@@ -49,13 +63,7 @@ namespace feedback {
   template <class C> class json_container : public C {
   public:
     static auto parse_from(std::string const& filename) -> json_container<C> {
-      if (filename.empty())
-        return {};
-
-      std::ifstream input_stream{ filename };
-
-      auto json = nlohmann::json{};
-      input_stream >> json;
+      auto const json = nlohmann::json::parse(content_from(filename));
 
       auto ret    = json.get<json_container<C>>();
       ret.origin_ = filename;
@@ -132,18 +140,6 @@ namespace feedback {
 } // namespace feedback
 
 namespace {
-  template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-  template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
-  auto content_from(std::string const& filename) -> std::string {
-    auto input_stream = std::ifstream{ filename };
-    return stream::content(input_stream);
-  }
-
-  auto async_content_from(std::string const& filename) -> std::shared_future<std::string> {
-    return async::share([=] { return content_from(filename); });
-  }
-
   auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern) {
     auto search = text::forward_search{ text };
 
@@ -201,92 +197,8 @@ namespace {
     };
   }
 
-  template <class FUNCTION>
-  auto make_print_matches_function(std::shared_future<feedback::rules> shared_rules, FUNCTION is_relevant) {
-    return [=](std::string const& filename) {
-      auto const shared_content   = async_content_from(filename);
-      auto const is_file_relevant = is_relevant(filename);
-
-      auto messages = std::vector<std::future<std::string>>{};
-
-      for (auto const& [id, rule] : shared_rules.get())
-        if (auto const is_rule_in_file_relevant = is_file_relevant(rule); is_rule_in_file_relevant())
-          messages.push_back(async::launch(find_matches_function(shared_content, is_rule_in_file_relevant), id, rule));
-
-      auto synchronized_out = cxx20::osyncstream{ std::cout };
-      format::print(synchronized_out, "\n\n# line 1 \"{}\"", filename);
-
-      for (auto&& message : messages)
-        synchronized_out << message.get();
-    };
-  }
-
-  auto async_rules_from(std::string const& filename) {
-    return async::share([=] { return feedback::rules::parse_from(filename); });
-  }
-
-  auto async_workflow_from(std::string const& filename) {
-    return async::share([=] {
-      return feedback::workflow::parse_from(filename);
-    });
-  }
-
-  void print_header(std::shared_future<feedback::rules> const&    shared_rules,
-                    std::shared_future<feedback::workflow> const& shared_workflow) {
-    using fmt::operator""_a;
-
-    format::print(std::cout,
-                  R"_(// DO NOT EDIT: this file is generated automatically
-
-namespace {{ using avoid_compiler_warnings_symbol = int; }}
-
-#define __STRINGIFY(x) #x
-#define STRINGIFY(x) __STRINGIFY(x)
-#define PRAGMA(x) _Pragma (#x)
-
-#if defined (__GNUC__)
-# define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(GCC error STRINGIFY(id) ": " msg)
-# define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(GCC warning STRINGIFY(id) ": " msg)
-#else
-# define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): error " STRINGIFY(id) ": " msg))
-# define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): warning " STRINGIFY(id) ": " msg))
-#endif
-)_");
-
-    auto const& rules    = shared_rules.get();
-    auto const& workflow = shared_workflow.get();
-
-    for (auto [id, rule] : rules)
-      format::print(std::cout,
-                    R"_(
-#define FEEDBACK_{uppercase_id}_MATCH(match, highlighting) FEEDBACK_{response}_RESPONSE({id}, "{summary} [{type} from file://{feedback_rules}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |"))_",
-                    "feedback_rules"_a = format::as_literal{ rules.origin() }, "id"_a = id,
-                    "uppercase_id"_a = format::uppercase{ id },
-                    "response"_a     = format::uppercase{ to_string(workflow.at(rule.type).response) },
-                    "type"_a = format::as_literal{ rule.type }, "summary"_a = format::as_literal{ rule.summary },
-                    "rationale"_a = format::as_literal{ rule.rationale }, "workaround"_a = format::as_literal{ rule.workaround });
-  }
-
-  template <class FUNCTION> void print_matches(std::string const& sources_filename, FUNCTION print_matches_from) {
-    auto tasks = std::vector<async::task>{};
-
-    auto content = std::ifstream{ sources_filename };
-    for (std::string source; std::getline(content, source);)
-      tasks.emplace_back([=] { print_matches_from(source); });
-  }
-
-  auto diff_from(std::string const& filename) -> scm::diff {
-    if (filename.empty())
-      return {};
-
-    return scm::diff::parse_from(content_from(filename));
-  }
-
-  auto async_diff_from(std::string const& filename) -> std::shared_future<scm::diff> {
-    return async::share([=] { return diff_from(filename); });
-  }
-
-  auto make_is_relevant_function(std::shared_future<feedback::workflow> shared_workflow, std::shared_future<scm::diff> shared_diff) {
+  auto make_is_relevant_function(std::shared_future<scm::diff> const&          shared_diff,
+                                 std::shared_future<feedback::workflow> const& shared_workflow) {
     return [=](std::string_view filename) {
       auto const shared_file_changes = async::share([=] { return shared_diff.get().changes_from(filename); });
 
@@ -326,6 +238,98 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     };
   }
 
+  void print_header(std::shared_future<feedback::rules> const&    shared_rules,
+                    std::shared_future<feedback::workflow> const& shared_workflow) {
+    using fmt::operator""_a;
+
+    format::print(std::cout,
+                  R"_(// DO NOT EDIT: this file is generated automatically
+
+namespace {{ using avoid_compiler_warnings_symbol = int; }}
+
+#define __STRINGIFY(x) #x
+#define STRINGIFY(x) __STRINGIFY(x)
+#define PRAGMA(x) _Pragma (#x)
+
+#if defined (__GNUC__)
+# define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(GCC error STRINGIFY(id) ": " msg)
+# define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(GCC warning STRINGIFY(id) ": " msg)
+#else
+# define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): error " STRINGIFY(id) ": " msg))
+# define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): warning " STRINGIFY(id) ": " msg))
+#endif
+)_");
+
+    auto const& rules    = shared_rules.get();
+    auto const& workflow = shared_workflow.get();
+
+    for (auto [id, rule] : rules)
+      format::print(std::cout,
+                    R"_(
+#define FEEDBACK_{uppercase_id}_MATCH(match, highlighting) FEEDBACK_{response}_RESPONSE({id}, "{summary} [{type} from file://{feedback_rules}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |"))_",
+                    "feedback_rules"_a = format::as_literal{ rules.origin() }, "id"_a = id,
+                    "uppercase_id"_a = format::uppercase{ id },
+                    "response"_a     = format::uppercase{ to_string(workflow.at(rule.type).response) },
+                    "type"_a = format::as_literal{ rule.type }, "summary"_a = format::as_literal{ rule.summary },
+                    "rationale"_a = format::as_literal{ rule.rationale }, "workaround"_a = format::as_literal{ rule.workaround });
+  }
+
+  void print_matches(std::shared_future<feedback::rules> const&          shared_rules,
+                     std::shared_future<feedback::workflow> const&       shared_workflow,
+                     std::shared_future<std::vector<std::string>> const& shared_sources,
+                     std::shared_future<scm::diff> const&                shared_diff) {
+    auto const is_relevant = make_is_relevant_function(shared_diff, shared_workflow);
+
+    auto const& sources = shared_sources.get();
+    std::for_each(std::execution::par, cbegin(sources), cend(sources), [=](std::string const& filename) {
+      auto const shared_content   = async::share([=] { return content_from(filename); });
+      auto const is_file_relevant = is_relevant(filename);
+
+      auto const& rules = shared_rules.get();
+
+      auto messages = std::vector<std::future<std::string>>{};
+
+      for (auto const& [id, rule] : rules)
+        if (auto const is_rule_in_file_relevant = is_file_relevant(rule); is_rule_in_file_relevant())
+          messages.push_back(async::launch(find_matches_function(shared_content, is_rule_in_file_relevant), id, rule));
+
+      auto synchronized_out = cxx20::osyncstream{ std::cout };
+      format::print(synchronized_out, "\n\n# line 1 \"{}\"", filename);
+
+      for (auto&& message : messages)
+        synchronized_out << message.get();
+    });
+  }
+
+  auto parse_diff_from(std::string const& filename) -> scm::diff {
+    return scm::diff::parse_from(content_from(filename));
+  }
+
+  auto parse_sources_from(std::string const& filename) -> std::vector<std::string> {
+    auto sources = std::vector<std::string>{};
+    auto content = std::ifstream{ filename };
+
+    for (std::string source; std::getline(content, source);)
+      sources.emplace_back(source);
+
+    return sources;
+  }
+
+  auto async_diff_from(std::string const& filename) {
+    return async::share([=] { return parse_diff_from(filename); });
+  }
+
+  auto async_rules_from(std::string const& filename) {
+    return async::share([=] { return feedback::rules::parse_from(filename); });
+  }
+
+  auto async_workflow_from(std::string const& filename) {
+    return async::share([=] { return feedback::workflow::parse_from(filename); });
+  }
+
+  auto async_sources_from(std::string const& filename) {
+    return async::share([=] { return parse_sources_from(filename); });
+  }
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -336,15 +340,13 @@ int main(int argc, char* argv[]) {
 
     auto const shared_rules    = async_rules_from(parameters.rules_filename);
     auto const shared_workflow = async_workflow_from(parameters.workflow_filename);
+    auto const shared_sources  = async_sources_from(parameters.sources_filename);
     auto const shared_diff     = async_diff_from(parameters.diff_filename);
 
     auto const redirected_output = stream::redirect(std::cout, parameters.output_filename);
 
-    auto const is_relevant_function   = make_is_relevant_function(shared_workflow, shared_diff);
-    auto const print_matches_function = make_print_matches_function(shared_rules, is_relevant_function);
-
     print_header(shared_rules, shared_workflow);
-    print_matches(parameters.sources_filename, print_matches_function);
+    print_matches(shared_rules, shared_workflow, shared_sources, shared_diff);
   }
   catch (std::exception const& e) {
     std::cerr << e.what() << '\n';
