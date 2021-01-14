@@ -1,5 +1,4 @@
 #pragma once
-
 #include "feedback/container.h"
 
 #include <string>
@@ -7,7 +6,6 @@
 #include <unordered_map>
 
 namespace scm {
-
   class diff {
   public:
     class changes {
@@ -23,22 +21,18 @@ namespace scm {
         return modified[line];
       }
 
-      void add(int line) {
-        modified.assign(line, line + 1, true);
-      }
+      static auto parse_from(std::string_view block, changes merged = {}) -> changes;
 
     private:
       container::interval_map<int, bool> modified{ false };
     };
 
-    auto changes_from(std::string_view filename) const -> changes;
-
-    static auto parse_from(std::string_view output, diff merged_diff = {}) -> diff;
+    static auto parse_from(std::string_view output, diff merged = {}) -> diff;
+    auto        changes_from(std::string_view filename) const -> changes;
 
   private:
     void parse_section(std::string_view section);
 
     std::unordered_map<std::string, changes> modifications;
   };
-
-} // namespace text
+} // namespace scm
