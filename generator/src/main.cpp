@@ -171,11 +171,10 @@ namespace {
   };
 
   template <class FUNCTION>
-  auto find_matches_function(std::shared_future<std::string> shared_content, FUNCTION is_relevant) {
-    return [=](auto const& id, auto const& rule) -> std::string {
-      auto out = std::ostringstream{};
-
+  auto print_rule_matches_function(std::shared_future<std::string> shared_content, FUNCTION is_relevant) {
+    return [=](std::ostream& out, auto const& id, auto const& rule) {
       auto search = text::forward_search{ shared_content.get() };
+
       while (search.next(rule.matched_text)) {
         auto const matched_lines = search.matched_lines();
         if (rule.ignored_text.matches(matched_lines))
@@ -192,8 +191,6 @@ namespace {
                       format::uppercase{ id }, format::as_literal{ highlighting.first_line },
                       highlighting.indentation + highlighting.annotation);
       }
-
-      return out.str();
     };
   }
 
@@ -238,11 +235,12 @@ namespace {
     };
   }
 
-  void print_header(std::shared_future<feedback::rules> const&    shared_rules,
+  void print_header(std::ostream&                                 output,
+                    std::shared_future<feedback::rules> const&    shared_rules,
                     std::shared_future<feedback::workflow> const& shared_workflow) {
     using fmt::operator""_a;
 
-    format::print(std::cout,
+    format::print(output,
                   R"_(// DO NOT EDIT: this file is generated automatically
 
 namespace {{ using avoid_compiler_warnings_symbol = int; }}
@@ -264,7 +262,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     auto const& workflow = shared_workflow.get();
 
     for (auto [id, rule] : rules)
-      format::print(std::cout,
+      format::print(output,
                     R"_(
 #define FEEDBACK_{uppercase_id}_MATCH(match, highlighting) FEEDBACK_{response}_RESPONSE({id}, "{summary} [{type} from file://{feedback_rules}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |"))_",
                     "feedback_rules"_a = format::as_literal{ rules.origin() }, "id"_a = id,
@@ -274,28 +272,33 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
                     "rationale"_a = format::as_literal{ rule.rationale }, "workaround"_a = format::as_literal{ rule.workaround });
   }
 
-  void print_matches(std::shared_future<feedback::rules> const&          shared_rules,
+  void print_matches(std::ostream&                                       output,
+                     std::shared_future<feedback::rules> const&          shared_rules,
                      std::shared_future<feedback::workflow> const&       shared_workflow,
                      std::shared_future<std::vector<std::string>> const& shared_sources,
                      std::shared_future<scm::diff> const&                shared_diff) {
     auto const is_relevant = make_is_relevant_function(shared_diff, shared_workflow);
-
     auto const& sources = shared_sources.get();
-    std::for_each(std::execution::par, cbegin(sources), cend(sources), [=](std::string const& filename) {
+
+    std::for_each(std::execution::par, cbegin(sources), cend(sources), [=,&output](auto const& filename) {
       auto const shared_content   = async::share([=] { return content_from(filename); });
       auto const is_file_relevant = is_relevant(filename);
 
-      auto messages = std::vector<std::future<std::string>>{};
+      auto file_output = cxx20::osyncstream{ output };
+      format::print(file_output, "\n\n# line 1 \"{}\"", filename);
 
-      for (auto const& [id, rule] : shared_rules.get())
-        if (auto const is_rule_in_file_relevant = is_file_relevant(rule); is_rule_in_file_relevant())
-          messages.push_back(async::launch(find_matches_function(shared_content, is_rule_in_file_relevant), id, rule));
+      auto const& rules = shared_rules.get();
+      std::for_each(std::execution::par, cbegin(rules), cend(rules), [=,&file_output](auto const& rule) {
 
-      auto synchronized_out = cxx20::osyncstream{ std::cout };
-      format::print(synchronized_out, "\n\n# line 1 \"{}\"", filename);
+        auto const is_rule_in_file_relevant = is_file_relevant(rule.second);
+        if (not is_rule_in_file_relevant())
+          return;
 
-      for (auto&& message : messages)
-        synchronized_out << message.get();
+        auto const print_rule_matches = print_rule_matches_function(shared_content, is_rule_in_file_relevant);
+
+        auto rule_output = cxx20::osyncstream{ static_cast<std::ostream&> (file_output) };
+        print_rule_matches(rule_output, rule.first, rule.second);
+      });
     });
   }
 
@@ -343,8 +346,8 @@ int main(int argc, char* argv[]) {
 
     auto const redirected_output = stream::redirect(std::cout, parameters.output_filename);
 
-    print_header(shared_rules, shared_workflow);
-    print_matches(shared_rules, shared_workflow, shared_sources, shared_diff);
+    print_header(std::cout, shared_rules, shared_workflow);
+    print_matches(std::cout, shared_rules, shared_workflow, shared_sources, shared_diff);
   }
   catch (std::exception const& e) {
     std::cerr << e.what() << '\n';
