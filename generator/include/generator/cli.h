@@ -1,8 +1,7 @@
 #pragma once
 #include <string>
 
-namespace parameter {
-
+namespace generator::cli {
   struct parameters {
     std::string output_filename;
     std::string diff_filename;
@@ -12,5 +11,4 @@ namespace parameter {
   };
 
   auto parse(int argc, char* argv[]) -> parameters;
-
-} // namespace parameter
+} // namespace generator::cli

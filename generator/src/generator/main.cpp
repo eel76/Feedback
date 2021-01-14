@@ -1,10 +1,11 @@
 #include "feedback/async.h"
 #include "feedback/format.h"
-#include "feedback/parameter.h"
 #include "feedback/regex.h"
 #include "feedback/scm.h"
 #include "feedback/stream.h"
 #include "feedback/text.h"
+
+#include "generator/cli.h"
 
 #include <cxx20/syncstream>
 #include <nlohmann/json.hpp>
@@ -176,7 +177,7 @@ namespace {
       auto const shared_file_changes = async::share([=] { return shared_diff.get().changes_from(filename); });
 
       return [=](feedback::rules::value_type const& rule) {
-        auto const& [id, attributes]     = rule;
+        auto const& [id, attributes] = rule;
 
         auto const rule_matched_filename = attributes.matched_files.matches(filename);
         auto const rule_ignored_filename = attributes.ignored_files.matches(filename);
@@ -348,7 +349,7 @@ int main(int argc, char* argv[]) {
   std::ios::sync_with_stdio(false);
 
   try {
-    auto const parameters = parameter::parse(argc, argv);
+    auto const parameters = generator::cli::parse(argc, argv);
 
     auto const shared_rules    = async_rules_from(parameters.rules_filename);
     auto const shared_workflow = async_workflow_from(parameters.workflow_filename);

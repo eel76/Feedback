@@ -1,4 +1,4 @@
-#include "feedback/parameter.h"
+#include "generator/cli.h"
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -11,8 +11,8 @@
 #pragma GCC diagnostic pop
 #endif
 
-auto parameter::parse(int argc, char* argv[]) -> parameters {
-  parameters p;
+auto generator::cli::parse(int argc, char* argv[]) -> generator::cli::parameters {
+  generator::cli::parameters p;
 
   auto const cli = lyra::opt(p.output_filename, "output filename")["-o"]["--output"]("Output file name") |
                    lyra::opt(p.diff_filename, "diff filename")["-d"]["--diff"]("diff file name") |

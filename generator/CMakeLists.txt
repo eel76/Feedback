@@ -10,7 +10,6 @@ endif ()
 add_subdirectory (extern)
 
 add_library (${PROJECT_NAME}.core STATIC
-  "src/parameter.cpp"
   "src/regex.cpp"
   "src/scm.cpp"
   "src/text.cpp"
@@ -18,7 +17,6 @@ add_library (${PROJECT_NAME}.core STATIC
   "include/feedback/async.h"
   "include/feedback/container.h"
   "include/feedback/format.h"
-  "include/feedback/parameter.h"
   "include/feedback/regex.h"
   "include/feedback/scm.h"
   "include/feedback/stream.h"
@@ -26,7 +24,6 @@ add_library (${PROJECT_NAME}.core STATIC
   )
 target_link_libraries (${PROJECT_NAME}.core
   PUBLIC ${CMAKE_THREAD_LIBS_INIT}
-  PUBLIC bfg::Lyra
   PUBLIC fmt::fmt-header-only
   PRIVATE re2::re2
   )
@@ -38,11 +35,14 @@ target_compile_options (${PROJECT_NAME}.core
   )
 
 add_executable (${PROJECT_NAME}
-  "src/main.cpp"
+  "src/${PROJECT_NAME}/main.cpp"
+  "src/${PROJECT_NAME}/cli.cpp"
+  "include/${PROJECT_NAME}/cli.h"
   )
 target_link_libraries (${PROJECT_NAME}
   PRIVATE ${PROJECT_NAME}.core
   PRIVATE nlohmann_json::nlohmann_json
+  PRIVATE bfg::Lyra
   )
 
 set_target_properties (${PROJECT_NAME}.core ${PROJECT_NAME}
