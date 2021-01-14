@@ -285,11 +285,9 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
       auto const shared_content   = async::share([=] { return content_from(filename); });
       auto const is_file_relevant = is_relevant(filename);
 
-      auto const& rules = shared_rules.get();
-
       auto messages = std::vector<std::future<std::string>>{};
 
-      for (auto const& [id, rule] : rules)
+      for (auto const& [id, rule] : shared_rules.get())
         if (auto const is_rule_in_file_relevant = is_file_relevant(rule); is_rule_in_file_relevant())
           messages.push_back(async::launch(find_matches_function(shared_content, is_rule_in_file_relevant), id, rule));
 
