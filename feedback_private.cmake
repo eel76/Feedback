@@ -296,16 +296,14 @@ function (CreateDiff output changes)
 endfunction ()
 
 function (CreateFeedbackSourceForSources filename rules workflow changes)
-  # können wir eine CMake rule definieren, so dass die liste bei bedarf neu gemacht wird
   WriteWorkflow ("${filename}.workflow.json" "${workflow}")
-  # können wir eine CMake rule definieren, so dass die liste bei bedarf neu gemacht wird
   WriteFileList ("${filename}.sources.txt" ${ARGN})
   CreateDiff ("${filename}.diff" "${changes}" ${ARGN})
 
   add_custom_command (
     OUTPUT "${filename}"
-    COMMAND "$<TARGET_FILE:generator>" "-o=${filename}" "-w=${filename}.workflow.json" "-d=${filename}.diff" "${rules}" "${filename}.sources.txt"
-    DEPENDS generator "${rules}" "${filename}.workflow.json" "${filename}.diff" "${filename}.sources.txt" ${ARGN}
+    COMMAND "$<TARGET_FILE:generator>" "--output=${filename}" "--diff=${filename}.diff" "${rules}" "${filename}.workflow.json" "${filename}.sources.txt"
+    DEPENDS generator "${filename}.diff" "${rules}" "${filename}.workflow.json" "${filename}.sources.txt" ${ARGN}
     )
 endfunction ()
 
