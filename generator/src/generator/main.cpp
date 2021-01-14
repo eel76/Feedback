@@ -17,20 +17,20 @@
 #include <optional>
 #include <type_traits>
 
-namespace {
-  template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-  template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
-  auto content_from(std::string const& filename) -> std::string {
-    if (filename.empty())
-      return {};
-
-    auto input_stream = std::ifstream{ filename };
-    return stream::content(input_stream);
-  }
-} // namespace
-
 namespace feedback {
+
+  namespace {
+    template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+    template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+    auto content_from(std::string const& filename) -> std::string {
+      if (filename.empty())
+        return {};
+
+      auto input_stream = std::ifstream{ filename };
+      return stream::content(input_stream);
+    }
+  } // namespace
 
   template <class T> auto to_string(T value) -> typename std::enable_if<std::is_enum_v<T>, std::string>::type {
     auto const json_dump = nlohmann::json{ value }.dump();
@@ -138,9 +138,6 @@ namespace feedback {
 
   using rules = json_container<std::map<identifier, rule>>;
 
-} // namespace feedback
-
-namespace {
   auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern) {
     auto search = text::forward_search{ text };
 
@@ -343,7 +340,8 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
   auto async_sources_from(std::string const& filename) {
     return async::share([=] { return parse_sources_from(filename); });
   }
-} // namespace
+
+} // namespace feedback
 
 int main(int argc, char* argv[]) {
   std::ios::sync_with_stdio(false);
@@ -351,12 +349,12 @@ int main(int argc, char* argv[]) {
   try {
     auto const parameters = generator::cli::parse(argc, argv);
 
-    auto const shared_rules    = async_rules_from(parameters.rules_filename);
-    auto const shared_workflow = async_workflow_from(parameters.workflow_filename);
-    auto const shared_sources  = async_sources_from(parameters.sources_filename);
-    auto const shared_diff     = async_diff_from(parameters.diff_filename);
+    auto const shared_rules    = feedback::async_rules_from(parameters.rules_filename);
+    auto const shared_workflow = feedback::async_workflow_from(parameters.workflow_filename);
+    auto const shared_sources  = feedback::async_sources_from(parameters.sources_filename);
+    auto const shared_diff     = feedback::async_diff_from(parameters.diff_filename);
 
-    auto const redirected_output = stream::redirect(std::cout, parameters.output_filename);
+    auto const redirected_output = feedback::stream::redirect(std::cout, parameters.output_filename);
 
     print_header(std::cout, shared_rules, shared_workflow);
     print_matches(std::cout, shared_rules, shared_workflow, shared_sources, shared_diff);

@@ -5,7 +5,7 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace scm {
+namespace feedback::scm {
   class diff {
   public:
     class changes {
@@ -35,4 +35,4 @@ namespace scm {
 
     std::unordered_map<std::string, changes> modifications;
   };
-} // namespace scm
+} // namespace feedback::scm

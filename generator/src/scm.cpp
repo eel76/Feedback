@@ -5,7 +5,7 @@
 
 #include <charconv>
 
-namespace scm {
+namespace feedback::scm {
 
   namespace {
     auto parse_starting_line(std::string_view block) {
@@ -85,4 +85,4 @@ namespace scm {
     while (search.next(block_pattern))
       modified = changes::parse_from(search.matched_text(), std::move(modified));
   }
-} // namespace scm
+} // namespace feedback::scm
