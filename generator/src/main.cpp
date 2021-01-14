@@ -14,8 +14,6 @@
 #include <map>
 #include <optional>
 #include <type_traits>
-#include <unordered_map>
-#include <unordered_set>
 
 namespace feedback {
 
@@ -291,7 +289,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
 
   auto make_is_relevant_function(std::shared_future<feedback::workflow> shared_workflow, std::shared_future<scm::diff> shared_diff) {
     return [=](std::string_view filename) {
-      auto const shared_file_modifications = async::share([=] { return shared_diff.get().changes_from(filename); });
+      auto const shared_file_changes = async::share([=] { return shared_diff.get().changes_from(filename); });
 
       return [=](feedback::rule const& rule) {
         auto const rule_matched_filename = rule.matched_files.matches(filename);
@@ -308,10 +306,10 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
             file_is_relevant = false;
             break;
           case feedback::check::CHANGED_LINES:
-            line_is_relevant = [modified = shared_file_modifications.get()](int line) { return modified[line]; };
+            line_is_relevant = [is_modified = shared_file_changes.get()](int line) { return is_modified[line]; };
             [[fallthrough]];
           case feedback::check::CHANGED_FILES:
-            file_is_relevant = not shared_file_modifications.get().empty();
+            file_is_relevant = not shared_file_changes.get().empty();
             break;
           case feedback::check::ALL_LINES:
             [[fallthrough]];
@@ -320,8 +318,11 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
           }
         }
 
-        return overloaded{ [=]() { return file_is_relevant; },
-                           [=](int line) { return file_is_relevant and line_is_relevant(line); } };
+        if (!file_is_relevant) {
+          line_is_relevant = [](int) { return false; };
+        }
+
+        return overloaded{ [=]() { return file_is_relevant; }, [=](int line) { return line_is_relevant(line); } };
       };
     };
   }
