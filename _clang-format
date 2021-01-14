@@ -39,7 +39,7 @@ ConstructorInitializerIndentWidth: 0
 ContinuationIndentWidth: 0
 Cpp11BracedListStyle: false
 DerivePointerBinding: false
-FixNamespaceComments: false
+FixNamespaceComments: true
 IncludeCategories:
   - Regex:           '^["]feedback'
     Priority:        2
