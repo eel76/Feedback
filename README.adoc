@@ -112,12 +112,15 @@ Where your feedback rules (`rules.json`) are like this:
 }
 ----
 
-You can exclude certain targets from any feedback:
+You can exclude certain targets from feedback:
 
 [source,cmake]
 ----
-add_executable (excluded_example ...)
-set_target_properties (excluded_example PROPERTIES EXCLUDE_FROM_FEEDBACK TRUE)
+add_executable (no_feedback ...)
+Feedback_Exclude (no_feedback)
+
+Feedback_FindTargets (all_targets DIRECTORY .)
+Feedback_Add (CodingGuidelines RULES rules.json TARGETS ${all_targets})
 ----
 
 // end::using[]
