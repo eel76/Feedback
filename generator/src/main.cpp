@@ -48,7 +48,10 @@ namespace feedback {
 
   template <class C> class json_container : public C {
   public:
-    static auto parse_from(std::string const& filename) {
+    static auto parse_from(std::string const& filename) -> json_container<C> {
+      if (filename.empty())
+        return {};
+
       std::ifstream input_stream{ filename };
 
       auto json = nlohmann::json{};
@@ -224,10 +227,6 @@ namespace {
 
   auto async_workflow_from(std::string const& filename) {
     return async::share([=] {
-      // FIXME: what does a missing workflow mean?
-      if (filename.empty())
-        return feedback::workflow{};
-
       return feedback::workflow::parse_from(filename);
     });
   }
