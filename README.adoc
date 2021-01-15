@@ -68,10 +68,7 @@ Where your feedback rules (`rules.json`) are like this:
   "RULE1": {
     "type": "requirement",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
-    "ignored_files": "^$",
     "matched_text": "\t",
-    "ignored_text": "^$",
-    "marked_text": ".*",
     "summary": "Don't use tabulators in source files",
     "rationale": "Developers who use spaces make more money than those who use tabs. See also: https://stackoverflow.blog/2017/06/15/developers-use-spaces-make-money-use-tabs/",
     "workaround": "Please replace all tabulators with spaces and adjust your editor settings accordingly."
@@ -79,9 +76,7 @@ Where your feedback rules (`rules.json`) are like this:
   "RULE2": {
     "type": "guideline",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
-    "ignored_files": "^$",
     "matched_text": "^ *# *include *([<][^>]*|[\"][^\"]*)[\\\\]",
-    "ignored_text": "^$",
     "marked_text": "[\\\\]",
     "summary": "Don't use backslashes in include directives",
     "rationale": "Non Windows systems may not recognize a backslash as path delimiter.",
@@ -90,9 +85,7 @@ Where your feedback rules (`rules.json`) are like this:
   "RULE3": {
     "type": "improvement",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
-    "ignored_files": "^$",
     "matched_text": "^ *# *include *([<][^>]*|[\"][^\"]*)//",
-    "ignored_text": "^$",
     "marked_text": "//",
     "summary": "Duplicate forward slash in include directive",
     "rationale": "Such typos are ignored by most compilers, but they complicate automated refactorings.",
@@ -101,12 +94,10 @@ Where your feedback rules (`rules.json`) are like this:
   "RULE4": {
     "type": "suggestion",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)([.]in)?$",
-    "ignored_files": "^$",
     "matched_text": "// *(TODO|FIXME|REVIEW|OPTIMIZE|HACK|XXX|BUG)",
-    "ignored_text": "^$",
     "marked_text": "[A-Z]+",
     "summary": "Unfinished task (TODO/FIXME/HACK/...)",
-    "rationale": "Task markers should be used only rarely and temporarily in our code base because they indicate a technical debt. They tend to rot over time and will be forgotton eventually.",
+    "rationale": "Task markers should be used only rarely and temporarily because they indicate a technical debt and will be forgotton eventually.",
     "workaround": "Please finish this task if possible. Remove its marker from our code base either way. Use an issue tracker like JIRA for important tasks."
   }
 }
