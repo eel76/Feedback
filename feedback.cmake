@@ -86,6 +86,8 @@ function (Feedback_Add name)
 
   if (NOT is_disabled)
     get_filename_component (Feedback_RULES "${Feedback_RULES}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+
+    message (STATUS "Adding feedback: ${name}")
     ConfigureFeedbackTargetFromTargets ("${name}" "${Feedback_RULES}" "${Feedback_WORKFLOW}" "${Feedback_RELEVANT_CHANGES}" ${Feedback_TARGETS})
   endif ()
 endfunction ()
@@ -134,9 +136,9 @@ function (Feedback_ConfigureWorkflow name)
   list (APPEND "FEEDBACK_WORKFLOW_${name}_TYPES" "${Feedback_TYPE}")
   list (REMOVE_DUPLICATES "FEEDBACK_WORKFLOW_${name}_TYPES")
 
-  set ("FEEDBACK_WORKFLOW_${name}_TYPES" ${FEEDBACK_WORKFLOW_${name}_TYPES} CACHE INTERNAL .)
-  set ("FEEDBACK_WORKFLOW_${name}_CHECK_${Feedback_TYPE}" "${Feedback_CHECK}" CACHE INTERNAL .)
-  set ("FEEDBACK_WORKFLOW_${name}_RESPONSE_${Feedback_TYPE}" "${Feedback_RESPONSE}" CACHE INTERNAL .)
+  set ("FEEDBACK_WORKFLOW_${name}_TYPES" ${FEEDBACK_WORKFLOW_${name}_TYPES} CACHE INTERNAL "")
+  set ("FEEDBACK_WORKFLOW_${name}_CHECK_${Feedback_TYPE}" "${Feedback_CHECK}" CACHE INTERNAL "")
+  set ("FEEDBACK_WORKFLOW_${name}_RESPONSE_${Feedback_TYPE}" "${Feedback_RESPONSE}" CACHE INTERNAL "")
 endfunction ()
 
 function (Feedback_AddDefaultWorkflows)
