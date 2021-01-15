@@ -21,7 +21,7 @@ namespace feedback::regex {
     friend auto compile(std::string_view pattern) -> precompiled;
 
   private:
-    struct impl;
+    class impl;
     std::shared_ptr<impl> engine;
   };
 
