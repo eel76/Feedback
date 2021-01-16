@@ -95,8 +95,8 @@ endfunction ()
 
 function (Feedback_RemoveExcludedTargets included_targets_variable)
   foreach (target IN LISTS ARGN)
-    Feedback_IsExcluded (is_excluded "${target}")
-    if (NOT is_excluded)
+    Feedback_IsExcluded (excluded "${target}")
+    if (NOT excluded)
       list (APPEND included_targets "${target}")
     endif ()
   endforeach ()
@@ -129,7 +129,6 @@ function (GroupTargetsInFolder folder)
     endif ()
   endforeach()
 endfunction ()
-
 
 function (GetWorktree worktree_variable)
   cmake_parse_arguments (Worktree "" "HINT" "" ${ARGN})
@@ -237,6 +236,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
   endif ()
 
   Feedback_RemoveExcludedTargets (ARGN ${ARGN})
+
   CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${rules}" "${workflow}" "${changes}" ${ARGN})
 
   add_library ("${feedback_target}" SHARED EXCLUDE_FROM_ALL "${rules}" ${feedback_sources})
@@ -282,6 +282,8 @@ endfunction ()
 function (CreateDiff output changes)
   GetWorktree (worktree)
   GetRepository (repository HINT "${worktree}")
+
+  # FIXME: read HEAD file and parse ref, depend on that ref, too!
 
   if (changes STREQUAL "modified_or_staged")
     add_custom_command (
