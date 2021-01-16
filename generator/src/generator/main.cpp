@@ -180,7 +180,7 @@ namespace feedback {
         auto const rule_ignored_filename = attributes.ignored_files.matches(filename);
 
         auto file_is_relevant = rule_matched_filename and not rule_ignored_filename;
-        auto line_is_relevant = std::function<bool(int)>{ [](int) { return true; } };
+        auto line_is_relevant = std::function<bool(int)>{ [](auto) { return true; } };
 
         if (file_is_relevant) {
           switch (shared_workflow.get().at(attributes.type).check) {
@@ -190,7 +190,7 @@ namespace feedback {
             file_is_relevant = false;
             break;
           case feedback::check::CHANGED_LINES:
-            line_is_relevant = [is_modified = shared_file_changes.get()](int line) { return is_modified[line]; };
+            line_is_relevant = [is_modified = shared_file_changes.get()](auto line) { return is_modified[line]; };
             [[fallthrough]];
           case feedback::check::CHANGED_FILES:
             file_is_relevant = not shared_file_changes.get().empty();
@@ -203,10 +203,10 @@ namespace feedback {
         }
 
         if (!file_is_relevant) {
-          line_is_relevant = [](int) { return false; };
+          line_is_relevant = [](auto) { return false; };
         }
 
-        return overloaded{ [=]() { return file_is_relevant; }, [=](int line) { return line_is_relevant(line); } };
+        return overloaded{ [=]() { return file_is_relevant; }, [=](auto line) { return line_is_relevant(line); } };
       };
     };
   }
@@ -340,7 +340,6 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
   auto async_sources_from(std::string const& filename) {
     return async::share([=] { return parse_sources_from(filename); });
   }
-
 } // namespace feedback
 
 int main(int argc, char* argv[]) {
