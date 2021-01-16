@@ -4,7 +4,7 @@
 
 SCENARIO("interval map usage", "[container]") {
   GIVEN("An interval map from integers to booleans") {
-    auto const map = container::interval_map<int, bool>{ false };
+    auto const map = feedback::container::interval_map<int, bool>{ false };
 
     WHEN("it is default constructed") {
       THEN("it is canonical") {
