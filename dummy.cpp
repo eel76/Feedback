@@ -1,3 +1,0 @@
-namespace {
-using symbol = int;
-}
