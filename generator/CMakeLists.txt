@@ -36,7 +36,7 @@ target_include_directories (${PROJECT_NAME}.core
   PUBLIC include
   )
 target_compile_options (${PROJECT_NAME}.core
-  PUBLIC $<$<CXX_COMPILER_ID:MSVC>:-permissive- -W4 -WX>
+  PUBLIC $<$<CXX_COMPILER_ID:MSVC>:-permissive- -W4 -WX> $<$<CXX_COMPILER_ID:Clang,GNU>:-Wall -Werror>
   )
 
 add_executable (${PROJECT_NAME}
