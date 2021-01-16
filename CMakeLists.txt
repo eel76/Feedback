@@ -12,11 +12,19 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR FEEDBACK_BUILD_TESTING)
   set(GENERATOR_BUILD_TESTING ON CACHE INTERNAL "")
 endif()
 
-add_subdirectory("generator")
+if (TRUE)
+  add_subdirectory("generator")
+else ()
+  include (ExternalProject)
+  ExternalProject_Add(generator_build SOURCE_DIR "generator"
+# release config auswählen!!!  CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release"
+  EXCLUDE_FROM_ALL)
 
-if (NOT CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-# FIXME
-#  target_compile_options (generator BEFORE PRIVATE $<$<CONFIG:Debug>:-O2> $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:-Ob2>)
+  add_executable (generator IMPORTED)
+  add_dependencies(generator generator_build)
+
+  ExternalProject_Get_Property(generator_build binary_dir)
+  set_target_properties(generator PROPERTIES IMPORTED_LOCATION "${binary_dir}/generator${CMAKE_EXECUTABLE_SUFFIX}")
 endif ()
 
 include ("feedback.cmake")
