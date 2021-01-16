@@ -1,25 +1,15 @@
 #include "generator/cli.h"
+#include "feedback/macros.h"
 
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtype-limits"
-#endif
+COMPILER_WARNINGS_PUSH
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#pragma warning(disable : 4458)
-#endif
+MSC_WARNING(disable : 4100)
+MSC_WARNING(disable : 4458)
+GCC_DIAGNOSTIC(ignored "-Wtype-limits")
 
 #include <lyra/lyra.hpp>
 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
+COMPILER_WARNINGS_POP
 
 auto generator::cli::parse(int argc, char* argv[]) -> generator::cli::parameters {
   generator::cli::parameters p;
