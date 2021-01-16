@@ -44,12 +44,12 @@ namespace feedback::text {
 
     auto matched_lines() const -> std::string_view;
 
-    auto line() const -> ptrdiff_t {
-      return processed_line_count;
+    auto line() const -> int {
+      return static_cast<int> (processed_line_count);
     }
 
-    auto column() const -> ptrdiff_t {
-      return last_processed_line.length();
+    auto column() const -> int {
+      return static_cast<int> (last_processed_line.length());
     }
 
   private:
