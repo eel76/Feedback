@@ -11,7 +11,7 @@ Extern_MakeAvailable (re2 "https://github.com/google/re2.git" 2020-11-01 BUILD_T
 target_compile_options (re2 PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:CLANG>>:-Wno-error=unused-parameter -Wno-error=missing-field-initializers>)
 target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${RE2_SOURCE_DIR}>)
 
-if (BUILD_TESTING)
+if (GENERATOR_BUILD_TESTING AND BUILD_TESTING)
   Extern_MakeAvailable (catch2 "https://github.com/catchorg/Catch2.git" v2.13.4)
   Extern_MakeAvailable (benchmark "https://github.com/google/benchmark.git" v1.5.2 BUILD_TESTING_VARIABLE BENCHMARK_ENABLE_TESTING)
 endif()
