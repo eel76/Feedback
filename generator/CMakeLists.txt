@@ -5,6 +5,10 @@ project (generator)
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   include (CTest)
   set_property(GLOBAL PROPERTY USE_FOLDERS true)
+
+  set (GENERATOR_BUILD_TESTING ON CACHE INTERNAL "")
+else ()
+  option (GENERATOR_BUILD_TESTING "Enable testing for ${PROJECT_NAME} project." OFF)
 endif ()
 
 add_subdirectory (extern)
@@ -31,7 +35,7 @@ target_include_directories (${PROJECT_NAME}.core
   PUBLIC include
   )
 target_compile_options (${PROJECT_NAME}.core
-  PUBLIC $<$<CXX_COMPILER_ID:MSVC>:-permissive->
+  PUBLIC $<$<CXX_COMPILER_ID:MSVC>:-permissive- -W4 -WX>
   )
 
 add_executable (${PROJECT_NAME}
@@ -44,12 +48,15 @@ target_link_libraries (${PROJECT_NAME}
   PRIVATE nlohmann_json::nlohmann_json
   PRIVATE bfg::Lyra
   )
+target_include_directories (${PROJECT_NAME}
+  PRIVATE include
+  )
 
 set_target_properties (${PROJECT_NAME}.core ${PROJECT_NAME}
   PROPERTIES CXX_STANDARD 17
   )
 
-if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR GENERATOR_BUILD_TESTING) AND BUILD_TESTING)
+if (GENERATOR_BUILD_TESTING AND BUILD_TESTING)
   add_executable (${PROJECT_NAME}.test
     "src/test.container.cpp"
     "src/test.main.cpp"
