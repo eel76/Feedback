@@ -65,7 +65,7 @@ namespace fmt {
       auto out = ctx.out();
 
       for (auto const& ch : text.str)
-        out = base.format(std::toupper(ch), ctx);
+        out = base.format(static_cast<decltype(ch)>(std::toupper(static_cast<unsigned char>(ch))), ctx);
 
       return out;
     }
