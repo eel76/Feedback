@@ -25,6 +25,15 @@ Distributed under the [MIT](https://opensource.org/licenses/MIT) license.
 
 // end::features[]
 
+== Design Goals
+
+// tag::goals[]
+
+* Simple
+* Fast
+
+// end::goals[]
+
 == Using
 
 // tag::using[]
@@ -46,21 +55,48 @@ You can also add feedback as subdirectory if you store its sources side-by-side:
 add_subdirectory (path_to_feedback)
 ----
 
-A feedback can then be created like this:
+A feedback can then be added to your targets like this:
 
 [source,cmake]
 ----
-# add_library (...)
-add_executable (example main.cpp)
+add_library (example ...)
 
-Feedback_FindTargets (all_targets DIRECTORY .)
-Feedback_Add (CodingGuidelines RULES rules.json TARGETS ${all_targets})
-
-# Optional, but recommended setting to group all feedback targets
+# Recommended setting to group feedback targets
 set_property(GLOBAL PROPERTY USE_FOLDERS true)
+
+Feedback_Add (coding_guidelines RULES rules.json DIRECTORY "${CMAKE_SOURCE_DIR}")
 ----
 
-Where your feedback rules (`rules.json`) are like this:
+This will add the `coding_guidelines` feedback to all targets (executables, static, shared and module libraries) which will be built in CMAKE_SOURCE_DIR or its subdirectories.
+Imported targets will be ignored.
+
+You can also select the targets explicitly
+
+[source,cmake]
+----
+Feedback_Add (coding_guidelines RULES rules.json TARGETS example)
+----
+
+or control the types of targets which will be included
+
+[source,cmake]
+----
+# omit executables from feedback
+Feedback_FindTargets (targets DIRECTORY "${CMAKE_SOURCE_DIR}" TYPES STATIC_LIBRARY MODULE_LIBRARY SHARED_LIBRARY)
+Feedback_Add (coding_guidelines RULES rules.json TARGETS ${targets})
+----
+
+You can exclude certain targets from feedback:
+
+[source,cmake]
+----
+add_executable (ignored ...)
+Feedback_Exclude (ignored)
+
+Feedback_Add (CodingGuidelines RULES rules.json DIRECTORY "${CMAKE_SOURCE_DIR}")
+----
+
+The feedback rules (`rules.json`) of our `coding_guidelines` feedback could look similar to this:
 
 [source,json]
 ----
@@ -101,17 +137,6 @@ Where your feedback rules (`rules.json`) are like this:
     "workaround": "Please finish this task if possible. Remove its marker from our code base either way. Use an issue tracker like JIRA for important tasks."
   }
 }
-----
-
-You can exclude certain targets from feedback:
-
-[source,cmake]
-----
-add_executable (no_feedback ...)
-Feedback_Exclude (no_feedback)
-
-Feedback_FindTargets (all_targets DIRECTORY .)
-Feedback_Add (CodingGuidelines RULES rules.json TARGETS ${all_targets})
 ----
 
 // end::using[]
