@@ -1,40 +1,57 @@
 cmake_minimum_required (VERSION 3.18)
 
 project (feedback)
-option (FEEDBACK_BUILD_TESTING "Enable testing for ${PROJECT_NAME} project.")
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   include (CTest)
   set_property(GLOBAL PROPERTY USE_FOLDERS true)
+  set (FEEDBACK_BUILD_TESTING ON)
+else ()
+  option (FEEDBACK_BUILD_TESTING "Enable testing for ${PROJECT_NAME} project." OFF)
 endif ()
 
-if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR FEEDBACK_BUILD_TESTING)
-  set(GENERATOR_BUILD_TESTING ON CACHE INTERNAL "")
-endif()
-
-if (TRUE)
-  add_subdirectory("generator")
+if (DEFINED BUILD_TESTING AND BUILD_TESTING AND FEEDBACK_BUILD_TESTING)
+  set (TESTING ON)
 else ()
-  include (ExternalProject)
-  ExternalProject_Add(generator_build SOURCE_DIR "generator"
-# release config auswählen!!!  CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release"
-  EXCLUDE_FROM_ALL)
+  set (TESTING OFF)
+endif ()
 
-  add_executable (generator IMPORTED)
+option (FEEDBACK_NO_EXTERNAL_PROJECT "Feedback does not use ExternalProject module." OFF)
+
+if (FEEDBACK_NO_EXTERNAL_PROJECT)
+  set (GENERATOR_BUILD_TESTING "${TESTING}")
+  add_subdirectory("generator")
+else()
+
+  # we do not add_subdirectory("generator") here because
+  #  * always build generator in release configuration
+  #  * do not inherit compile options from client project
+  #  * faster CMake configuration/generation
+
+  include (ExternalProject)
+  ExternalProject_Add(generator_build
+    SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/generator"
+    BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/generator"
+    CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release" "-DBUILD_TESTING=${TESTING}"
+    BUILD_COMMAND "${CMAKE_COMMAND}" "--build" "${CMAKE_CURRENT_BINARY_DIR}/generator" "--config" "Release"
+    INSTALL_COMMAND ""
+    EXCLUDE_FROM_ALL)
+
+  add_executable (generator IMPORTED GLOBAL)
   add_dependencies(generator generator_build)
 
   ExternalProject_Get_Property(generator_build binary_dir)
-  set_target_properties(generator PROPERTIES IMPORTED_LOCATION "${binary_dir}/generator${CMAKE_EXECUTABLE_SUFFIX}")
-endif ()
+  set_target_properties(generator PROPERTIES IMPORTED_LOCATION "${binary_dir}/Release/generator${CMAKE_EXECUTABLE_SUFFIX}")
+endif()
 
 include ("feedback.cmake")
 
-#Feedback_FindTargets (generator_targets DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/generator")
-Feedback_FindTargets (generator_targets DIRECTORY "generator")
-set_target_properties (${generator_targets} PROPERTIES FOLDER "generator")
+# FIXME: as a function?
 
-Feedback_InternalTargets (${generator_targets})
+Feedback_FindTargets (feedback_targets DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
+Feedback_GroupTargetsInFolder ("generator" ${feedback_targets})
+Feedback_InternalTargets (${feedback_targets})
 
-if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR FEEDBACK_BUILD_TESTING) AND BUILD_TESTING)
+if (TESTING)
   add_subdirectory(tests)
 endif()

@@ -15,7 +15,7 @@ endfunction ()
 
 function (Feedback_InternalTargets)
   Feedback_Exclude (${ARGN})
-  GroupTargetsInFolder (feedback ${ARGN})
+  Feedback_GroupTargetsInFolder (feedback ${ARGN})
 endfunction ()
 
 function (GetFeedbackSourceDir source_dir_variable)
@@ -119,7 +119,7 @@ function (RemoveFirstElementsFromList chunk_variable count list_variable)
   set (${list_variable} ${list} PARENT_SCOPE)
 endfunction ()
 
-function (GroupTargetsInFolder folder)
+function (Feedback_GroupTargetsInFolder folder)
   foreach (target IN LISTS ARGN)
     get_target_property(current_folder ${target} FOLDER)
     if (current_folder)
