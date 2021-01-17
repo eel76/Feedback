@@ -9,4 +9,4 @@ add_executable (included main.cpp)
 add_executable (excluded main.cpp)
 
 Feedback_Exclude (excluded)
-Feedback_Add (example RULES rules.json DIRECTORY "${CMAKE_SOURCE_DIR}")
+Feedback_Add (example RULES rules.json DIRECTORIES "${CMAKE_SOURCE_DIR}")

@@ -64,7 +64,7 @@ add_library (example ...)
 # Recommended setting to group feedback targets
 set_property(GLOBAL PROPERTY USE_FOLDERS true)
 
-Feedback_Add (coding_guidelines RULES rules.json DIRECTORY "${CMAKE_SOURCE_DIR}")
+Feedback_Add (coding_guidelines RULES rules.json DIRECTORIES "${CMAKE_SOURCE_DIR}")
 ----
 
 This will add the `coding_guidelines` feedback to all targets (executables, static, shared and module libraries) which will be built in CMAKE_SOURCE_DIR or its subdirectories.
@@ -82,7 +82,7 @@ or control the types of targets which will be included
 [source,cmake]
 ----
 # omit executables from feedback
-Feedback_FindTargets (targets DIRECTORY "${CMAKE_SOURCE_DIR}" TYPES STATIC_LIBRARY MODULE_LIBRARY SHARED_LIBRARY)
+Feedback_FindTargets (targets DIRECTORIES "${CMAKE_SOURCE_DIR}" TYPES STATIC_LIBRARY MODULE_LIBRARY SHARED_LIBRARY)
 Feedback_Add (coding_guidelines RULES rules.json TARGETS ${targets})
 ----
 
@@ -93,7 +93,7 @@ You can exclude certain targets from feedback:
 add_executable (ignored ...)
 Feedback_Exclude (ignored)
 
-Feedback_Add (CodingGuidelines RULES rules.json DIRECTORY "${CMAKE_SOURCE_DIR}")
+Feedback_Add (CodingGuidelines RULES rules.json DIRECTORIES "${CMAKE_SOURCE_DIR}")
 ----
 
 The feedback rules (`rules.json`) of our `coding_guidelines` feedback could look similar to this:

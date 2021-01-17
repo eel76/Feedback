@@ -5,14 +5,14 @@ find_package (Git REQUIRED)
 include (feedback_private.cmake)
 
 function (Feedback_FindTargets targets_variable)
-  cmake_parse_arguments (Feedback "" "DIRECTORY;IMPORTED" "TYPES" ${ARGN})
+  cmake_parse_arguments (Feedback "" "IMPORTED" "DIRECTORIES;TYPES" ${ARGN})
 
   if (DEFINED Feedback_UNPARSED_ARGUMENTS)
     message (FATAL_ERROR "Unparsed arguments: ${Feedback_UNPARSED_ARGUMENTS}")
   endif ()
 
-  if (NOT DEFINED Feedback_DIRECTORY)
-    message (FATAL_ERROR "No directory given.")
+  if (NOT DEFINED Feedback_DIRECTORIES)
+    message (FATAL_ERROR "No directories given.")
   endif ()
 
   if (NOT DEFINED Feedback_IMPORTED)
@@ -23,32 +23,34 @@ function (Feedback_FindTargets targets_variable)
     set (Feedback_TYPES STATIC_LIBRARY MODULE_LIBRARY SHARED_LIBRARY EXECUTABLE)
   endif ()
 
+  list(JOIN Feedback_TYPES " " types)
   unset (targets)
 
-  list(JOIN Feedback_TYPES " " types)
-  get_directory_property(buildsystem_targets DIRECTORY "${Feedback_DIRECTORY}" BUILDSYSTEM_TARGETS)
+  foreach (directory IN LISTS Feedback_DIRECTORIES)
+    get_directory_property(buildsystem_targets DIRECTORY "${directory}" BUILDSYSTEM_TARGETS)
 
-  foreach (target IN LISTS buildsystem_targets)
-    get_target_property (type "${target}" TYPE)
-    get_target_property (imported "${target}" IMPORTED)
+    foreach (target IN LISTS buildsystem_targets)
+      get_target_property (type "${target}" TYPE)
+      get_target_property (imported "${target}" IMPORTED)
 
-    if (" ${types} " MATCHES " ${type} " AND (NOT imported OR Feedback_IMPORTED))
-      list (APPEND targets "${target}")
+      if (" ${types} " MATCHES " ${type} " AND (NOT imported OR Feedback_IMPORTED))
+        list (APPEND targets "${target}")
+      endif ()
+    endforeach ()
+
+    get_directory_property(subdirectories DIRECTORY "${directory}" SUBDIRECTORIES)
+
+    if (subdirectories)
+      Feedback_FindTargets (subdirectory_targets DIRECTORIES ${subdirectories} TYPES ${Feedback_TYPES})
+      list (APPEND targets ${subdirectory_targets})
     endif ()
-  endforeach ()
-
-  get_directory_property(subdirectories DIRECTORY "${Feedback_DIRECTORY}" SUBDIRECTORIES)
-
-  foreach (subdirectory IN LISTS subdirectories)
-    Feedback_FindTargets (subdirectory_targets DIRECTORY "${subdirectory}" TYPES ${Feedback_TYPES})
-    list (APPEND targets ${subdirectory_targets})
   endforeach ()
 
   set (${targets_variable} ${targets} PARENT_SCOPE)
 endfunction ()
 
 function (Feedback_Add name)
-  cmake_parse_arguments (Feedback "" "RULES;WORKFLOW;RELEVANT_CHANGES;DIRECTORY" "TARGETS" ${ARGN})
+  cmake_parse_arguments (Feedback "" "RULES;WORKFLOW;RELEVANT_CHANGES" "DIRECTORIES;TARGETS" ${ARGN})
 
   if (DEFINED Feedback_UNPARSED_ARGUMENTS)
     message (FATAL_ERROR "Unparsed arguments: ${Feedback_UNPARSED_ARGUMENTS}")
@@ -66,8 +68,8 @@ function (Feedback_Add name)
     set (Feedback_RELEVANT_CHANGES "configurable")
   endif ()
 
-  if (DEFINED Feedback_DIRECTORY)
-    Feedback_FindTargets (directory_targets DIRECTORY "${Feedback_DIRECTORY}")
+  if (DEFINED Feedback_DIRECTORIES)
+    Feedback_FindTargets (directory_targets DIRECTORIES "${Feedback_DIRECTORIES}")
     list (APPEND Feedback_TARGETS ${directory_targets})
   endif ()
 

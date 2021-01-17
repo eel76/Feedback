@@ -48,7 +48,7 @@ include ("feedback.cmake")
 
 # FIXME: as a function?
 
-Feedback_FindTargets (feedback_targets DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
+Feedback_FindTargets (feedback_targets DIRECTORIES "${CMAKE_CURRENT_LIST_DIR}")
 Feedback_GroupTargetsInFolder ("generator" ${feedback_targets})
 Feedback_InternalTargets (${feedback_targets})
 
