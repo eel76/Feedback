@@ -166,7 +166,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
     GetWorktree (worktree)
     GetRepository (repository HINT "${worktree}")
 
-    add_library(ALL_SOURCES STATIC)
+    add_library(ALL_SOURCES STATIC EXCLUDE_FROM_ALL)
 
     # FIXME: read HEAD file and parse ref, depend on that ref, too!
 #    file (GLOB_RECURSE refs CONFIGURE_DEPENDS "${repository}/.git/refs/*")
@@ -225,7 +225,8 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
 #      BYPRODUCTS "${feedback_source_dir}/all.diff"
 #      )
 
-    add_library(DIFF STATIC)
+    add_library(DIFF STATIC EXCLUDE_FROM_ALL)
+
     target_sources (DIFF PRIVATE "${feedback_source_dir}/DIFF/modified_or_staged.diff" "${feedback_source_dir}/DIFF/modified_or_staged.cpp")
     target_link_libraries (DIFF PRIVATE ALL_SOURCES)
 
@@ -234,7 +235,9 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
 
   CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${rules}" "${workflow}" "${feedback_source_dir}/DIFF/${changes}.diff" ${ARGN})
 
-  add_library ("${feedback_target}" SHARED EXCLUDE_FROM_ALL "${rules}" ${feedback_sources})
+  add_library ("${feedback_target}" SHARED EXCLUDE_FROM_ALL)
+
+  target_sources ("${feedback_target}" PRIVATE "${rules}" ${feedback_sources})
   target_compile_options("${feedback_target}" PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
   target_compile_options("${feedback_target}" PRIVATE $<$<CXX_COMPILER_ID:MSVC>:-WX->)
   target_link_libraries("${feedback_target}" PRIVATE DIFF)
@@ -285,7 +288,7 @@ function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_targ
   add_custom_command (
     OUTPUT "${feedback_source_dir}/ALL_SOURCES/${feedback_target}/${target}.cpp"
     COMMAND "${CMAKE_COMMAND}" "-E" "echo" "namespace { using none = int; }" ">" "${feedback_source_dir}/ALL_SOURCES/${feedback_target}/${target}.cpp"
-    DEPENDS ${ARGN}
+    DEPENDS ${relevant_sources}
     )
   target_sources (ALL_SOURCES PRIVATE "${feedback_source_dir}/ALL_SOURCES/${feedback_target}/${target}.cpp")
 
