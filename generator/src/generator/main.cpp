@@ -37,9 +37,10 @@ namespace feedback {
     return json_dump.substr(2, json_dump.length() - 4);
   }
 
-  enum class response { WARNING, ERROR };
+  enum class response { MESSAGE, WARNING, ERROR };
 
-  NLOHMANN_JSON_SERIALIZE_ENUM(response, { { response::WARNING, "warning" }, { response::ERROR, "error" } })
+  NLOHMANN_JSON_SERIALIZE_ENUM(response,
+                               { { response::MESSAGE, "message" }, { response::WARNING, "warning" }, { response::ERROR, "error" } })
 
   enum class check { ALL_FILES, ALL_LINES, CHANGED_FILES, CHANGED_LINES, NO_FILES, NO_LINES };
 
@@ -226,11 +227,13 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
 #define PRAGMA(x) _Pragma (#x)
 
 #if defined (__GNUC__)
-# define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(GCC error STRINGIFY(id) ": " msg)
-# define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(GCC warning STRINGIFY(id) ": " msg)
+# define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(GCC error "feedback " STRINGIFY(id) ": " msg)
+# define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(GCC warning "feedback " STRINGIFY(id) ": " msg)
+# define FEEDBACK_MESSAGE_RESPONSE(id, msg) PRAGMA(message "feedback " STRINGIFY(id) ": " msg)
 #else
-# define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): error " STRINGIFY(id) ": " msg))
-# define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): warning " STRINGIFY(id) ": " msg))
+# define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): feedback error " STRINGIFY(id) ": " msg))
+# define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): feedback warning " STRINGIFY(id) ": " msg))
+# define FEEDBACK_MESSAGE_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): feedback message " STRINGIFY(id) ": " msg))
 #endif
 )_");
 
