@@ -3,20 +3,24 @@ cmake_minimum_required (VERSION 3.18)
 project (feedback)
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-  include (CTest)
-  set_property(GLOBAL PROPERTY USE_FOLDERS true)
-  set (FEEDBACK_BUILD_TESTING ON)
+  set (FEEDBACK_BUILD true)
 else ()
-  option (FEEDBACK_BUILD_TESTING "Enable testing for ${PROJECT_NAME} project." OFF)
+  set (FEEDBACK_BUILD false)
 endif ()
 
-if (DEFINED BUILD_TESTING AND BUILD_TESTING AND FEEDBACK_BUILD_TESTING)
+if (FEEDBACK_BUILD)
+  include (CTest)
+  set_property(GLOBAL PROPERTY USE_FOLDERS true)
+endif ()
+
+option (FEEDBACK_BUILD_TESTING "Enable testing for ${PROJECT_NAME} project." "${FEEDBACK_BUILD}")
+option (FEEDBACK_NO_EXTERNAL_PROJECT "Feedback does not use ExternalProject module." OFF)
+
+if (BUILD_TESTING AND FEEDBACK_BUILD_TESTING)
   set (TESTING ON)
 else ()
   set (TESTING OFF)
 endif ()
-
-option (FEEDBACK_NO_EXTERNAL_PROJECT "Feedback does not use ExternalProject module." OFF)
 
 if (FEEDBACK_NO_EXTERNAL_PROJECT)
   set (GENERATOR_BUILD_TESTING "${TESTING}")
@@ -34,6 +38,7 @@ else()
     BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/generator"
     CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release" "-DBUILD_TESTING=${TESTING}"
     BUILD_COMMAND "${CMAKE_COMMAND}" "--build" "${CMAKE_CURRENT_BINARY_DIR}/generator" "--config" "Release"
+    BUILD_ALWAYS "${FEEDBACK_BUILD}"
     INSTALL_COMMAND ""
     EXCLUDE_FROM_ALL)
 
