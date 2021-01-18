@@ -235,6 +235,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
 # define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): feedback warning " STRINGIFY(id) ": " msg))
 # define FEEDBACK_MESSAGE_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): feedback message " STRINGIFY(id) ": " msg))
 #endif
+
 )_");
 
     auto const& rules    = shared_rules.get();
@@ -242,8 +243,8 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
 
     for (auto [id, rule] : rules)
       format::print(output,
-                    R"_(
-#define FEEDBACK_{uppercase_id}_MATCH(match, highlighting) FEEDBACK_{response}_RESPONSE({id}, "{summary} [{type} from file://{feedback_rules}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |"))_",
+                    R"_(#define FEEDBACK_{uppercase_id}_MATCH(match, highlighting) FEEDBACK_{response}_RESPONSE({id}, "{summary} [{type} from file://{feedback_rules}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
+)_",
                     "feedback_rules"_a = format::as_literal{ rules.origin() }, "id"_a = id,
                     "uppercase_id"_a = format::uppercase{ id },
                     "response"_a     = format::uppercase{ to_string(workflow.at(rule.type).response) },
@@ -272,7 +273,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
       auto const marked_text  = search_marked_text(search.matched_text(), attributes.marked_text);
       auto const highlighting = excerpt{ matched_lines, marked_text };
 
-      format::print(output, "\n# line {}\n{}FEEDBACK_{}_MATCH(\"{}\", \"{}\")", line_number, highlighting.indentation,
+      format::print(output, "# line {}\n{}FEEDBACK_{}_MATCH(\"{}\", \"{}\")\n", line_number, highlighting.indentation,
                     format::uppercase{ id }, format::as_literal{ highlighting.first_line },
                     highlighting.indentation + highlighting.annotation);
     }
@@ -307,7 +308,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
       auto const shared_content = async::share([=] { return content_from(filename); });
 
       auto synched_output = cxx20::osyncstream{ output };
-      format::print(synched_output, "\n\n# line 1 \"{}\"", filename);
+      format::print(synched_output, "\n# line 1 \"{}\"\n", filename);
 
       auto const is_file_relevant = is_relevant(filename);
       print_matches(synched_output, shared_rules, shared_content, is_file_relevant);
