@@ -318,7 +318,7 @@ function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_targ
     set (feedback_source "${feedback_source_dir}/${feedback_target}/${target}_${index}")
     list (APPEND feedback_sources "${feedback_source}")
 
-    RemoveFirstElementsFromList (sources 128 relevant_sources)
+    RemoveFirstElementsFromList (sources 256 relevant_sources)
     CreateFeedbackSourceForSources ("${feedback_source}" "${rules}" "${workflow}" "${diff}" ${sources})
   endwhile ()
 
