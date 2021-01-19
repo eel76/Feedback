@@ -1,4 +1,5 @@
 #include "feedback/async.h"
+#include "feedback/algorithm.h"
 #include "feedback/format.h"
 #include "feedback/regex.h"
 #include "feedback/scm.h"
@@ -10,8 +11,6 @@
 #include <cxx20/syncstream>
 #include <nlohmann/json.hpp>
 
-#include <algorithm>
-#include <execution>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -286,7 +285,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
                      FUNCTION                                   is_relevant_in_file) {
     auto const& rules = shared_rules.get();
 
-    std::for_each(std::execution::par, cbegin(rules), cend(rules), [=, &output](auto const& rule) {
+    feedback::algorithm::for_each(std::execution::par, rules, [=, &output](auto const& rule) {
       auto const is_rule_in_file_relevant = is_relevant_in_file(rule);
       if (not is_rule_in_file_relevant())
         return;
@@ -304,7 +303,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
     auto const  is_relevant = is_relevant_function(shared_workflow, shared_diff);
     auto const& sources     = shared_sources.get();
 
-    std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &output](std::string const& filename) {
+    feedback::algorithm::for_each(std::execution::par, sources, [=, &output](std::string const& filename) {
       auto const shared_content = async::share([=] { return content_from(filename); });
 
       auto synched_output = cxx20::osyncstream{ output };
