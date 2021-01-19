@@ -8,5 +8,5 @@ add_subdirectory (extern)
 add_executable (included main.cpp)
 add_executable (excluded main.cpp)
 
-Feedback_Exclude (excluded)
+Feedback_ExcludeTargets (excluded)
 Feedback_Add (example RULES rules.json DIRECTORIES "${CMAKE_SOURCE_DIR}")

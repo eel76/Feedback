@@ -4,19 +4,15 @@ define_property (TARGET PROPERTY EXCLUDE_FROM_FEEDBACK
                  BRIEF_DOCS "exclude target from any feedback"
                  FULL_DOCS "exclude target from any feedback")
 
-function (Feedback_Exclude)
-  set_target_properties (${ARGN} PROPERTIES EXCLUDE_FROM_FEEDBACK true)
-endfunction ()
-
-function (Feedback_IsExcluded is_excluded_variable target)
-  get_target_property (exclude_from_feedback "${target}" EXCLUDE_FROM_FEEDBACK)
-  set (${is_excluded_variable} "${exclude_from_feedback}" PARENT_SCOPE)
+function (Feedback_ExcludeTargets)
+  set_target_properties (${ARGN} PROPERTIES EXCLUDED_FROM_FEEDBACK true)
 endfunction ()
 
 function (Feedback_RelevantTargets relevant_targets_variable)
   foreach (target IN LISTS ARGN)
-    Feedback_IsExcluded (excluded "${target}")
-    if (NOT excluded)
+    get_target_property (excluded_from_feedback "${target}" EXCLUDED_FROM_FEEDBACK)
+
+    if (NOT excluded_from_feedback)
       list (APPEND relevant_targets "${target}")
     endif ()
   endforeach ()
@@ -24,9 +20,9 @@ function (Feedback_RelevantTargets relevant_targets_variable)
   set ("${relevant_targets_variable}" ${relevant_targets} PARENT_SCOPE)
 endfunction ()
 
-function (Feedback_InternalTargets)
-  Feedback_Exclude (${ARGN})
-  Feedback_GroupTargetsInFolder (feedback ${ARGN})
+function (Feedback_MarkInternalTargets)
+  Feedback_GroupTargetsInFolder (${ARGN} FOLDER "feedback")
+  Feedback_ExcludeTargets (${ARGN})
 endfunction ()
 
 function (GetFeedbackSourceDir source_dir_variable)
@@ -119,13 +115,20 @@ function (RemoveFirstElementsFromList chunk_variable count list_variable)
   set (${list_variable} ${list} PARENT_SCOPE)
 endfunction ()
 
-function (Feedback_GroupTargetsInFolder folder)
-  foreach (target IN LISTS ARGN)
+function (Feedback_GroupTargetsInFolder)
+  cmake_parse_arguments (parameter "" "FOLDER" "" ${ARGN})
+
+  if (NOT DEFINED parameter_FOLDER)
+    message (FATAL_ERROR "No folder given.")
+  endif ()
+
+  foreach (target IN LISTS parameter_UNPARSED_ARGUMENTS)
     get_target_property(current_folder ${target} FOLDER)
+
     if (current_folder)
-      set_target_properties (${target} PROPERTIES FOLDER "${folder}/${current_folder}")
+      set_target_properties (${target} PROPERTIES FOLDER "${parameter_FOLDER}/${current_folder}")
     else ()
-      set_target_properties (${target} PROPERTIES FOLDER "${folder}")
+      set_target_properties (${target} PROPERTIES FOLDER "${parameter_FOLDER}")
     endif ()
   endforeach()
 endfunction ()
@@ -247,7 +250,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
     target_sources (DIFF PRIVATE "${feedback_source_dir}/DIFF/modified_or_staged.diff" "${feedback_source_dir}/DIFF/modified_or_staged.cpp")
     target_link_libraries (DIFF PRIVATE ALL_SOURCES)
 
-    Feedback_InternalTargets (ALL_SOURCES DIFF)
+    Feedback_MarkInternalTargets (ALL_SOURCES DIFF)
   endif ()
 
   CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${rules}" "${workflow}" "${feedback_source_dir}/DIFF/${changes}.diff" ${relevant_targets})
@@ -259,7 +262,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
   target_compile_options("${feedback_target}" PRIVATE $<$<CXX_COMPILER_ID:MSVC>:-WX->)
   target_link_libraries("${feedback_target}" PRIVATE DIFF)
 
-  Feedback_InternalTargets ("${feedback_target}")
+  Feedback_MarkInternalTargets ("${feedback_target}")
 
   foreach (target IN LISTS relevant_targets)
     add_dependencies ("${target}" "${feedback_target}")
