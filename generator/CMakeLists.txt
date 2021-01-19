@@ -57,7 +57,7 @@ set_target_properties (${PROJECT_NAME}.core ${PROJECT_NAME}
   PROPERTIES CXX_STANDARD 17
   )
 
-if (GENERATOR_BUILD_TESTING AND BUILD_TESTING)
+if (BUILD_TESTING AND GENERATOR_BUILD_TESTING)
   add_executable (${PROJECT_NAME}.test
     "src/test.container.cpp"
     "src/test.main.cpp"
