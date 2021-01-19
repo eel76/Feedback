@@ -14,8 +14,9 @@ namespace cxx20 {
 #ifdef __cpp_lib_syncbuf
   using osyncstream = std::osyncstream;
 #else
-  struct osyncstream : public std::ostringstream
+  class osyncstream : public std::ostringstream
   {
+  public:
     explicit osyncstream(std::ostream& output_stream)
       : output(output_stream)
     {
@@ -29,13 +30,25 @@ namespace cxx20 {
     {
       std::ostringstream const tmp{ std::move(*this) };
 
-      static std::unordered_map<std::ostream*, std::mutex> locks;
+      static monitor<std::unordered_map<std::ostream*, std::mutex>> locks;
 
-      auto const locked = std::scoped_lock{ locks[&output] };
+      auto const locked = std::lock_guard{ locks([&](auto& map) -> decltype (auto) { return map[&output]; }) };
       output << tmp.str();
     }
 
   private:
+    template <class T> class monitor {
+    public:
+      template <class F> inline decltype (auto) operator()(F&& f) const {
+        std::lock_guard guard{ mutex_ };
+        return std::invoke(std::forward<F>(f), object_);
+      }
+
+    private:
+      T mutable object_;
+      std::mutex mutable mutex_;
+    };
+
     std::ostream& output;
   };
 #endif
