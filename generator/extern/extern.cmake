@@ -1,3 +1,5 @@
+cmake_policy (VERSION 3.15)
+
 include(FetchContent)
 
 function (Extern_FindTargets targets_variable)

@@ -1,4 +1,4 @@
-cmake_policy (VERSION 3.7.0)
+cmake_policy (VERSION 3.15)
 
 find_package (Git REQUIRED)
 

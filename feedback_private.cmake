@@ -1,4 +1,4 @@
-cmake_policy (VERSION 3.7.0)
+cmake_policy (VERSION 3.15)
 
 define_property (TARGET PROPERTY EXCLUDE_FROM_FEEDBACK
                  BRIEF_DOCS "exclude target from any feedback"
@@ -11,6 +11,17 @@ endfunction ()
 function (Feedback_IsExcluded is_excluded_variable target)
   get_target_property (exclude_from_feedback "${target}" EXCLUDE_FROM_FEEDBACK)
   set (${is_excluded_variable} "${exclude_from_feedback}" PARENT_SCOPE)
+endfunction ()
+
+function (Feedback_RelevantTargets relevant_targets_variable)
+  foreach (target IN LISTS ARGN)
+    Feedback_IsExcluded (excluded "${target}")
+    if (NOT excluded)
+      list (APPEND relevant_targets "${target}")
+    endif ()
+  endforeach ()
+
+  set ("${relevant_targets_variable}" ${relevant_targets} PARENT_SCOPE)
 endfunction ()
 
 function (Feedback_InternalTargets)
@@ -157,6 +168,12 @@ endfunction ()
 
 function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow changes)
 
+  Feedback_RelevantTargets (relevant_targets ${ARGN})
+
+  if (NOT relevant_targets)
+    return ()
+  endif ()
+
   GetFeedbackSourceDir (feedback_source_dir)
 
   if (NOT TARGET DIFF)
@@ -233,7 +250,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
     Feedback_InternalTargets (ALL_SOURCES DIFF)
   endif ()
 
-  CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${rules}" "${workflow}" "${feedback_source_dir}/DIFF/${changes}.diff" ${ARGN})
+  CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${rules}" "${workflow}" "${feedback_source_dir}/DIFF/${changes}.diff" ${relevant_targets})
 
   add_library ("${feedback_target}" SHARED EXCLUDE_FROM_ALL)
 
@@ -244,7 +261,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
 
   Feedback_InternalTargets ("${feedback_target}")
 
-  foreach (target IN LISTS ARGN)
+  foreach (target IN LISTS relevant_targets)
     add_dependencies ("${target}" "${feedback_target}")
   endforeach()
 endfunction ()
@@ -307,11 +324,8 @@ endfunction ()
 
 function (CreateFeedbackSourcesFromTargets all_sources_variable feedback_target rules workflow diff)
   foreach (target IN LISTS ARGN)
-    Feedback_IsExcluded (excluded "${target}")
-    if (NOT excluded)
-      CreateFeedbackSourcesForTarget (sources "${feedback_target}" "${rules}" "${workflow}" "${diff}" "${target}")
-      list (APPEND all_sources ${sources})
-    endif ()
+    CreateFeedbackSourcesForTarget (sources "${feedback_target}" "${rules}" "${workflow}" "${diff}" "${target}")
+    list (APPEND all_sources ${sources})
   endforeach()
 
   set ("${all_sources_variable}" ${all_sources} PARENT_SCOPE)
