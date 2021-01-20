@@ -28,9 +28,9 @@ namespace cxx20 {
 
     void emit()
     {
-      std::ostringstream const tmp{ std::move(*this) };
-
       static monitor<std::unordered_map<std::ostream*, std::mutex>> locks;
+
+      std::ostringstream const tmp{ std::move(*this) };
 
       auto const locked = std::lock_guard{ locks([&](auto& map) -> decltype (auto) { return map[&output]; }) };
       output << tmp.str();
