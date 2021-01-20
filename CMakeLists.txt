@@ -24,6 +24,8 @@ else()
   #  * build the generator always in release configuration
   #  * do not inherit compile options from the client project
   #  * achieve a faster CMake configuration/generation of the client project
+  # even though we
+  #  * have a build check every time
 
   include (ExternalProject)
   ExternalProject_Add(generator_build
