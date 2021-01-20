@@ -5,8 +5,11 @@ set_property(GLOBAL PROPERTY USE_FOLDERS true)
 
 add_subdirectory (extern)
 
-add_executable (included main.cpp)
-add_executable (excluded main.cpp)
+add_executable (included1 main1.cpp)
+add_executable (included2 main2.cpp)
 
-Feedback_ExcludeTargets (excluded)
-Feedback_Add (example RULES rules.json DIRECTORIES "${CMAKE_SOURCE_DIR}")
+add_executable (excluded1 main1.cpp)
+Feedback_ExcludeTargets (excluded1)
+
+Feedback_Add (example1 RULES rules.json DIRECTORIES "${CMAKE_SOURCE_DIR}")
+Feedback_Add (example2 RULES rules.json DIRECTORIES "${CMAKE_SOURCE_DIR}")
