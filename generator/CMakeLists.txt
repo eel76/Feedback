@@ -18,7 +18,6 @@ add_library (${PROJECT_NAME}.core STATIC
   "src/scm.cpp"
   "src/text.cpp"
   "include/cxx20/syncstream"
-  "include/feedback/algorithm.h"
   "include/feedback/async.h"
   "include/feedback/container.h"
   "include/feedback/format.h"
