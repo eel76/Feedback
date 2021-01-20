@@ -183,7 +183,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
 
     find_package(Git REQUIRED)
 
-    add_library(ALL_SOURCES STATIC EXCLUDE_FROM_ALL)
+    add_library(DIFF STATIC EXCLUDE_FROM_ALL)
 
     # FIXME: read HEAD file and parse ref, depend on that ref, too!
 #    file (GLOB_RECURSE refs CONFIGURE_DEPENDS "${repository}/.git/refs/*")
@@ -202,15 +202,19 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
 #      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
 #      )
 
-#    add_custom_command (
-#      OUTPUT "${feedback_source_dir}/DIFF/modified_or_staged.cpp"
-#      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${feedback_source_dir}/DIFF/modified_or_staged.tmp"
-#      COMMAND "${CMAKE_COMMAND}" "-E" "copy_if_different" "${feedback_source_dir}/DIFF/modified_or_staged.tmp" "${feedback_source_dir}/DIFF/modified_or_staged.diff"
-#      COMMAND "${CMAKE_COMMAND}" "-E" "echo" "namespace { using none = int; }" ">" "${feedback_source_dir}/DIFF/modified_or_staged.cpp"
-#      WORKING_DIRECTORY "${worktree}"
-#      DEPENDS ALL_SOURCES Git::Git "${repository}/.git/HEAD" "${repository}/.git/index"
-#      BYPRODUCTS "${feedback_source_dir}/DIFF/modified_or_staged.diff"
-#      )
+    GetWorktree (worktree)
+    GetRepository (repository HINT "${worktree}")
+
+    add_custom_command (
+      OUTPUT "${feedback_source_dir}/DIFF/${changes}.cpp"
+      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${feedback_source_dir}/DIFF/${changes}.tmp"
+      COMMAND "${CMAKE_COMMAND}" "-E" "copy_if_different" "${feedback_source_dir}/DIFF/${changes}.tmp" "${feedback_source_dir}/DIFF/${changes}.diff"
+      COMMAND "${CMAKE_COMMAND}" "-E" "echo" "namespace { using none = int; }" ">" "${feedback_source_dir}/DIFF/${changes}.cpp"
+      WORKING_DIRECTORY "${worktree}"
+      DEPENDS Git::Git "${repository}/.git/HEAD" "${repository}/.git/index"
+      BYPRODUCTS "${feedback_source_dir}/DIFF/${changes}.diff"
+      )
+    target_sources (DIFF PRIVATE "${feedback_source_dir}/DIFF/${changes}.cpp" "${feedback_source_dir}/DIFF/${changes}.diff")
 
 #    add_custom_command (
 #      OUTPUT "${feedback_source_dir}/staged.diff"
@@ -242,26 +246,23 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
 #      BYPRODUCTS "${feedback_source_dir}/all.diff"
 #      )
 
-    add_library(DIFF STATIC EXCLUDE_FROM_ALL)
-    target_link_libraries (DIFF PRIVATE ALL_SOURCES)
-
-    Feedback_MarkInternalTargets (ALL_SOURCES DIFF)
+    Feedback_MarkInternalTargets (DIFF)
   endif ()
 
-  CreateFeedbackSourcesFromTargets (feedback_sources "${feedback_target}" "${rules}" "${workflow}" "${changes}" ${relevant_targets})
+  WriteWorkflow ("${feedback_source_dir}/${feedback_target}/workflow.json" "${workflow}")
 
-  add_library ("${feedback_target}" SHARED EXCLUDE_FROM_ALL)
-
-  target_sources ("${feedback_target}" PRIVATE "${rules}" ${feedback_sources})
-  target_compile_options("${feedback_target}" PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
-  target_compile_options("${feedback_target}" PRIVATE $<$<CXX_COMPILER_ID:MSVC>:-WX->)
-  target_link_libraries("${feedback_target}" PRIVATE DIFF)
-
-  Feedback_MarkInternalTargets ("${feedback_target}")
+  add_library ("${feedback_target}" STATIC EXCLUDE_FROM_ALL)
+  target_sources ("${feedback_target}" PRIVATE "${rules}" "${feedback_source_dir}/${feedback_target}/workflow.json")
 
   foreach (target IN LISTS relevant_targets)
+    CreateFeedbackSourcesForTarget ("${feedback_target}" "${rules}" "${feedback_source_dir}/${feedback_target}/workflow.json" "${changes}" "${target}")
     add_dependencies ("${target}" "${feedback_target}")
   endforeach()
+
+  target_compile_options("${feedback_target}" PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
+  target_compile_options("${feedback_target}" PRIVATE $<$<CXX_COMPILER_ID:MSVC>:-WX->)
+
+  Feedback_MarkInternalTargets ("${feedback_target}")
 endfunction ()
 
 function (WriteWorkflow filename workflow)
@@ -286,58 +287,51 @@ function (WriteWorkflow filename workflow)
 endfunction ()
 
 function (CreateFeedbackSourceForSources filename rules workflow diff)
-  WriteWorkflow ("${filename}.workflow.json" "${workflow}")
-  WriteFileList ("${filename}.sources.txt" ${ARGN})
-
-  add_custom_command (
-    OUTPUT "${filename}.cpp"
-    COMMAND "$<TARGET_FILE:generator>" "--output=${filename}.cpp" "--diff=${diff}" "${rules}" "${filename}.workflow.json" "${filename}.sources.txt"
-    DEPENDS generator DIFF "${diff}" "${rules}" "${filename}.workflow.json" "${filename}.sources.txt"
-    )
 endfunction ()
 
-function (CreateFeedbackSourcesForTarget feedback_sources_variable feedback_target rules workflow diff target)
-  GetWorktree (worktree)
+function (CreateFeedbackSourcesForTarget feedback_target rules workflow diff target)
   GetFeedbackSourceDir (feedback_source_dir)
-  GetRepository (repository HINT "${worktree}")
   RelevantSourcesFromTarget (relevant_sources "${target}")
 
-  add_custom_command (
-    OUTPUT "${feedback_source_dir}/ALL_SOURCES/${feedback_target}/${target}.cpp"
-    COMMAND "${CMAKE_COMMAND}" "-E" "echo" "namespace { using none = int; }" ">" "${feedback_source_dir}/ALL_SOURCES/${feedback_target}/${target}.cpp"
-    DEPENDS ${relevant_sources}
-    )
-  target_sources (ALL_SOURCES PRIVATE "${feedback_source_dir}/ALL_SOURCES/${feedback_target}/${target}.cpp")
+  if (NOT TARGET "ALL_SOURCES_${target}")
+    add_library("ALL_SOURCES_${target}" INTERFACE)
 
-  add_custom_command (
-    OUTPUT "${feedback_source_dir}/DIFF/${feedback_target}/${diff}.cpp"
-    COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${feedback_source_dir}/DIFF/${feedback_target}/${diff}.tmp"
-    COMMAND "${CMAKE_COMMAND}" "-E" "copy_if_different" "${feedback_source_dir}/DIFF/${feedback_target}/${diff}.tmp" "${feedback_source_dir}/DIFF/${feedback_target}/${diff}.diff"
-    COMMAND "${CMAKE_COMMAND}" "-E" "echo" "namespace { using none = int; }" ">" "${feedback_source_dir}/DIFF/${feedback_target}/${diff}.cpp"
-    WORKING_DIRECTORY "${worktree}"
-    DEPENDS ALL_SOURCES Git::Git "${repository}/.git/HEAD" "${repository}/.git/index"
-    BYPRODUCTS "${feedback_source_dir}/DIFF/${feedback_target}/${diff}.diff"
-    )
-  target_sources (DIFF PRIVATE "${feedback_source_dir}/DIFF/${feedback_target}/${diff}.diff" "${feedback_source_dir}/DIFF/${feedback_target}/${diff}.cpp")
+    add_custom_command (
+      OUTPUT "${feedback_source_dir}/ALL_SOURCES/${target}.cpp"
+      COMMAND "${CMAKE_COMMAND}" "-E" "echo" "namespace { using none = int; }" ">" "${feedback_source_dir}/ALL_SOURCES/${target}.cpp"
+      DEPENDS ${relevant_sources}
+      )
+    target_sources ("ALL_SOURCES_${target}" INTERFACE "${feedback_source_dir}/ALL_SOURCES/${target}.cpp")
+    target_link_libraries("DIFF" PRIVATE "ALL_SOURCES_${target}")
+  endif ()
+
+  if (NOT TARGET "DIFF_${target}")
+    add_library("DIFF_${target}" INTERFACE)
+
+    add_custom_command (
+      OUTPUT "${feedback_source_dir}/DIFF/${target}/${diff}.diff"
+      COMMAND "${CMAKE_COMMAND}" "-E" "copy_if_different" "${feedback_source_dir}/DIFF/${diff}.diff" "${feedback_source_dir}/DIFF/${target}/${diff}.diff"
+      DEPENDS "DIFF" ${relevant_sources} # sic! no dependency to "${feedback_source_dir}/DIFF/${diff}.diff"
+      )
+    target_sources ("DIFF_${target}" INTERFACE "${feedback_source_dir}/DIFF/${target}/${diff}.diff")
+  endif ()
 
   set (index 0)
   while (relevant_sources)
     math (EXPR index "${index} + 1")
     set (feedback_source "${feedback_source_dir}/${feedback_target}/${target}_${index}")
-    list (APPEND feedback_sources "${feedback_source}")
 
-    RemoveFirstElementsFromList (sources 256 relevant_sources)
-    CreateFeedbackSourceForSources ("${feedback_source}" "${rules}" "${workflow}" "${feedback_source_dir}/DIFF/${feedback_target}/${diff}.diff" ${sources})
+    RemoveFirstElementsFromList (sources 2048 relevant_sources)
+
+    WriteFileList ("${feedback_source}.sources.txt" ${sources})
+
+    add_custom_command (
+      OUTPUT "${feedback_source}.cpp"
+      COMMAND "$<TARGET_FILE:generator>" "--output=${feedback_source}.cpp" "--diff=${feedback_source_dir}/DIFF/${target}/${diff}.diff" "${rules}" "${workflow}" "${feedback_source}.sources.txt"
+      DEPENDS generator "DIFF_${target}" "${feedback_source_dir}/DIFF/${target}/${diff}.diff" "${rules}" "${workflow}" "${feedback_source}.sources.txt"
+      )
+    target_sources ("${feedback_target}" PRIVATE "${feedback_source}.cpp")
   endwhile ()
 
-  set ("${feedback_sources_variable}" ${feedback_sources} PARENT_SCOPE)
-endfunction ()
-
-function (CreateFeedbackSourcesFromTargets all_sources_variable feedback_target rules workflow diff)
-  foreach (target IN LISTS ARGN)
-    CreateFeedbackSourcesForTarget (sources "${feedback_target}" "${rules}" "${workflow}" "${diff}" "${target}")
-    list (APPEND all_sources ${sources})
-  endforeach()
-
-  set ("${all_sources_variable}" ${all_sources} PARENT_SCOPE)
+  target_link_libraries("${feedback_target}" PRIVATE "DIFF_${target}")
 endfunction ()
