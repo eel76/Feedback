@@ -16,12 +16,21 @@
 #include <map>
 #include <optional>
 #include <type_traits>
+#include <unordered_map>
 
 namespace feedback {
 
   namespace {
     template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
     template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+    template <class MAP, class KEY, class VALUE>
+    auto value_or(MAP const& map, KEY&& key, VALUE default_value) -> typename MAP::mapped_type {
+      if (auto const itr = map.find(std::forward<KEY>(key)); itr != cend(map))
+        return itr->second;
+
+      return default_value;
+    }
 
     auto content_from(std::string const& filename) -> std::string {
       if (filename.empty())
@@ -56,13 +65,13 @@ namespace feedback {
                                  { check::NO_LINES, "no_lines" } })
 
   struct handling {
-    feedback::check    check;
-    feedback::response response;
+    feedback::check    check{ check::ALL_FILES };
+    feedback::response response{ response::MESSAGE };
   };
 
   void from_json(nlohmann::json const& json, handling& handling) {
-    handling.check    = json.value("check", check::ALL_FILES);
-    handling.response = json.value("response", response::MESSAGE);
+    handling.check    = json.value("check", handling.check);
+    handling.response = json.value("response", handling.response);
   }
 
   template <class C> class json_container : public C {
@@ -84,7 +93,7 @@ namespace feedback {
     std::string origin_;
   };
 
-  using workflow = json_container<std::map<std::string, handling>>;
+  using workflow = json_container<std::unordered_map<std::string, handling>>;
 
   struct rule {
     std::string        type;
@@ -187,7 +196,7 @@ namespace feedback {
         auto line_is_relevant = std::function<bool(int)>{ [](auto) { return true; } };
 
         if (file_is_relevant) {
-          switch (shared_workflow.get().at(attributes.type).check) {
+          switch (value_or(shared_workflow.get(), attributes.type, handling{}).check) {
           case feedback::check::NO_LINES:
             [[fallthrough]];
           case feedback::check::NO_FILES:
@@ -251,11 +260,11 @@ namespace {{ using dummy = int; }}
 
     for (auto [id, rule] : rules)
       format::print(output,
-                    R"_(#define FEEDBACK_MATCH_{uppercase_id}(match, highlighting) FEEDBACK_RESPONSE_{response}({id}, "{summary} [{type} from file://{feedback_rules}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
+                    R"_(#define FEEDBACK_MATCH_{uppercase_id}(match, highlighting) FEEDBACK_RESPONSE_{response}({id}, "{summary} [{type} from file://{origin}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
 )_",
-                    "feedback_rules"_a = format::as_literal{ rules.origin() }, "id"_a = id,
+                    "origin"_a = format::as_literal{ rules.origin() }, "id"_a = id,
                     "uppercase_id"_a = format::uppercase{ id },
-                    "response"_a     = format::uppercase{ to_string(workflow.at(rule.type).response) },
+                    "response"_a = format::uppercase{ to_string(value_or(workflow, rule.type, handling{}).response) },
                     "type"_a = format::as_literal{ rule.type }, "summary"_a = format::as_literal{ rule.summary },
                     "rationale"_a = format::as_literal{ rule.rationale }, "workaround"_a = format::as_literal{ rule.workaround });
   }
