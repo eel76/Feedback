@@ -61,8 +61,8 @@ namespace feedback {
   };
 
   void from_json(nlohmann::json const& json, handling& handling) {
-    handling.check    = json.at("check");
-    handling.response = json.at("response");
+    handling.check    = json.value("check", check::ALL_FILES);
+    handling.response = json.value("response", response::MESSAGE);
   }
 
   template <class C> class json_container : public C {
