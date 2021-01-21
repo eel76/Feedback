@@ -14,7 +14,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <map>
 #include <optional>
 #include <type_traits>
 #include <unordered_map>
@@ -123,37 +122,7 @@ namespace feedback {
     rule.marked_text   = regex::compile(regex::capture(json.value("marked_text", ".*")));
   }
 
-  class identifier {
-  public:
-    explicit identifier(std::string const& str) : origin(str), prefix(origin), nr() {
-      auto nr_match = std::string_view{};
-
-      auto const pattern = regex::compile(R"(^([^\d]+)(\d\d?\d?\d?\d?)$)");
-
-      if (not pattern.matches(origin, { &prefix, &nr_match }))
-        return;
-
-      nr = std::stoi(std::string{ nr_match });
-    }
-
-    operator std::string_view() const {
-      return origin;
-    }
-
-    bool operator<(identifier const& other) const {
-      if (auto const prefix_comparision = prefix.compare(other.prefix); prefix_comparision != 0)
-        return prefix_comparision < 0;
-
-      return nr < other.nr;
-    }
-
-  private:
-    std::string        origin;
-    std::string_view   prefix;
-    std::optional<int> nr;
-  };
-
-  using rules = json_container<std::map<identifier, rule>>;
+  using rules = json_container<std::unordered_map<std::string, rule>>;
 
   auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern) {
     auto search = text::forward_search{ text };
@@ -370,15 +339,15 @@ namespace {{ using dummy = int; }}
 int main(int argc, char* argv[]) {
   std::ios::sync_with_stdio(false);
 
-  std::ostringstream out;
+  std::stringstream out;
 
   try {
     auto const parameters = generator::cli::parse(argc, argv);
 
+    auto const shared_diff     = feedback::async_diff_from(parameters.diff_filename);
     auto const shared_rules    = feedback::async_rules_from(parameters.rules_filename);
     auto const shared_workflow = feedback::async_workflow_from(parameters.workflow_filename);
     auto const shared_sources  = feedback::async_sources_from(parameters.sources_filename);
-    auto const shared_diff     = feedback::async_diff_from(parameters.diff_filename);
 
     print_header(out, shared_rules, shared_workflow);
     print_matches(out, shared_rules, shared_workflow, shared_sources, shared_diff);

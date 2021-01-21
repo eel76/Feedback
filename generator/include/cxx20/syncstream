@@ -2,11 +2,11 @@
 
 #include <version>
 #ifdef __cpp_lib_syncbuf
-# include <syncstream>
+#include <syncstream>
 #else
-# include <mutex>
-# include <sstream>
-# include <unordered_map>
+#include <mutex>
+#include <sstream>
+#include <unordered_map>
 #endif
 
 namespace cxx20 {
@@ -14,32 +14,30 @@ namespace cxx20 {
 #ifdef __cpp_lib_syncbuf
   using osyncstream = std::osyncstream;
 #else
-  class osyncstream : public std::ostringstream
-  {
+  class osyncstream : public std::ostream {
   public:
-    explicit osyncstream(std::ostream& output_stream)
-      : output(output_stream)
-    {
+    explicit osyncstream(std::ostream& output_stream) : std::ostream(&buffer_), output_(output_stream) {
     }
-    ~osyncstream()
-    {
+    ~osyncstream() {
       emit();
     }
 
-    void emit()
-    {
+    void emit() {
       static monitor<std::unordered_map<std::ostream*, std::mutex>> locks;
 
-      std::ostringstream const tmp{ std::move(*this) };
+      std::stringbuf buffer;
 
-      auto const locked = std::lock_guard{ locks([&](auto& map) -> decltype (auto) { return map[&output]; }) };
-      output << tmp.rdbuf();
+      using std::swap;
+      swap(buffer, buffer_);
+
+      auto const locked = std::lock_guard{ locks([&](auto& map) -> decltype(auto) { return map[&output_]; }) };
+      output_ << buffer.str();
     }
 
   private:
     template <class T> class monitor {
     public:
-      template <class F> inline decltype (auto) operator()(F&& f) const {
+      template <class F> inline decltype(auto) operator()(F&& f) const {
         std::lock_guard guard{ mutex_ };
         return std::invoke(std::forward<F>(f), object_);
       }
@@ -49,9 +47,8 @@ namespace cxx20 {
       std::mutex mutable mutex_;
     };
 
-    std::ostream& output;
+    std::stringbuf buffer_;
+    std::ostream&  output_;
   };
 #endif
-
 } // namespace cxx20
-
