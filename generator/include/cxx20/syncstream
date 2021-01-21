@@ -33,7 +33,7 @@ namespace cxx20 {
       std::ostringstream const tmp{ std::move(*this) };
 
       auto const locked = std::lock_guard{ locks([&](auto& map) -> decltype (auto) { return map[&output]; }) };
-      output << tmp.str();
+      output << tmp.str(); // tmp.view ();
     }
 
   private:

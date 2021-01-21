@@ -24,7 +24,6 @@ add_library (${PROJECT_NAME}.core STATIC
   "include/feedback/macros.h"
   "include/feedback/regex.h"
   "include/feedback/scm.h"
-  "include/feedback/stream.h"
   "include/feedback/text.h"
   )
 target_link_libraries (${PROJECT_NAME}.core

@@ -2,7 +2,6 @@
 #include "feedback/format.h"
 #include "feedback/regex.h"
 #include "feedback/scm.h"
-#include "feedback/stream.h"
 #include "feedback/text.h"
 
 #include "generator/cli.h"
@@ -13,6 +12,8 @@
 #include <algorithm>
 #include <execution>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <map>
 #include <optional>
 #include <type_traits>
@@ -37,7 +38,10 @@ namespace feedback {
         return {};
 
       auto input_stream = std::ifstream{ filename };
-      return stream::content(input_stream);
+
+      std::stringstream content;
+      content << input_stream.rdbuf();
+      return content.str();
     }
   } // namespace
 
@@ -366,6 +370,8 @@ namespace {{ using dummy = int; }}
 int main(int argc, char* argv[]) {
   std::ios::sync_with_stdio(false);
 
+  std::ostringstream out;
+
   try {
     auto const parameters = generator::cli::parse(argc, argv);
 
@@ -374,15 +380,14 @@ int main(int argc, char* argv[]) {
     auto const shared_sources  = feedback::async_sources_from(parameters.sources_filename);
     auto const shared_diff     = feedback::async_diff_from(parameters.diff_filename);
 
-    auto const redirected_output = feedback::stream::redirect(std::cout, parameters.output_filename);
-
-    print_header(std::cout, shared_rules, shared_workflow);
-    print_matches(std::cout, shared_rules, shared_workflow, shared_sources, shared_diff);
+    print_header(out, shared_rules, shared_workflow);
+    print_matches(out, shared_rules, shared_workflow, shared_sources, shared_diff);
   }
   catch (std::exception const& e) {
     std::cerr << e.what() << '\n';
     return 1;
   }
 
+  std::cout << out.str();
   return 0;
 }

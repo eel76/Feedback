@@ -306,7 +306,7 @@ function (AddFeedbackSourceForTarget feedback_target rules workflow diff target)
 
   add_custom_command (
     OUTPUT "${feedback_source}.cpp"
-    COMMAND "$<TARGET_FILE:generator>" "--output=${feedback_source}.cpp" "--diff=${feedback_source_dir}/DIFF/${diff}.diff" "${rules}" "${workflow}" "${feedback_source}.sources.txt"
+    COMMAND "$<TARGET_FILE:generator>" "--diff=${feedback_source_dir}/DIFF/${diff}.diff" "${rules}" "${workflow}" "${feedback_source}.sources.txt" ">" "${feedback_source}.cpp"
     DEPENDS generator "${rules}" "${workflow}" "${feedback_source}.sources.txt" ${relevant_sources} # sic! no dependency to "${feedback_source_dir}/DIFF/${diff}.diff"
     )
   target_sources ("${feedback_target}" PRIVATE "${feedback_source}.cpp")

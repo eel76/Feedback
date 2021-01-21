@@ -1,4 +1,5 @@
 #include "generator/cli.h"
+
 #include "feedback/macros.h"
 
 COMPILER_WARNINGS_PUSH
@@ -14,8 +15,7 @@ COMPILER_WARNINGS_POP
 auto generator::cli::parse(int argc, char* argv[]) -> generator::cli::parameters {
   generator::cli::parameters p;
 
-  auto const cli = lyra::opt(p.output_filename, "output filename")["-o"]["--output"]("Output file name") |
-                   lyra::opt(p.diff_filename, "diff filename")["-d"]["--diff"]("diff file name") |
+  auto const cli = lyra::opt(p.diff_filename, "diff filename")["-d"]["--diff"]("diff file name") |
                    lyra::arg(p.rules_filename, "rules filename")("JSON file for feedback rules") |
                    lyra::arg(p.workflow_filename, "workflow filename")("JSON file for workflow") |
                    lyra::arg(p.sources_filename, "sources filename")("File list for source files to scan");
