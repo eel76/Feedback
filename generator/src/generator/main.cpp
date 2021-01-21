@@ -388,6 +388,6 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  std::cout << out.str();
+  std::cout << out.rdbuf();
   return 0;
 }

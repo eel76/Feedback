@@ -21,7 +21,9 @@ Distributed under the [MIT](https://opensource.org/licenses/MIT) license.
 
 // tag::features[]
 
-* Define new feedback rules within minutes
+* Straightforward usage: add new feedback rules within a couple of minutes
+* Scales well: analyze a few dozens rules on a million lines code base within just a few seconds
+* Builtin support for an incremental developer workflow
 
 // end::features[]
 
@@ -29,7 +31,8 @@ Distributed under the [MIT](https://opensource.org/licenses/MIT) license.
 
 // tag::goals[]
 
-* Simple
+* Easy to integrate
+* Simple API
 * Fast
 
 // end::goals[]
