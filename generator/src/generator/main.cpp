@@ -37,10 +37,13 @@ namespace feedback {
     return json_dump.substr(2, json_dump.length() - 4);
   }
 
-  enum class response { MESSAGE, WARNING, ERROR };
+  enum class response { NONE, MESSAGE, WARNING, ERROR };
 
   NLOHMANN_JSON_SERIALIZE_ENUM(response,
-                               { { response::MESSAGE, "message" }, { response::WARNING, "warning" }, { response::ERROR, "error" } })
+                               { { response::NONE, "none" },
+                                 { response::MESSAGE, "message" },
+                                 { response::WARNING, "warning" },
+                                 { response::ERROR, "error" } })
 
   enum class check { ALL_FILES, ALL_LINES, CHANGED_FILES, CHANGED_LINES, NO_FILES, NO_LINES };
 
@@ -220,20 +223,25 @@ namespace feedback {
     format::print(output,
                   R"_(// DO NOT EDIT: this file is generated automatically
 
-namespace {{ using avoid_compiler_warnings_symbol = int; }}
+namespace {{ using dummy = int; }}
 
 #define __STRINGIFY(x) #x
-#define STRINGIFY(x) __STRINGIFY(x)
-#define PRAGMA(x) _Pragma (#x)
+#define STRINGIFY(x)   __STRINGIFY(x)
+#define PRAGMA(x)      _Pragma(#x)
 
-#if defined (__GNUC__)
-# define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(GCC error "feedback " STRINGIFY(id) ": " msg)
-# define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(GCC warning "feedback " STRINGIFY(id) ": " msg)
-# define FEEDBACK_MESSAGE_RESPONSE(id, msg) PRAGMA(message "feedback " STRINGIFY(id) ": " msg)
+#if defined __GNUC__
+#define FEEDBACK_RESPONSE_ERROR(id, msg)   PRAGMA(GCC error "feedback " STRINGIFY(id) ": " msg)
+#define FEEDBACK_RESPONSE_WARNING(id, msg) PRAGMA(GCC warning "feedback " STRINGIFY(id) ": " msg)
+#define FEEDBACK_RESPONSE_MESSAGE(id, msg) PRAGMA(message "feedback " STRINGIFY(id) ": " msg)
+#define FEEDBACK_RESPONSE_NONE(id, msg)    /* no feedback response for id */
+#elif defined _MSC_VER
+#define FEEDBACK_MESSAGE(msg)              PRAGMA(message(__FILE__ "(" STRINGIFY(__LINE__) "): " msg))
+#define FEEDBACK_RESPONSE_ERROR(id, msg)   FEEDBACK_MESSAGE("feedback error " STRINGIFY(id) ": " msg)
+#define FEEDBACK_RESPONSE_WARNING(id, msg) FEEDBACK_MESSAGE("feedback warning " STRINGIFY(id) ": " msg)
+#define FEEDBACK_RESPONSE_MESSAGE(id, msg) FEEDBACK_MESSAGE("feedback message " STRINGIFY(id) ": " msg)
+#define FEEDBACK_RESPONSE_NONE(id, msg)    /* no feedback response for id */
 #else
-# define FEEDBACK_ERROR_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): feedback error " STRINGIFY(id) ": " msg))
-# define FEEDBACK_WARNING_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): feedback warning " STRINGIFY(id) ": " msg))
-# define FEEDBACK_MESSAGE_RESPONSE(id, msg) PRAGMA(message (__FILE__ "(" STRINGIFY(__LINE__) "): feedback message " STRINGIFY(id) ": " msg))
+#error "Unsupported compiler"
 #endif
 
 )_");
@@ -243,7 +251,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
 
     for (auto [id, rule] : rules)
       format::print(output,
-                    R"_(#define FEEDBACK_{uppercase_id}_MATCH(match, highlighting) FEEDBACK_{response}_RESPONSE({id}, "{summary} [{type} from file://{feedback_rules}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
+                    R"_(#define FEEDBACK_MATCH_{uppercase_id}(match, highlighting) FEEDBACK_RESPONSE_{response}({id}, "{summary} [{type} from file://{feedback_rules}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
 )_",
                     "feedback_rules"_a = format::as_literal{ rules.origin() }, "id"_a = id,
                     "uppercase_id"_a = format::uppercase{ id },
@@ -273,7 +281,7 @@ namespace {{ using avoid_compiler_warnings_symbol = int; }}
       auto const marked_text  = search_marked_text(search.matched_text(), attributes.marked_text);
       auto const highlighting = excerpt{ matched_lines, marked_text };
 
-      format::print(output, "# line {}\n{}FEEDBACK_{}_MATCH(\"{}\", \"{}\")\n", line_number, highlighting.indentation,
+      format::print(output, "# line {}\n{}FEEDBACK_MATCH_{}(\"{}\", \"{}\")\n", line_number, highlighting.indentation,
                     format::uppercase{ id }, format::as_literal{ highlighting.first_line },
                     highlighting.indentation + highlighting.annotation);
     }
