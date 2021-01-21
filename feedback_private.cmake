@@ -1,4 +1,4 @@
-cmake_policy (VERSION 3.15)
+cmake_policy (VERSION 3.18)
 
 define_property (TARGET PROPERTY EXCLUDE_FROM_FEEDBACK
                  BRIEF_DOCS "exclude target from any feedback"
@@ -29,61 +29,42 @@ function (GetFeedbackSourceDir source_dir_variable)
   set (${source_dir_variable} "${CMAKE_BINARY_DIR}/feedback" PARENT_SCOPE)
 endfunction ()
 
-function (ToAbsolutePath paths_variable base_dir)
-  foreach (path IN LISTS ${paths_variable})
-    get_filename_component (path "${path}" ABSOLUTE BASE_DIR "${base_dir}")
-    list (APPEND paths "${path}")
-  endforeach ()
-
-  set (${paths_variable} ${paths} PARENT_SCOPE)
-endfunction ()
-
-function (RemoveGeneratorExpressions files_variable)
-  foreach (file IN LISTS ${files_variable})
-    if (NOT file MATCHES "^[$][<].+[>]$")
-      list (APPEND files "${file}")
-    endif ()
-  endforeach ()
-
-  set (${files_variable} ${files} PARENT_SCOPE)
-endfunction ()
-
-function (RemoveFilesFromDirectory files_variable directory)
-  foreach (file IN LISTS ${files_variable})
-    string (FIND "${file}" "${directory}" pos)
-    if (pos EQUAL -1)
-      list (APPEND files "${file}")
-    endif ()
-  endforeach ()
-
-  set (${files_variable} ${files} PARENT_SCOPE)
-endfunction ()
-
-function (RemoveMissingFiles files_variable)
-  foreach (file IN LISTS ${files_variable})
-    if (EXISTS "${file}")
-      list (APPEND files "${file}")
-    endif ()
-  endforeach ()
-
-  set (${files_variable} ${files} PARENT_SCOPE)
-endfunction ()
-
 function (AllRelevantSourcesFromTargets all_sources_variable)
+  unset (all_sources)
+
   foreach (target IN LISTS ARGN)
 
     get_target_property (sources ${target} SOURCES)
     get_target_property (source_dir ${target} SOURCE_DIR)
 
-    RemoveGeneratorExpressions (sources)
-    ToAbsolutePath (sources "${source_dir}")
+    unset (target_sources)
 
-    list (APPEND all_sources ${sources} "${source_dir}/CMakeLists.txt")
+    if (EXISTS "${source_dir}/CMakeLists.txt")
+      list (APPEND target_sources "${source_dir}/CMakeLists.txt")
+    endif ()
+
+    foreach (source IN LISTS sources)
+
+      # skip generator expressions
+      if (source MATCHES "^[$][<].+[>]$")
+        continue ()
+      endif ()
+
+      # to absolute path
+      get_filename_component (source "${source}" ABSOLUTE BASE_DIR "${source_dir}")
+
+      # skip generated files
+      get_source_file_property (generated "${source}" TARGET_DIRECTORY "${target}" GENERATED)
+      if (generated)
+        continue ()
+      endif ()
+
+      list (APPEND target_sources "${source}")
+    endforeach ()
+
+    list (APPEND all_sources ${target_sources})
   endforeach ()
 
-  RemoveFilesFromDirectory (all_sources "${CMAKE_BINARY_DIR}")
-  RemoveMissingFiles (all_sources)
-  
   set ("${all_sources_variable}" ${all_sources} PARENT_SCOPE)
 endfunction ()
 
@@ -102,21 +83,6 @@ endfunction ()
 function (WriteFileList filename)
   string (REGEX REPLACE ";" "\n" file_list "${ARGN};")
   WriteFileIfDifferent ("${filename}" "${file_list}")
-endfunction ()
-
-function (RemoveFirstElementsFromList chunk_variable count list_variable)
-  set (list ${${list_variable}})
-
-  foreach (iteration RANGE 1 ${count})
-    if (list)
-      list (GET list 0 value)
-      list (REMOVE_AT list 0)
-      list (APPEND chunk "${value}")
-    endif ()
-  endforeach ()
-  
-  set (${chunk_variable} ${chunk} PARENT_SCOPE)
-  set (${list_variable} ${list} PARENT_SCOPE)
 endfunction ()
 
 function (Feedback_GroupTargetsInFolder)
