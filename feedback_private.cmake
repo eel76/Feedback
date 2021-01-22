@@ -8,7 +8,7 @@ function (Feedback_ExcludeTargets)
   set_target_properties (${ARGN} PROPERTIES EXCLUDED_FROM_FEEDBACK true)
 endfunction ()
 
-function (Feedback_RelevantTargets relevant_targets_variable)
+function (_Feedback_RelevantTargets relevant_targets_variable)
   foreach (target IN LISTS ARGN)
     get_target_property (excluded_from_feedback "${target}" EXCLUDED_FROM_FEEDBACK)
 
@@ -20,16 +20,11 @@ function (Feedback_RelevantTargets relevant_targets_variable)
   set ("${relevant_targets_variable}" ${relevant_targets} PARENT_SCOPE)
 endfunction ()
 
-function (Feedback_MarkInternalTargets)
-  Feedback_GroupTargetsInFolder (${ARGN} FOLDER "feedback")
-  Feedback_ExcludeTargets (${ARGN})
-endfunction ()
-
-function (GetFeedbackSourceDir source_dir_variable)
+function (_Feedback_SourceDir source_dir_variable)
   set (${source_dir_variable} "${CMAKE_BINARY_DIR}/feedback" PARENT_SCOPE)
 endfunction ()
 
-function (AllRelevantSourcesFromTargets all_sources_variable)
+function (_Feedback_RelevantSourcesFromTargets all_sources_variable)
   unset (all_sources)
 
   foreach (target IN LISTS ARGN)
@@ -68,7 +63,7 @@ function (AllRelevantSourcesFromTargets all_sources_variable)
   set ("${all_sources_variable}" ${all_sources} PARENT_SCOPE)
 endfunction ()
 
-function (WriteFileIfDifferent filename content)
+function (_Feedback_WriteFileIfDifferent filename content)
   if (EXISTS "${filename}")
     file (READ "${filename}" old_content)
 
@@ -80,9 +75,9 @@ function (WriteFileIfDifferent filename content)
   file (WRITE "${filename}" "${content}")
 endfunction ()
 
-function (WriteFileList filename)
+function (_Feedback_WriteFileList filename)
   string (REGEX REPLACE ";" "\n" file_list "${ARGN};")
-  WriteFileIfDifferent ("${filename}" "${file_list}")
+  _Feedback_WriteFileIfDifferent ("${filename}" "${file_list}")
 endfunction ()
 
 function (Feedback_GroupTargetsInFolder)
@@ -103,7 +98,7 @@ function (Feedback_GroupTargetsInFolder)
   endforeach()
 endfunction ()
 
-function (GetWorktree worktree_variable)
+function (_Feedback_Worktree worktree_variable)
   cmake_parse_arguments (Worktree "" "HINT" "" ${ARGN})
 
   if (DEFINED Worktree_UNPARSED_ARGUMENTS)
@@ -127,13 +122,13 @@ function (GetWorktree worktree_variable)
   set (${worktree_variable} "${worktree}" PARENT_SCOPE)
 endfunction ()
 
-function (GetRepository repository_variable)
-  GetWorktree (worktree ${ARGN})
+function (_Feedback_Repository repository_variable)
+  _Feedback_Worktree (worktree ${ARGN})
 
   if (NOT IS_DIRECTORY "${worktree}/.git")
     file (READ "${worktree}/.git" gitdir)
     string (REGEX REPLACE ".*gitdir[:] +(.*)\n.*" "\\1" gitdir "${gitdir}")
-    GetWorktree (worktree HINT "${gitdir}")
+    _Feedback_Worktree (worktree HINT "${gitdir}")
   endif ()
 
   set (${repository_variable} "${worktree}" PARENT_SCOPE)
@@ -141,13 +136,13 @@ endfunction ()
 
 function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow changes)
 
-  Feedback_RelevantTargets (relevant_targets ${ARGN})
+  _Feedback_RelevantTargets (relevant_targets ${ARGN})
 
   if (NOT relevant_targets)
     return ()
   endif ()
 
-  GetFeedbackSourceDir (feedback_source_dir)
+  _Feedback_SourceDir (feedback_source_dir)
 
   if (NOT TARGET DIFF)
 
@@ -155,10 +150,11 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
 
     add_library(DIFF STATIC EXCLUDE_FROM_ALL)
 
-    WriteFileIfDifferent ("${feedback_source_dir}/DIFF/diff.cpp" "namespace { using none = int; }")
+    _Feedback_WriteFileIfDifferent ("${feedback_source_dir}/DIFF/diff.cpp" "namespace { using none = int; }")
     target_sources (DIFF PRIVATE "${feedback_source_dir}/DIFF/diff.cpp")
 
-    Feedback_MarkInternalTargets (DIFF)
+    Feedback_GroupTargetsInFolder (DIFF FOLDER "feedback")
+    Feedback_ExcludeTargets (DIFF)
   endif ()
 
     # FIXME: read HEAD file and parse ref, depend on that ref, too!
@@ -178,10 +174,10 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
 #      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
 #      )
 
-  GetWorktree (worktree)
-  GetRepository (repository HINT "${worktree}")
+  _Feedback_Worktree (worktree)
+  _Feedback_Repository (repository HINT "${worktree}")
 
-  AllRelevantSourcesFromTargets (relevant_sources ${relevant_targets})
+  _Feedback_RelevantSourcesFromTargets (relevant_sources ${relevant_targets})
 
   add_custom_command (
     OUTPUT "${feedback_source_dir}/DIFF/${feedback_target}.diff"
@@ -225,7 +221,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
 #      BYPRODUCTS "${feedback_source_dir}/all.diff"
 #      )
 
-  WriteWorkflow ("${feedback_source_dir}/${feedback_target}/workflow.json" "${workflow}")
+  _Feedback_WriteWorkflow ("${feedback_source_dir}/${feedback_target}/workflow.json" "${workflow}")
 
   add_library ("${feedback_target}" STATIC EXCLUDE_FROM_ALL)
   target_sources ("${feedback_target}" PRIVATE "${rules}" "${feedback_source_dir}/${feedback_target}/workflow.json")
@@ -239,10 +235,11 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
   target_compile_options("${feedback_target}" PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
   target_compile_options("${feedback_target}" PRIVATE $<$<CXX_COMPILER_ID:MSVC>:-WX->)
 
-  Feedback_MarkInternalTargets ("${feedback_target}")
+  Feedback_GroupTargetsInFolder ("${feedback_target}" FOLDER "feedback")
+  Feedback_ExcludeTargets ("${feedback_target}")
 endfunction ()
 
-function (WriteWorkflow filename workflow)
+function (_Feedback_WriteWorkflow filename workflow)
   unset (content)
   unset (separator)
 
@@ -260,20 +257,20 @@ function (WriteWorkflow filename workflow)
 
   string (APPEND content "\n}")
 
-  WriteFileIfDifferent ("${filename}" "${content}")
+  _Feedback_WriteFileIfDifferent ("${filename}" "${content}")
 endfunction ()
 
 function (AddFeedbackSourceForTarget feedback_target rules workflow diff target)
-  GetFeedbackSourceDir (feedback_source_dir)
+  _Feedback_SourceDir (feedback_source_dir)
   set (feedback_source "${feedback_source_dir}/${feedback_target}/${target}")
 
-  AllRelevantSourcesFromTargets (relevant_sources "${target}")
-  WriteFileList ("${feedback_source}.sources.txt" ${relevant_sources})
+  _Feedback_RelevantSourcesFromTargets (relevant_sources "${target}")
+  _Feedback_WriteFileList ("${feedback_source}.sources.txt" ${relevant_sources})
 
   add_custom_command (
     OUTPUT "${feedback_source}.cpp"
-    COMMAND "$<TARGET_FILE:generator>" "--diff=${feedback_source_dir}/DIFF/${diff}.diff" "${rules}" "${workflow}" "${feedback_source}.sources.txt" ">" "${feedback_source}.cpp"
-    DEPENDS generator "${rules}" "${workflow}" "${feedback_source}.sources.txt" ${relevant_sources} # sic! no dependency to "${feedback_source_dir}/DIFF/${diff}.diff"
+    COMMAND "$<TARGET_FILE:feedback-generator>" "--diff=${feedback_source_dir}/DIFF/${diff}.diff" "${rules}" "${workflow}" "${feedback_source}.sources.txt" ">" "${feedback_source}.cpp"
+    DEPENDS feedback-generator "${rules}" "${workflow}" "${feedback_source}.sources.txt" ${relevant_sources} # sic! no dependency to "${feedback_source_dir}/DIFF/${diff}.diff"
     )
   target_sources ("${feedback_target}" PRIVATE "${feedback_source}.cpp")
 endfunction ()
