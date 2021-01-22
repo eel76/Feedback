@@ -64,7 +64,7 @@
   "GUIDELINE7": {
     "type": "requirement",
     "matched_files": "[.]cmake$",
-    "matched_text": "cmake_parse_arguments (.*",
+    "matched_text": "cmake_parse_arguments *[(].*",
     "ignored_text": "cmake_parse_arguments *[(] *parameter",
     "summary": "XXX",
     "rationale": "",
