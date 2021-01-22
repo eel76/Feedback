@@ -35,9 +35,9 @@ option (FEEDBACK_BUILD_TESTING "Enable testing for the feedback project." "${FEE
 include (ExternalProject)
 ExternalProject_Add(feedback-generator-build
   SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/generator"
-  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/generator"
+  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/generator-build"
   CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release" "-DBUILD_TESTING=${FEEDBACK_BUILD_TESTING}"
-  BUILD_COMMAND "${CMAKE_COMMAND}" "--build" "${CMAKE_CURRENT_BINARY_DIR}/generator" "--config" "Release"
+  BUILD_COMMAND "${CMAKE_COMMAND}" "--build" "${CMAKE_CURRENT_BINARY_DIR}/generator-build" "--config" "Release"
   BUILD_ALWAYS "${FEEDBACK_MASTER_PROJECT}"
   INSTALL_COMMAND ""
   EXCLUDE_FROM_ALL)
