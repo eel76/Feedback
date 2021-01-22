@@ -1,4 +1,13 @@
 {
+  "GUIDELINE0": {
+    "type": "guideline",
+    "matched_files": "[.](c|cc|cpp|cxx|h|i|cmake|txt)$",
+    "matched_text": "// *(TODO|FIXME|REVIEW|OPTIMIZE|HACK|XXX|BUG)",
+    "marked_text": "[A-Z]+",
+    "summary": "Unfinished task (TODO/FIXME/HACK/...)",
+    "rationale": "Task markers should be used only rarely and temporarily in our code base because they indicate a technical debt. They tend to rot over time and will be forgotton eventually.",
+    "workaround": "Please finish this task if possible. Remove its marker from our code base either way. Use an issue tracker like JIRA for important tasks."
+  },
   "GUIDELINE1": {
     "type": "requirement",
     "matched_files": "[.](c|cc|cpp|cxx|h|i)$",
@@ -53,12 +62,12 @@
     "workaround": "Please add a cmake_policy() to the first line of the file."
   },
   "GUIDELINE7": {
-    "type": "guideline",
-    "matched_files": "[.](c|cc|cpp|cxx|h|i|cmake|txt)$",
-    "matched_text": "// *(TODO|FIXME|REVIEW|OPTIMIZE|HACK|XXX|BUG)",
-    "marked_text": "[A-Z]+",
-    "summary": "Unfinished task (TODO/FIXME/HACK/...)",
-    "rationale": "Task markers should be used only rarely and temporarily in our code base because they indicate a technical debt. They tend to rot over time and will be forgotton eventually.",
-    "workaround": "Please finish this task if possible. Remove its marker from our code base either way. Use an issue tracker like JIRA for important tasks."
+    "type": "requirement",
+    "matched_files": "[.]cmake$",
+    "matched_text": "cmake_parse_arguments (.*",
+    "ignored_text": "cmake_parse_arguments *[(] *parameter",
+    "summary": "XXX",
+    "rationale": "",
+    "workaround": "XXX"
   }
 }
