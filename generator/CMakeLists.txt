@@ -56,10 +56,6 @@ target_include_directories (${PROJECT_NAME}
   PRIVATE include
   )
 
-set_target_properties (${PROJECT_NAME}.core ${PROJECT_NAME}
-  PROPERTIES CXX_STANDARD 17
-  )
-
 if (BUILD_TESTING AND GENERATOR_BUILD_TESTING)
   add_executable (${PROJECT_NAME}.test
     "src/test.container.cpp"
@@ -84,9 +80,5 @@ if (BUILD_TESTING AND GENERATOR_BUILD_TESTING)
     )
   add_test(NAME ${PROJECT_NAME}Benchmarks
     COMMAND $<TARGET_FILE:${PROJECT_NAME}.benchmark>
-    )
-
-  set_target_properties (${PROJECT_NAME}.benchmark ${PROJECT_NAME}.test
-    PROPERTIES CXX_STANDARD 17
     )
 endif()
