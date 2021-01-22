@@ -22,7 +22,7 @@ Distributed under the [MIT](https://opensource.org/licenses/MIT) license.
 // tag::features[]
 
 * Straightforward usage: add new feedback rules within a couple of minutes
-* Scales well: analyze a few dozens rules on a million lines code base within just a few seconds
+* Scales well: check dozens of rules on a million lines code base within just a few seconds
 * Builtin support for an incremental developer workflow
 
 // end::features[]
@@ -141,5 +141,7 @@ The feedback rules (`rules.json`) of our `coding_guidelines` feedback could look
   }
 }
 ----
+
+Development comments can be added with additional attributes (which will be ignored).
 
 // end::using[]
