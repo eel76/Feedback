@@ -49,6 +49,36 @@ function (Feedback_FindTargets targets_variable)
   set (${targets_variable} ${targets} PARENT_SCOPE)
 endfunction ()
 
+function (Feedback_Exclude name)
+  cmake_parse_arguments (Feedback "" "" "DIRECTORIES;TARGETS" ${ARGN})
+
+  if (DEFINED Feedback_UNPARSED_ARGUMENTS)
+    message (FATAL_ERROR "Unparsed arguments: ${Feedback_UNPARSED_ARGUMENTS}")
+  endif ()
+
+  if (DEFINED Feedback_DIRECTORIES)
+    Feedback_FindTargets (directory_targets DIRECTORIES "${Feedback_DIRECTORIES}")
+    list (APPEND Feedback_TARGETS ${directory_targets})
+  endif ()
+
+  if (NOT Feedback_TARGETS)
+    message (FATAL_ERROR "No targets given.")
+  endif ()
+
+  list (REMOVE_DUPLICATES Feedback_TARGETS)
+
+  foreach (target IN LISTS Feedback_TARGETS)
+    get_target_property (excluded_from_feedback "${target}" EXCLUDED_FROM_FEEDBACK)
+
+    if (NOT excluded_from_feedback)
+      unset (excluded_from_feedback)
+    endif ()
+
+    list (APPEND excluded_from_feedback "(^${name}$)")
+    set_target_properties ("${target}" PROPERTIES EXCLUDED_FROM_FEEDBACK ${excluded_from_feedback})
+  endforeach ()
+endfunction ()
+
 function (Feedback_Add name)
   cmake_parse_arguments (Feedback "" "RULES;WORKFLOW;RELEVANT_CHANGES" "DIRECTORIES;TARGETS" ${ARGN})
 
@@ -73,7 +103,7 @@ function (Feedback_Add name)
     list (APPEND Feedback_TARGETS ${directory_targets})
   endif ()
 
-  if (NOT DEFINED Feedback_TARGETS OR NOT Feedback_TARGETS)
+  if (NOT Feedback_TARGETS)
     message (FATAL_ERROR "No targets given.")
   endif ()
 

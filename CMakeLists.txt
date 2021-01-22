@@ -29,6 +29,7 @@ option (FEEDBACK_BUILD_TESTING "Enable testing for the feedback project." "${FEE
 #  * achieve a faster CMake configuration/generation of the client project
 #  * can use the feedback system for our project itself
 # even though we
+#  * have to define imported targets manually
 #  * will have a permanent build check
   
 include (ExternalProject)
@@ -54,11 +55,11 @@ if (FEEDBACK_MASTER_PROJECT)
   add_subdirectory("generator")
 
   Feedback_FindTargets (generator_targets DIRECTORIES "generator")
-  Feedback_GroupTargetsInFolder (${generator_targets} FOLDER "generator")
+  set_target_properties (${generator_targets} PROPERTIES FOLDER "generator")
 
   # add a target for this cmakelist.txt and the included cmake files
 
-  # Feedback_Exclude (DIRECTORIES "generator/extern")
+  Feedback_Exclude (project_guidelines DIRECTORIES "generator/extern")
   Feedback_Add (project_guidelines RULES project_guidelines.json DIRECTORIES "${CMAKE_SOURCE_DIR}")
 endif ()
 

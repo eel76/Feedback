@@ -1,20 +1,22 @@
 cmake_policy (VERSION 3.18)
 
-define_property (TARGET PROPERTY EXCLUDE_FROM_FEEDBACK
-                 BRIEF_DOCS "exclude target from any feedback"
-                 FULL_DOCS "exclude target from any feedback")
+define_property (TARGET PROPERTY EXCLUDED_FROM_FEEDBACK
+                 BRIEF_DOCS "exclude this target from feedback targets"
+                 FULL_DOCS "exclude this target from feedback targets")
 
-function (Feedback_ExcludeTargets)
-  set_target_properties (${ARGN} PROPERTIES EXCLUDED_FROM_FEEDBACK true)
-endfunction ()
-
-function (_Feedback_RelevantTargets relevant_targets_variable)
+function (_Feedback_RelevantTargets relevant_targets_variable feedback_target)
   foreach (target IN LISTS ARGN)
     get_target_property (excluded_from_feedback "${target}" EXCLUDED_FROM_FEEDBACK)
 
-    if (NOT excluded_from_feedback)
-      list (APPEND relevant_targets "${target}")
+    if (excluded_from_feedback)
+      list (JOIN excluded_from_feedback "|" excluded_from_feedback_regex)
+
+      if ("${feedback_target}" MATCHES "${excluded_from_feedback_regex}")
+        continue ()
+      endif ()
     endif ()
+
+    list (APPEND relevant_targets "${target}")
   endforeach ()
 
   set ("${relevant_targets_variable}" ${relevant_targets} PARENT_SCOPE)
@@ -28,7 +30,6 @@ function (_Feedback_RelevantSourcesFromTargets all_sources_variable)
   unset (all_sources)
 
   foreach (target IN LISTS ARGN)
-
     get_target_property (sources ${target} SOURCES)
     get_target_property (source_dir ${target} SOURCE_DIR)
 
@@ -80,24 +81,6 @@ function (_Feedback_WriteFileList filename)
   _Feedback_WriteFileIfDifferent ("${filename}" "${file_list}")
 endfunction ()
 
-function (Feedback_GroupTargetsInFolder)
-  cmake_parse_arguments (parameter "" "FOLDER" "" ${ARGN})
-
-  if (NOT DEFINED parameter_FOLDER)
-    message (FATAL_ERROR "No folder given.")
-  endif ()
-
-  foreach (target IN LISTS parameter_UNPARSED_ARGUMENTS)
-    get_target_property(current_folder ${target} FOLDER)
-
-    if (current_folder)
-      set_target_properties (${target} PROPERTIES FOLDER "${parameter_FOLDER}/${current_folder}")
-    else ()
-      set_target_properties (${target} PROPERTIES FOLDER "${parameter_FOLDER}")
-    endif ()
-  endforeach()
-endfunction ()
-
 function (_Feedback_Worktree worktree_variable)
   cmake_parse_arguments (Worktree "" "HINT" "" ${ARGN})
 
@@ -136,7 +119,7 @@ endfunction ()
 
 function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow changes)
 
-  _Feedback_RelevantTargets (relevant_targets ${ARGN})
+  _Feedback_RelevantTargets (relevant_targets "${feedback_target}" ${ARGN})
 
   if (NOT relevant_targets)
     return ()
@@ -153,8 +136,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
     _Feedback_WriteFileIfDifferent ("${feedback_source_dir}/DIFF/diff.cpp" "namespace { using none = int; }")
     target_sources (DIFF PRIVATE "${feedback_source_dir}/DIFF/diff.cpp")
 
-    Feedback_GroupTargetsInFolder (DIFF FOLDER "feedback")
-    Feedback_ExcludeTargets (DIFF)
+    set_target_properties (DIFF PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
   endif ()
 
     # FIXME: read HEAD file and parse ref, depend on that ref, too!
@@ -235,8 +217,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
   target_compile_options("${feedback_target}" PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
   target_compile_options("${feedback_target}" PRIVATE $<$<CXX_COMPILER_ID:MSVC>:-WX->)
 
-  Feedback_GroupTargetsInFolder ("${feedback_target}" FOLDER "feedback")
-  Feedback_ExcludeTargets ("${feedback_target}")
+  set_target_properties ("${feedback_target}" PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
 endfunction ()
 
 function (_Feedback_WriteWorkflow filename workflow)

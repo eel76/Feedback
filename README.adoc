@@ -94,7 +94,7 @@ You can exclude certain targets from feedback:
 [source,cmake]
 ----
 add_executable (ignored ...)
-Feedback_ExcludeTargets (ignored)
+Feedback_Exclude (CodingGuidelines TARGETS ignored)
 
 Feedback_Add (CodingGuidelines RULES rules.json DIRECTORIES "${CMAKE_SOURCE_DIR}")
 ----
