@@ -1,6 +1,15 @@
 cmake_minimum_required (VERSION 3.18)
 
-project (feedback)
+project (feedback
+  VERSION 1.0.0
+  DESCRIPTION "A simple to use feedback system for CMake based C++ projects."
+  HOMEPAGE_URL "https://gitlab.volumegraphics.com/reinbach/feedback"
+  LANGUAGES CXX
+  )
+
+set (CMAKE_CXX_STANDARD 17)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+set (CMAKE_CXX_EXTENSIONS OFF)
 
 if (NOT DEFINED FEEDBACK_MASTER_PROJECT)
   set (FEEDBACK_MASTER_PROJECT false)
@@ -13,49 +22,47 @@ if (NOT DEFINED FEEDBACK_MASTER_PROJECT)
 endif ()
 
 option (FEEDBACK_BUILD_TESTING "Enable testing for the feedback project." "${FEEDBACK_MASTER_PROJECT}")
-option (FEEDBACK_NO_EXTERNAL_PROJECT "Feedback project does not use ExternalProject module." "${FEEDBACK_MASTER_PROJECT}")
 
-if (FEEDBACK_NO_EXTERNAL_PROJECT)
+# adding the genrator as an external project is preferable because we
+#  * build the generator always in release configuration
+#  * do not inherit compile options from the client project
+#  * achieve a faster CMake configuration/generation of the client project
+#  * can use the feedback system for our project itself
+# even though we
+#  * will have a permanent build check
+  
+include (ExternalProject)
+ExternalProject_Add(feedback-generator-build
+  SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/generator"
+  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/generator"
+  CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release" "-DBUILD_TESTING=${FEEDBACK_BUILD_TESTING}"
+  BUILD_COMMAND "${CMAKE_COMMAND}" "--build" "${CMAKE_CURRENT_BINARY_DIR}/generator" "--config" "Release"
+  BUILD_ALWAYS "${FEEDBACK_MASTER_PROJECT}"
+  INSTALL_COMMAND ""
+  EXCLUDE_FROM_ALL)
+
+add_executable (feedback-generator IMPORTED GLOBAL)
+add_dependencies(feedback-generator feedback-generator-build)
+
+ExternalProject_Get_Property(feedback-generator-build binary_dir)
+set_target_properties(feedback-generator PROPERTIES IMPORTED_LOCATION "${binary_dir}/Release/generator${CMAKE_EXECUTABLE_SUFFIX}")
+
+include ("feedback.cmake")
+
+if (FEEDBACK_MASTER_PROJECT)
   set (GENERATOR_BUILD_TESTING "${FEEDBACK_BUILD_TESTING}")
   add_subdirectory("generator")
-else()
 
-  # this is preferable for clients because we
-  #  * build the generator always in release configuration
-  #  * do not inherit compile options from the client project
-  #  * achieve a faster CMake configuration/generation of the client project
-  # even though we
-  #  * have a build check every time
+  Feedback_FindTargets (generator_targets DIRECTORIES "generator")
+  Feedback_GroupTargetsInFolder (${generator_targets} FOLDER "generator")
 
-  include (ExternalProject)
-  ExternalProject_Add(generator_build
-    SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/generator"
-    BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/generator"
-    CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release" "-DBUILD_TESTING=${FEEDBACK_BUILD_TESTING}"
-    BUILD_COMMAND "${CMAKE_COMMAND}" "--build" "${CMAKE_CURRENT_BINARY_DIR}/generator" "--config" "Release"
-    BUILD_ALWAYS "${FEEDBACK_MASTER_PROJECT}"
-    INSTALL_COMMAND ""
-    EXCLUDE_FROM_ALL)
+  # add a target for this cmakelist.txt and the included cmake files
 
-  add_executable (generator IMPORTED GLOBAL)
-  add_dependencies(generator generator_build)
-
-  ExternalProject_Get_Property(generator_build binary_dir)
-  set_target_properties(generator PROPERTIES IMPORTED_LOCATION "${binary_dir}/Release/generator${CMAKE_EXECUTABLE_SUFFIX}")
-endif()
-
-function (Feedback_setup)
-  include ("feedback.cmake")
-
-  Feedback_FindTargets (feedback_targets DIRECTORIES "${CMAKE_CURRENT_LIST_DIR}")
-  Feedback_GroupTargetsInFolder (${feedback_targets} FOLDER "generator")
-  Feedback_MarkInternalTargets (${feedback_targets})
-
-  unset (feedback_targets)
-endfunction ()
-
-Feedback_setup ()
+  # Feedback_Exclude (DIRECTORIES "generator/extern")
+  Feedback_Add (project_guidelines RULES project_guidelines.json DIRECTORIES "${CMAKE_SOURCE_DIR}")
+endif ()
 
 if (BUILD_TESTING AND FEEDBACK_BUILD_TESTING)
   add_subdirectory(tests)
 endif()
+
