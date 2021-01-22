@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project (generator)
+project (generator LANGUAGES CXX)
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   include (CTest)
