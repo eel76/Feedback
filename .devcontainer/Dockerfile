@@ -10,7 +10,7 @@ FROM mcr.microsoft.com/vscode/devcontainers/cpp:0-${VARIANT}
 
 RUN apt-get update \
 && apt-get -y remove --purge --auto-remove cmake \
-&& apt-get -y install libssl-dev \
+&& apt-get -y install libssl-dev libtbb-dev \
 && version=3.18 \
 && build=5 \
 && mkdir ~/temp \
