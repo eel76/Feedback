@@ -10,11 +10,12 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   include (CTest)
   set_property(GLOBAL PROPERTY USE_FOLDERS true)
 
-  set (GENERATOR_BUILD_TESTING ON CACHE INTERNAL "")
+  set (GENERATOR_BUILD_TESTS ON CACHE INTERNAL "")
 else ()
-  option (GENERATOR_BUILD_TESTING "Enable testing for ${PROJECT_NAME} project." OFF)
+  option (GENERATOR_BUILD_TESTS "Enable testing for ${PROJECT_NAME} project." OFF)
 endif ()
 
+find_package (Threads REQUIRED)
 add_subdirectory (extern)
 
 add_library (${PROJECT_NAME}.core STATIC
@@ -51,12 +52,13 @@ target_link_libraries (${PROJECT_NAME}
   PRIVATE ${PROJECT_NAME}.core
   PRIVATE nlohmann_json::nlohmann_json
   PRIVATE bfg::Lyra
+  PRIVATE $<$<CXX_COMPILER_ID:Clang,GNU>:-ltbb>
   )
 target_include_directories (${PROJECT_NAME}
   PRIVATE include
   )
 
-if (BUILD_TESTING AND GENERATOR_BUILD_TESTING)
+if (BUILD_TESTING AND GENERATOR_BUILD_TESTS)
   add_executable (${PROJECT_NAME}.test
     "src/test.container.cpp"
     "src/test.main.cpp"
@@ -81,4 +83,5 @@ if (BUILD_TESTING AND GENERATOR_BUILD_TESTING)
   add_test(NAME ${PROJECT_NAME}Benchmarks
     COMMAND $<TARGET_FILE:${PROJECT_NAME}.benchmark>
     )
+  set_target_properties ("${PROJECT_NAME}.test" "${PROJECT_NAME}.benchmark" PROPERTIES FOLDER "tests")
 endif()

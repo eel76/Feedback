@@ -2,38 +2,38 @@ cmake_policy (VERSION 3.15)
 
 find_package (Git REQUIRED)
 
-include (feedback_private.cmake)
+include ("${CMAKE_CURRENT_LIST_DIR}/feedback_private.cmake")
 
 function (Feedback_FindTargets targets_variable)
-  cmake_parse_arguments (Feedback "" "IMPORTED" "DIRECTORIES;TYPES" ${ARGN})
+  cmake_parse_arguments (parameter "" "IMPORTED" "DIRECTORIES;TARGETS;TYPES" ${ARGN})
 
-  if (DEFINED Feedback_UNPARSED_ARGUMENTS)
-    message (FATAL_ERROR "Unparsed arguments: ${Feedback_UNPARSED_ARGUMENTS}")
+  if (DEFINED parameter_UNPARSED_ARGUMENTS)
+    message (FATAL_ERROR "Unparsed arguments: ${parameter_UNPARSED_ARGUMENTS}")
   endif ()
 
-  if (NOT DEFINED Feedback_DIRECTORIES)
+  if (NOT DEFINED parameter_DIRECTORIES AND NOT DEFINED parameter_TARGETS)
     message (FATAL_ERROR "No directories given.")
   endif ()
 
-  if (NOT DEFINED Feedback_IMPORTED)
-    set (Feedback_IMPORTED FALSE)
+  if (NOT DEFINED parameter_IMPORTED)
+    set (parameter_IMPORTED FALSE)
   endif ()
 
-  if (NOT DEFINED Feedback_TYPES)
-    set (Feedback_TYPES STATIC_LIBRARY MODULE_LIBRARY SHARED_LIBRARY EXECUTABLE)
+  if (NOT DEFINED parameter_TYPES)
+    set (parameter_TYPES STATIC_LIBRARY MODULE_LIBRARY SHARED_LIBRARY OBJECT_LIBRARY EXECUTABLE)
   endif ()
 
-  list(JOIN Feedback_TYPES " " types)
+  list(JOIN parameter_TYPES " " types)
   unset (targets)
 
-  foreach (directory IN LISTS Feedback_DIRECTORIES)
+  foreach (directory IN LISTS parameter_DIRECTORIES)
     get_directory_property(buildsystem_targets DIRECTORY "${directory}" BUILDSYSTEM_TARGETS)
 
     foreach (target IN LISTS buildsystem_targets)
       get_target_property (type "${target}" TYPE)
       get_target_property (imported "${target}" IMPORTED)
 
-      if (" ${types} " MATCHES " ${type} " AND (NOT imported OR Feedback_IMPORTED))
+      if (" ${types} " MATCHES " ${type} " AND (NOT imported OR parameter_IMPORTED))
         list (APPEND targets "${target}")
       endif ()
     endforeach ()
@@ -41,33 +41,25 @@ function (Feedback_FindTargets targets_variable)
     get_directory_property(subdirectories DIRECTORY "${directory}" SUBDIRECTORIES)
 
     if (subdirectories)
-      Feedback_FindTargets (subdirectory_targets DIRECTORIES ${subdirectories} TYPES ${Feedback_TYPES})
+      Feedback_FindTargets (subdirectory_targets DIRECTORIES ${subdirectories} TYPES ${parameter_TYPES})
       list (APPEND targets ${subdirectory_targets})
     endif ()
   endforeach ()
+
+  if (parameter_TARGETS)
+    list (APPEND targets ${parameter_TARGETS})
+    list (REMOVE_DUPLICATES targets)
+  endif ()
 
   set (${targets_variable} ${targets} PARENT_SCOPE)
 endfunction ()
 
 function (Feedback_Exclude name)
-  cmake_parse_arguments (Feedback "" "" "DIRECTORIES;TARGETS" ${ARGN})
+  cmake_parse_arguments (parameter "" "" "" ${ARGN})
 
-  if (DEFINED Feedback_UNPARSED_ARGUMENTS)
-    message (FATAL_ERROR "Unparsed arguments: ${Feedback_UNPARSED_ARGUMENTS}")
-  endif ()
+  Feedback_FindTargets (targets ${parameter_UNPARSED_ARGUMENTS})
 
-  if (DEFINED Feedback_DIRECTORIES)
-    Feedback_FindTargets (directory_targets DIRECTORIES "${Feedback_DIRECTORIES}")
-    list (APPEND Feedback_TARGETS ${directory_targets})
-  endif ()
-
-  if (NOT Feedback_TARGETS)
-    message (FATAL_ERROR "No targets given.")
-  endif ()
-
-  list (REMOVE_DUPLICATES Feedback_TARGETS)
-
-  foreach (target IN LISTS Feedback_TARGETS)
+  foreach (target IN LISTS targets)
     get_target_property (excluded_from_feedback "${target}" EXCLUDED_FROM_FEEDBACK)
 
     if (NOT excluded_from_feedback)
@@ -79,63 +71,76 @@ function (Feedback_Exclude name)
   endforeach ()
 endfunction ()
 
-function (Feedback_Add name)
-  cmake_parse_arguments (Feedback "" "RULES;WORKFLOW;RELEVANT_CHANGES" "DIRECTORIES;TARGETS" ${ARGN})
+function (Feedback_GroupTargets)
+  cmake_parse_arguments (parameter "" "FOLDER" "" ${ARGN})
 
-  if (DEFINED Feedback_UNPARSED_ARGUMENTS)
-    message (FATAL_ERROR "Unparsed arguments: ${Feedback_UNPARSED_ARGUMENTS}")
+  if (NOT parameter_FOLDER)
+    message (FATAL_ERROR "No folder given.")
   endif ()
 
-  if (NOT DEFINED Feedback_RULES)
+  Feedback_FindTargets (targets ${parameter_UNPARSED_ARGUMENTS})
+
+  foreach (target IN LISTS targets)
+    get_target_property (folder "${target}" FOLDER)
+
+    if (folder)
+      string (PREPEND folder "${parameter_FOLDER}/")
+    else ()
+      set (folder "${parameter_FOLDER}")
+    endif ()
+
+    set_target_properties ("${target}" PROPERTIES FOLDER "${folder}")
+  endforeach ()
+endfunction ()
+
+function (Feedback_Add name)
+  cmake_parse_arguments (parameter "" "RULES;WORKFLOW;RELEVANT_CHANGES" "" ${ARGN})
+
+  if (NOT DEFINED parameter_RULES)
     message (FATAL_ERROR "No rules file given.")
   endif ()
 
-  if (NOT DEFINED Feedback_WORKFLOW)
-    set (Feedback_WORKFLOW "configurable")
+  if (NOT DEFINED parameter_WORKFLOW)
+    set (parameter_WORKFLOW "configurable")
   endif ()
 
-  if (NOT DEFINED Feedback_RELEVANT_CHANGES)
-    set (Feedback_RELEVANT_CHANGES "configurable")
+  if (NOT DEFINED parameter_RELEVANT_CHANGES)
+    set (parameter_RELEVANT_CHANGES "configurable")
   endif ()
 
-  if (DEFINED Feedback_DIRECTORIES)
-    Feedback_FindTargets (directory_targets DIRECTORIES "${Feedback_DIRECTORIES}")
-    list (APPEND Feedback_TARGETS ${directory_targets})
-  endif ()
+  Feedback_FindTargets (targets ${parameter_UNPARSED_ARGUMENTS})
 
-  if (NOT Feedback_TARGETS)
+  if (NOT targets)
     message (FATAL_ERROR "No targets given.")
   endif ()
 
-  list (REMOVE_DUPLICATES Feedback_TARGETS)
-
-  if (Feedback_WORKFLOW STREQUAL "configurable")
+  if (parameter_WORKFLOW STREQUAL "configurable")
     set ("${name}_WORKFLOW" "developer" CACHE STRING "Workflow for '${name}' feedback")
     set_property(CACHE "${name}_WORKFLOW" PROPERTY STRINGS "ci" "maintainer" "component_builder" "developer" "solution_provider" "disabled")
 
-    set (Feedback_WORKFLOW "${${name}_WORKFLOW}")
+    set (parameter_WORKFLOW "${${name}_WORKFLOW}")
   endif ()
 
-  if (Feedback_RELEVANT_CHANGES STREQUAL "configurable")
+  if (parameter_RELEVANT_CHANGES STREQUAL "configurable")
     set ("${name}_RELEVANT_CHANGES" "modified_or_staged" CACHE STRING "Relevant changes for '${name}' feedback")
     set_property(CACHE "${name}_RELEVANT_CHANGES" PROPERTY STRINGS "all" "modified" "modified_or_staged" "staged" "staged_or_committed" "committed")
 
-    set (Feedback_RELEVANT_CHANGES "${${name}_RELEVANT_CHANGES}")
+    set (parameter_RELEVANT_CHANGES "${${name}_RELEVANT_CHANGES}")
   endif ()
 
   set (is_disabled TRUE)
 
-  foreach (type IN LISTS "FEEDBACK_WORKFLOW_${Feedback_WORKFLOW}_TYPES")
-    if (" all_files all_lines changed_files changed_lines " MATCHES " ${FEEDBACK_WORKFLOW_${Feedback_WORKFLOW}_CHECK_${type}} ")
+  foreach (type IN LISTS "FEEDBACK_WORKFLOW_${parameter_WORKFLOW}_TYPES")
+    if (" all_files all_lines changed_files changed_lines " MATCHES " ${FEEDBACK_WORKFLOW_${parameter_WORKFLOW}_CHECK_${type}} ")
       set (is_disabled FALSE)
     endif ()
   endforeach ()
 
   if (NOT is_disabled)
-    get_filename_component (Feedback_RULES "${Feedback_RULES}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+    get_filename_component (parameter_RULES "${parameter_RULES}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
     message (STATUS "Adding feedback: ${name}")
-    ConfigureFeedbackTargetFromTargets ("${name}" "${Feedback_RULES}" "${Feedback_WORKFLOW}" "${Feedback_RELEVANT_CHANGES}" ${Feedback_TARGETS})
+    ConfigureFeedbackTargetFromTargets ("${name}" "${parameter_RULES}" "${parameter_WORKFLOW}" "${parameter_RELEVANT_CHANGES}" ${targets})
   endif ()
 endfunction ()
 
@@ -227,4 +232,5 @@ function (Feedback_AddDefaultWorkflows)
   Feedback_ConfigureWorkflow (disabled          TYPE suggestion  CHECK no_lines      RESPONSE warning)
 endfunction ()
 
+_Feedback_Configure ()
 Feedback_AddDefaultWorkflows ()

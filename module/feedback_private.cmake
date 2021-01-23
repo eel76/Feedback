@@ -125,19 +125,9 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
     return ()
   endif ()
 
+  find_package(Git REQUIRED)
+
   _Feedback_SourceDir (feedback_source_dir)
-
-  if (NOT TARGET DIFF)
-
-    find_package(Git REQUIRED)
-
-    add_library(DIFF STATIC EXCLUDE_FROM_ALL)
-
-    _Feedback_WriteFileIfDifferent ("${feedback_source_dir}/DIFF/diff.cpp" "namespace { using none = int; }")
-    target_sources (DIFF PRIVATE "${feedback_source_dir}/DIFF/diff.cpp")
-
-    set_target_properties (DIFF PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
-  endif ()
 
     # FIXME: read HEAD file and parse ref, depend on that ref, too!
 #    file (GLOB_RECURSE refs CONFIGURE_DEPENDS "${repository}/.git/refs/*")
@@ -170,7 +160,13 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
     DEPENDS Git::Git "${repository}/.git/HEAD" "${repository}/.git/index" ${relevant_sources}
     # BYPRODUCTS "${feedback_source_dir}/DIFF/${changes}.diff"
     )
-  target_sources (DIFF PRIVATE "${feedback_source_dir}/DIFF/${feedback_target}.diff")
+
+  add_library ("DIFF_${feedback_target}" STATIC EXCLUDE_FROM_ALL "${feedback_main_SOURCE_DIR}/module/dummy.cpp" "${feedback_source_dir}/DIFF/${feedback_target}.diff")
+  set_target_properties ("DIFF_${feedback_target}" PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
+
+  # target_sources ("DIFF_${feedback_target}" INTERFACE "${feedback_source_dir}/DIFF/${feedback_target}.diff")
+  # add_dependencies (DIFF "DIFF_${feedback_target}")
+
     # target_sources (DIFF PRIVATE "${feedback_source_dir}/DIFF/${changes}.cpp")
 
 #    add_custom_command (
@@ -211,7 +207,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
   foreach (target IN LISTS relevant_targets)
     AddFeedbackSourceForTarget ("${feedback_target}" "${rules}" "${feedback_source_dir}/${feedback_target}/workflow.json" "${changes}" "${target}")
     add_dependencies ("${target}" "${feedback_target}")
-    add_dependencies ("${feedback_target}" "DIFF")
+    add_dependencies ("${feedback_target}" "DIFF_${feedback_target}")
   endforeach()
 
   target_compile_options("${feedback_target}" PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
@@ -255,3 +251,35 @@ function (AddFeedbackSourceForTarget feedback_target rules workflow diff target)
     )
   target_sources ("${feedback_target}" PRIVATE "${feedback_source}.cpp")
 endfunction ()
+
+function (_Feedback_Configure)
+  # adding the generator as an external project is preferable because we
+  #  * build the generator always in release configuration
+  #  * do not inherit compile options from the client project
+  #  * achieve a faster CMake configuration/generation of the client project
+  #  * can use the feedback system for our project itself
+  # even though we
+  #  * have to define imported targets manually
+  #  * will have a permanent build check
+
+  include (ExternalProject)
+  ExternalProject_Add(generator-build
+    SOURCE_DIR "${feedback_main_SOURCE_DIR}/generator"
+    BINARY_DIR "${feedback_main_BINARY_DIR}/generator-build"
+    CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release" "-DBUILD_TESTING=OFF"
+    BUILD_COMMAND "${CMAKE_COMMAND}" "--build" "${feedback_main_BINARY_DIR}/generator-build" "--config" "Release"
+    BUILD_ALWAYS "${FEEEBACK_MAIN_PROJECT}"
+    INSTALL_COMMAND ""
+    EXCLUDE_FROM_ALL ON)
+  set_target_properties (generator-build PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
+
+  add_executable (feedback-generator IMPORTED GLOBAL)
+  add_dependencies(feedback-generator generator-build)
+
+  ExternalProject_Get_Property(generator-build binary_dir)
+  set_target_properties(feedback-generator PROPERTIES IMPORTED_LOCATION "${binary_dir}/Release/generator${CMAKE_EXECUTABLE_SUFFIX}")
+
+#  add_library(DIFF STATIC EXCLUDE_FROM_ALL "${CMAKE_CURRENT_LIST_DIR}/dummy.cpp")
+#  set_target_properties (DIFF PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
+endfunction ()
+

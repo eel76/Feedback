@@ -15,11 +15,9 @@ Extern_MakeAvailable (re2 GIT_REPOSITORY "https://github.com/google/re2.git" GIT
 target_compile_options (re2 PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:CLANG>>:-Wno-error=unused-parameter -Wno-error=missing-field-initializers>)
 target_include_directories (re2 INTERFACE $<BUILD_INTERFACE:${RE2_SOURCE_DIR}>)
 
-if (BUILD_TESTING AND GENERATOR_BUILD_TESTING)
+if (BUILD_TESTING AND GENERATOR_BUILD_TESTS)
   Extern_MakeAvailable (catch2 GIT_REPOSITORY "https://github.com/catchorg/Catch2.git" GIT_TAG v2.13.4 GIT_SHALLOW TRUE)
 
   set (BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "")
   Extern_MakeAvailable (benchmark GIT_REPOSITORY "https://github.com/google/benchmark.git" GIT_TAG v1.5.2 GIT_SHALLOW TRUE)
 endif()
-
-find_package (Threads REQUIRED)
