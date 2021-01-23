@@ -12,7 +12,8 @@
 	// Set *default* container specific settings.json values on container create.
 	"settings": { 
 		"terminal.integrated.shell.linux": "/bin/bash",
-		"cmake.buildDirectory": "/tmp/build.${workspaceFolderBasename}"
+		"cmake.buildDirectory": "/tmp/build.${workspaceFolderBasename}",
+		"C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
 	},
 
 	// Add the IDs of extensions you want installed when the container is created.
