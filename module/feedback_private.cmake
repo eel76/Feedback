@@ -276,8 +276,14 @@ function (_Feedback_Configure)
   add_executable (feedback-generator IMPORTED GLOBAL)
   add_dependencies(feedback-generator generator-build)
 
+  set (cfg_intdir "${CMAKE_CFG_INTDIR}")
+
+  if (NOT cfg_intdir STREQUAL ".")
+    set (cfg_intdir "Release")
+  endif ()
+
   ExternalProject_Get_Property(generator-build binary_dir)
-  set_target_properties(feedback-generator PROPERTIES IMPORTED_LOCATION "${binary_dir}/Release/generator${CMAKE_EXECUTABLE_SUFFIX}")
+  set_target_properties(feedback-generator PROPERTIES IMPORTED_LOCATION "${binary_dir}/${cfg_intdir}/generator${CMAKE_EXECUTABLE_SUFFIX}")
 
 #  add_library(DIFF STATIC EXCLUDE_FROM_ALL "${CMAKE_CURRENT_LIST_DIR}/dummy.cpp")
 #  set_target_properties (DIFF PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
