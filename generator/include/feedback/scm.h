@@ -21,7 +21,10 @@ namespace feedback::scm {
         return modified[line];
       }
 
-      static auto parse_from(std::string_view block, changes merged = {}) -> changes;
+      static auto parse_from(std::string_view block, changes merged) -> changes;
+      static auto parse_from(std::string_view block) -> changes {
+        return parse_from(block, {});
+      }
 
     private:
       container::interval_map<int, bool> modified{ false };

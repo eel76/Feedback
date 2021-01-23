@@ -56,7 +56,7 @@ namespace feedback::text {
     void skip(std::string_view const& text);
 
   private:
-    ptrdiff_t        processed_line_count;
+    std::ptrdiff_t   processed_line_count;
     std::string_view processed;
     std::string_view last_processed_line;
     std::string_view current_match;

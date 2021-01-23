@@ -2,6 +2,7 @@
 
 #include "feedback/regex.h"
 
+#include <algorithm>
 #include <cassert>
 
 namespace feedback::text {

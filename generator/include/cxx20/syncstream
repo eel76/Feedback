@@ -23,28 +23,28 @@ namespace cxx20 {
     }
 
     void emit() {
-      static monitor<std::unordered_map<std::ostream*, std::mutex>> locks;
+      static concurrent_unordered_map<std::ostream*, std::mutex> locks;
 
       std::stringbuf buffer;
 
       using std::swap;
       swap(buffer, buffer_);
 
-      auto const locked = std::lock_guard{ locks([&](auto& map) -> decltype(auto) { return map[&output_]; }) };
+      auto const locked = std::lock_guard{ locks[&output_] };
       output_ << buffer.str();
     }
 
   private:
-    template <class T> class monitor {
+    template <class Key, class Value> class concurrent_unordered_map {
     public:
-      template <class F> inline decltype(auto) operator()(F&& f) const {
-        std::lock_guard guard{ mutex_ };
-        return std::invoke(std::forward<F>(f), object_);
+      template <class KeyLike> auto operator[](KeyLike&& key) -> Value& {
+        auto const locked = std::lock_guard{ mutex_ };
+        return map_[std::forward<KeyLike>(key)];
       }
 
     private:
-      T mutable object_;
-      std::mutex mutable mutex_;
+      std::unordered_map<Key, Value> map_;
+      std::mutex                     mutex_;
     };
 
     std::stringbuf buffer_;
