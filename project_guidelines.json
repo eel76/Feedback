@@ -2,7 +2,7 @@
   "GUIDELINE0": {
     "type": "guideline",
     "matched_files": "[.](c|cc|cpp|cxx|h|i|cmake|txt)$",
-    "matched_text": "// *(TODO|FIXME|REVIEW|OPTIMIZE|HACK|XXX|BUG)",
+    "matched_text": "(//|#) *(TODO|FIXME|REVIEW|OPTIMIZE|HACK|XXX|BUG)",
     "marked_text": "[A-Z]+",
     "summary": "Unfinished task (TODO/FIXME/HACK/...)",
     "rationale": "Task markers should be used only rarely and temporarily in our code base because they indicate a technical debt. They tend to rot over time and will be forgotton eventually.",
