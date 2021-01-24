@@ -26,8 +26,7 @@ option (FEEDBACK_BUILD_EXAMPLES "Build examples for the feedback project." "${FE
 
 include ("module/feedback.cmake")
 
-# FIXME: add a target for this cmakelist.txt and the included cmake files
-# FIXME: target_sources (feedback INTERFACE feedback.cmake ...)
+# FIXME: add a target for this cmakelist.txt, the included cmake files, the README, ...
 
 if (FEEDBACK_BUILD_TESTS AND BUILD_TESTING)
   add_subdirectory(tests)
