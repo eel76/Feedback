@@ -19,10 +19,10 @@ find_package (Threads REQUIRED)
 add_subdirectory (extern)
 
 add_library (${PROJECT_NAME}.core STATIC
-  "src/json.cpp"
-  "src/regex.cpp"
-  "src/scm.cpp"
-  "src/text.cpp"
+  "src/core/json.cpp"
+  "src/core/regex.cpp"
+  "src/core/scm.cpp"
+  "src/core/text.cpp"
   "include/cxx20/syncstream"
   "include/feedback/async.h"
   "include/feedback/container.h"
