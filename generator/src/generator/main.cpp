@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <execution>
-
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -73,7 +72,7 @@ namespace feedback {
   };
 
   auto is_relevant_function(std::shared_future<control::workflow> const& shared_workflow,
-                            std::shared_future<scm::diff> const&          shared_diff) {
+                            std::shared_future<scm::diff> const&         shared_diff) {
     return [=](std::string_view filename) {
       auto const shared_file_changes = async::share([=] { return shared_diff.get().changes_from(filename); });
 
@@ -115,10 +114,10 @@ namespace feedback {
     };
   }
 
-  void print_header(std::ostream&                                 output,
-                    std::shared_future<control::rules> const&     shared_rules,
+  void print_header(std::ostream&                                output,
+                    std::shared_future<control::rules> const&    shared_rules,
                     std::shared_future<control::workflow> const& shared_workflow,
-                    std::string_view                              rules_origin) {
+                    std::string_view                             rules_origin) {
     using fmt::operator""_a;
 
     format::print(output,
@@ -189,13 +188,13 @@ namespace {{ using dummy = int; }}
   }
 
   template <class FUNCTION>
-  void print_matches(std::ostream&                              output,
+  void print_matches(std::ostream&                             output,
                      std::shared_future<control::rules> const& shared_rules,
-                     std::shared_future<std::string> const&     shared_content,
-                     FUNCTION                                   is_relevant_in_file) {
+                     std::shared_future<std::string> const&    shared_content,
+                     FUNCTION                                  is_relevant_in_file) {
     auto const& rules = shared_rules.get();
 
-    std::for_each(std::execution::par, cbegin (rules), cend (rules), [=, &output](auto const& rule) {
+    std::for_each(std::execution::par, cbegin(rules), cend(rules), [=, &output](auto const& rule) {
       auto const is_rule_in_file_relevant = is_relevant_in_file(rule);
       if (not is_rule_in_file_relevant())
         return;
@@ -213,7 +212,7 @@ namespace {{ using dummy = int; }}
     auto const  is_relevant = is_relevant_function(shared_workflow, shared_diff);
     auto const& sources     = shared_sources.get();
 
-    std::for_each(std::execution::par, cbegin (sources), cend (sources), [=, &output](std::string const& filename) {
+    std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &output](std::string const& filename) {
       auto const shared_content = async::share([=] { return content(filename); });
 
       auto synched_output = cxx20::osyncstream{ output };
@@ -234,19 +233,19 @@ namespace {{ using dummy = int; }}
     return sources;
   }
 
-  auto async_diff_from(std::string const& filename) {
+  auto parse_diff_async(std::string const& filename) {
     return async::share([=] { return scm::diff::parse(content(filename)); });
   }
 
-  auto async_rules_from(std::string const& filename) {
+  auto parse_rules_async(std::string const& filename) {
     return async::share([=] { return json::parse_rules(content(filename)); });
   }
 
-  auto async_workflow_from(std::string const& filename) {
+  auto parse_workflow_async(std::string const& filename) {
     return async::share([=] { return json::parse_workflow(content(filename)); });
   }
 
-  auto async_sources_from(std::string const& filename) {
+  auto parse_sources_async(std::string const& filename) {
     return async::share([=] { return parse_sources(filename); });
   }
 } // namespace feedback
@@ -259,10 +258,10 @@ int main(int argc, char* argv[]) {
   try {
     auto const parameters = generator::cli::parse(argc, argv);
 
-    auto const shared_diff     = feedback::async_diff_from(parameters.diff_filename);
-    auto const shared_rules    = feedback::async_rules_from(parameters.rules_filename);
-    auto const shared_workflow = feedback::async_workflow_from(parameters.workflow_filename);
-    auto const shared_sources  = feedback::async_sources_from(parameters.sources_filename);
+    auto const shared_diff     = feedback::parse_diff_async(parameters.diff_filename);
+    auto const shared_rules    = feedback::parse_rules_async(parameters.rules_filename);
+    auto const shared_workflow = feedback::parse_workflow_async(parameters.workflow_filename);
+    auto const shared_sources  = feedback::parse_sources_async(parameters.sources_filename);
 
     feedback::print_header(out, shared_rules, shared_workflow, parameters.rules_filename);
     feedback::print_matches(out, shared_rules, shared_workflow, shared_sources, shared_diff);
