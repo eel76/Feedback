@@ -199,7 +199,8 @@ namespace feedback {
 
   void print_header(std::ostream&                                 output,
                     std::shared_future<feedback::rules> const&    shared_rules,
-                    std::shared_future<feedback::workflow> const& shared_workflow) {
+                    std::shared_future<feedback::workflow> const& shared_workflow,
+                    std::string_view                              rules_origin) {
     using fmt::operator""_a;
 
     format::print(output,
@@ -228,16 +229,12 @@ namespace {{ using dummy = int; }}
 
 )_");
 
-    auto const& rules    = shared_rules.get();
-    auto const& workflow = shared_workflow.get();
-
-    for (auto [id, rule] : rules)
+    for (auto [id, rule] : shared_rules.get())
       format::print(output,
                     R"_(#define FEEDBACK_MATCH_{uppercase_id}(match, highlighting) FEEDBACK_RESPONSE_{response}({id}, "{summary} [{type} from file://{origin}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
 )_",
-                    "origin"_a = format::as_literal{ rules.origin() }, "id"_a = id,
-                    "uppercase_id"_a = format::uppercase{ id },
-                    "response"_a = format::uppercase{ to_string(value_or(workflow, rule.type, handling{}).response) },
+                    "origin"_a = format::as_literal{ rules_origin }, "id"_a = id, "uppercase_id"_a = format::uppercase{ id },
+                    "response"_a = format::uppercase{ to_string(value_or(shared_workflow.get(), rule.type, handling{}).response) },
                     "type"_a = format::as_literal{ rule.type }, "summary"_a = format::as_literal{ rule.summary },
                     "rationale"_a = format::as_literal{ rule.rationale }, "workaround"_a = format::as_literal{ rule.workaround });
   }
@@ -349,7 +346,7 @@ int main(int argc, char* argv[]) {
     auto const shared_workflow = feedback::async_workflow_from(parameters.workflow_filename);
     auto const shared_sources  = feedback::async_sources_from(parameters.sources_filename);
 
-    print_header(out, shared_rules, shared_workflow);
+    print_header(out, shared_rules, shared_workflow, parameters.rules_filename);
     print_matches(out, shared_rules, shared_workflow, shared_sources, shared_diff);
   }
   catch (std::exception const& e) {
