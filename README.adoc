@@ -145,3 +145,12 @@ The feedback rules (`rules.json`) of our `coding_guidelines` feedback could look
 Development comments can be added with additional attributes (which will be ignored).
 
 // end::using[]
+
+== References
+
+// tag::refs[]
+
+https://github.com/google/re2/wiki/Syntax
+
+// end::refs[]
+
