@@ -30,7 +30,7 @@ namespace feedback {
       return default_value;
     }
 
-    auto content_from(std::string const& filename) -> std::string {
+    auto content(std::string const& filename) -> std::string {
       if (filename.empty())
         return {};
 
@@ -214,7 +214,7 @@ namespace {{ using dummy = int; }}
     auto const& sources     = shared_sources.get();
 
     std::for_each(std::execution::par, cbegin (sources), cend (sources), [=, &output](std::string const& filename) {
-      auto const shared_content = async::share([=] { return content_from(filename); });
+      auto const shared_content = async::share([=] { return content(filename); });
 
       auto synched_output = cxx20::osyncstream{ output };
       format::print(synched_output, "\n# line 1 \"{}\"\n", filename);
@@ -235,15 +235,15 @@ namespace {{ using dummy = int; }}
   }
 
   auto async_diff_from(std::string const& filename) {
-    return async::share([=] { return scm::diff::parse(content_from(filename)); });
+    return async::share([=] { return scm::diff::parse(content(filename)); });
   }
 
   auto async_rules_from(std::string const& filename) {
-    return async::share([=] { return json::parse_rules(content_from(filename)); });
+    return async::share([=] { return json::parse_rules(content(filename)); });
   }
 
   auto async_workflow_from(std::string const& filename) {
-    return async::share([=] { return json::parse_workflow(content_from(filename)); });
+    return async::share([=] { return json::parse_workflow(content(filename)); });
   }
 
   auto async_sources_from(std::string const& filename) {
