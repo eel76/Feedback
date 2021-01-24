@@ -55,8 +55,8 @@
   "GUIDELINE6": {
     "type": "requirement",
     "matched_files": "[.]cmake$",
-    "matched_text": ".*",
-    "ignored_text": "^( *(#.*)?\n)* *cmake_policy",
+    "matched_text": "^(.|\\n)*$",
+    "ignored_text": "^( *(#.*)?\\n)* *cmake_policy",
     "summary": "cmake_policy() missing.",
     "rationale": "",
     "workaround": "Please add a cmake_policy() to the first line of the file."
@@ -64,8 +64,8 @@
   "GUIDELINE7": {
     "type": "requirement",
     "matched_files": "CMakeLists[.]txt$",
-    "matched_text": ".*",
-    "ignored_text": "^( *(#.*)?\n)* *cmake_minimum_required",
+    "matched_text": "^(.|\\n)*$",
+    "ignored_text": "^( *(#.*)?\\n)* *cmake_minimum_required",
     "summary": "cmake_minimum_required() missing.",
     "rationale": "",
     "workaround": "Please add a cmake_minimum_required() to the first line of the file."
