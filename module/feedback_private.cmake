@@ -35,10 +35,6 @@ function (_Feedback_RelevantSourcesFromTargets all_sources_variable)
 
     unset (target_sources)
 
-    if (EXISTS "${source_dir}/CMakeLists.txt")
-      list (APPEND target_sources "${source_dir}/CMakeLists.txt")
-    endif ()
-
     foreach (source IN LISTS sources)
 
       # skip generator expressions
@@ -57,6 +53,11 @@ function (_Feedback_RelevantSourcesFromTargets all_sources_variable)
 
       list (APPEND target_sources "${source}")
     endforeach ()
+
+    if (EXISTS "${source_dir}/CMakeLists.txt")
+      list (APPEND target_sources "${source_dir}/CMakeLists.txt")
+      list (REMOVE_DUPLICATES target_sources)
+    endif ()
 
     list (APPEND all_sources ${target_sources})
   endforeach ()
@@ -152,16 +153,15 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
   _Feedback_RelevantSourcesFromTargets (relevant_sources ${relevant_targets})
 
   add_custom_command (
-    OUTPUT "${feedback_source_dir}/DIFF/${feedback_target}.diff"
-    COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${feedback_source_dir}/DIFF/${feedback_target}.diff"
-    # COMMAND "${CMAKE_COMMAND}" "-E" "copy_if_different" "${feedback_source_dir}/DIFF/${feedback_target}.tmp" "${feedback_source_dir}/DIFF/${feedback_target}.diff"
-    # COMMAND "${CMAKE_COMMAND}" "-E" "echo" "namespace { using none = int; }" ">" "${feedback_source_dir}/DIFF/${changes}.cpp"
+    OUTPUT "${feedback_source_dir}/${feedback_target}/${changes}.diff"
+    COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${feedback_source_dir}/${feedback_target}/${changes}.diff"
     WORKING_DIRECTORY "${worktree}"
     DEPENDS Git::Git "${repository}/.git/HEAD" "${repository}/.git/index" ${relevant_sources}
-    # BYPRODUCTS "${feedback_source_dir}/DIFF/${changes}.diff"
     )
 
-  add_library ("DIFF_${feedback_target}" STATIC EXCLUDE_FROM_ALL "${feedback_main_SOURCE_DIR}/module/dummy.cpp" "${feedback_source_dir}/DIFF/${feedback_target}.diff")
+  _Feedback_WriteFileIfDifferent ("${feedback_source_dir}/${feedback_target}/diff.cpp" "namespace { using dummy = void; }")
+
+  add_library ("DIFF_${feedback_target}" STATIC EXCLUDE_FROM_ALL "${feedback_source_dir}/${feedback_target}/diff.cpp" "${feedback_source_dir}/${feedback_target}/${changes}.diff")
   set_target_properties ("DIFF_${feedback_target}" PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
 
   # target_sources ("DIFF_${feedback_target}" INTERFACE "${feedback_source_dir}/DIFF/${feedback_target}.diff")
@@ -205,7 +205,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
   target_sources ("${feedback_target}" PRIVATE "${rules}" "${feedback_source_dir}/${feedback_target}/workflow.json")
 
   foreach (target IN LISTS relevant_targets)
-    AddFeedbackSourceForTarget ("${feedback_target}" "${rules}" "${feedback_source_dir}/${feedback_target}/workflow.json" "${changes}" "${target}")
+    AddFeedbackSourceForTarget ("${feedback_target}" "${rules}" "${feedback_source_dir}/${feedback_target}/workflow.json" "${feedback_source_dir}/${feedback_target}/${changes}.diff" "${target}")
     add_dependencies ("${target}" "${feedback_target}")
     add_dependencies ("${feedback_target}" "DIFF_${feedback_target}")
   endforeach()
@@ -239,17 +239,15 @@ endfunction ()
 
 function (AddFeedbackSourceForTarget feedback_target rules workflow diff target)
   _Feedback_SourceDir (feedback_source_dir)
-  set (feedback_source "${feedback_source_dir}/${feedback_target}/${target}")
-
   _Feedback_RelevantSourcesFromTargets (relevant_sources "${target}")
-  _Feedback_WriteFileList ("${feedback_source}.sources.txt" ${relevant_sources})
+  _Feedback_WriteFileList ("${feedback_source_dir}/${feedback_target}/${target}.sources.txt" ${relevant_sources})
 
   add_custom_command (
-    OUTPUT "${feedback_source}.cpp"
-    COMMAND "$<TARGET_FILE:feedback-generator>" "--diff=${feedback_source_dir}/DIFF/${diff}.diff" "${rules}" "${workflow}" "${feedback_source}.sources.txt" ">" "${feedback_source}.cpp"
-    DEPENDS feedback-generator "${rules}" "${workflow}" "${feedback_source}.sources.txt" ${relevant_sources} # sic! no dependency to "${feedback_source_dir}/DIFF/${diff}.diff"
+    OUTPUT "${feedback_source_dir}/${feedback_target}/${target}.cpp"
+    COMMAND "$<TARGET_FILE:feedback-generator>" "--diff=${diff}" "${rules}" "${workflow}" "${feedback_source_dir}/${feedback_target}/${target}.sources.txt" ">" "${feedback_source_dir}/${feedback_target}/${target}.cpp"
+    DEPENDS feedback-generator "${rules}" "${workflow}" "${feedback_source_dir}/${feedback_target}/${target}.sources.txt" ${relevant_sources} # sic! no dependency to diff
     )
-  target_sources ("${feedback_target}" PRIVATE "${feedback_source}.cpp")
+  target_sources ("${feedback_target}" PRIVATE "${feedback_source_dir}/${feedback_target}/${target}.cpp")
 endfunction ()
 
 function (_Feedback_Configure)
@@ -284,8 +282,5 @@ function (_Feedback_Configure)
 
   ExternalProject_Get_Property(generator-build binary_dir)
   set_target_properties(feedback-generator PROPERTIES IMPORTED_LOCATION "${binary_dir}/${cfg_intdir}/generator${CMAKE_EXECUTABLE_SUFFIX}")
-
-#  add_library(DIFF STATIC EXCLUDE_FROM_ALL "${CMAKE_CURRENT_LIST_DIR}/dummy.cpp")
-#  set_target_properties (DIFF PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
 endfunction ()
 
