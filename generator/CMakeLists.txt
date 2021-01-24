@@ -19,13 +19,16 @@ find_package (Threads REQUIRED)
 add_subdirectory (extern)
 
 add_library (${PROJECT_NAME}.core STATIC
+  "src/json.cpp"
   "src/regex.cpp"
   "src/scm.cpp"
   "src/text.cpp"
   "include/cxx20/syncstream"
   "include/feedback/async.h"
   "include/feedback/container.h"
+  "include/feedback/control.h"
   "include/feedback/format.h"
+  "include/feedback/json.h"
   "include/feedback/macros.h"
   "include/feedback/regex.h"
   "include/feedback/scm.h"
@@ -34,6 +37,7 @@ add_library (${PROJECT_NAME}.core STATIC
 target_link_libraries (${PROJECT_NAME}.core
   PUBLIC ${CMAKE_THREAD_LIBS_INIT}
   PUBLIC fmt::fmt-header-only
+  PRIVATE nlohmann_json::nlohmann_json
   PRIVATE re2::re2
   )
 target_include_directories (${PROJECT_NAME}.core
@@ -50,7 +54,6 @@ add_executable (${PROJECT_NAME}
   )
 target_link_libraries (${PROJECT_NAME}
   PRIVATE ${PROJECT_NAME}.core
-  PRIVATE nlohmann_json::nlohmann_json
   PRIVATE bfg::Lyra
   PRIVATE $<$<CXX_COMPILER_ID:Clang,GNU>:-ltbb>
   )

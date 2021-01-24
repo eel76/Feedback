@@ -1,5 +1,6 @@
 #include "feedback/async.h"
 #include "feedback/format.h"
+#include "feedback/json.h"
 #include "feedback/regex.h"
 #include "feedback/scm.h"
 #include "feedback/text.h"
@@ -7,16 +8,13 @@
 #include "generator/cli.h"
 
 #include <cxx20/syncstream>
-#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <execution>
+
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <optional>
-#include <type_traits>
-#include <unordered_map>
 
 namespace feedback {
 
@@ -43,67 +41,6 @@ namespace feedback {
       return content.str();
     }
   } // namespace
-
-  template <class T> auto to_string(T value) -> typename std::enable_if<std::is_enum_v<T>, std::string>::type {
-    auto const json_dump = nlohmann::json{ value }.dump();
-    return json_dump.substr(2, json_dump.length() - 4);
-  }
-
-  enum class response { NONE, MESSAGE, WARNING, ERROR };
-
-  NLOHMANN_JSON_SERIALIZE_ENUM(response,
-                               { { response::NONE, "none" },
-                                 { response::MESSAGE, "message" },
-                                 { response::WARNING, "warning" },
-                                 { response::ERROR, "error" } })
-
-  enum class check { ALL_FILES, ALL_LINES, CHANGED_FILES, CHANGED_LINES, NO_FILES, NO_LINES };
-
-  NLOHMANN_JSON_SERIALIZE_ENUM(check,
-                               { { check::ALL_FILES, "all_files" },
-                                 { check::ALL_LINES, "all_lines" },
-                                 { check::CHANGED_FILES, "changed_files" },
-                                 { check::CHANGED_LINES, "changed_lines" },
-                                 { check::NO_FILES, "no_files" },
-                                 { check::NO_LINES, "no_lines" } })
-
-  struct handling {
-    feedback::check    check{ check::ALL_FILES };
-    feedback::response response{ response::MESSAGE };
-  };
-
-  void from_json(nlohmann::json const& json, handling& handling) {
-    handling.check    = json.value("check", handling.check);
-    handling.response = json.value("response", handling.response);
-  }
-
-  using workflow = std::unordered_map<std::string, handling>;
-
-  struct rule {
-    std::string        type;
-    std::string        summary;
-    std::string        rationale;
-    std::string        workaround;
-    regex::precompiled matched_files;
-    regex::precompiled ignored_files;
-    regex::precompiled matched_text;
-    regex::precompiled ignored_text;
-    regex::precompiled marked_text;
-  };
-
-  void from_json(nlohmann::json const& json, feedback::rule& rule) {
-    rule.type          = json.at("type");
-    rule.summary       = json.at("summary");
-    rule.rationale     = json.value("rationale", "N/A");
-    rule.workaround    = json.value("workaround", "N/A");
-    rule.matched_files = regex::capture(json.value("matched_files", ".*"));
-    rule.ignored_files = regex::capture(json.value("ignored_files", "^$"));
-    rule.matched_text  = regex::capture(json.at("matched_text").get<std::string>());
-    rule.ignored_text  = regex::capture(json.value("ignored_text", "^$"));
-    rule.marked_text   = regex::capture(json.value("marked_text", ".*"));
-  }
-
-  using rules = std::unordered_map<std::string, rule>;
 
   auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern) {
     auto search = text::forward_search{ text };
@@ -135,12 +72,12 @@ namespace feedback {
     std::string      annotation;
   };
 
-  auto is_relevant_function(std::shared_future<feedback::workflow> const& shared_workflow,
+  auto is_relevant_function(std::shared_future<control::workflow> const& shared_workflow,
                             std::shared_future<scm::diff> const&          shared_diff) {
     return [=](std::string_view filename) {
       auto const shared_file_changes = async::share([=] { return shared_diff.get().changes_from(filename); });
 
-      return [=](feedback::rules::value_type const& rule) {
+      return [=](control::rules::value_type const& rule) {
         auto const& [id, attributes] = rule;
 
         auto const rule_matched_filename = attributes.matched_files.matches(filename);
@@ -150,21 +87,21 @@ namespace feedback {
         auto line_is_relevant = std::function<bool(int)>{ [](auto) { return true; } };
 
         if (file_is_relevant) {
-          switch (value_or(shared_workflow.get(), attributes.type, handling{}).check) {
-          case feedback::check::NO_LINES:
+          switch (value_or(shared_workflow.get(), attributes.type, control::handling{}).check) {
+          case control::check::NO_LINES:
             [[fallthrough]];
-          case feedback::check::NO_FILES:
+          case control::check::NO_FILES:
             file_is_relevant = false;
             break;
-          case feedback::check::CHANGED_LINES:
+          case control::check::CHANGED_LINES:
             line_is_relevant = [is_modified = shared_file_changes.get()](auto line) { return is_modified[line]; };
             [[fallthrough]];
-          case feedback::check::CHANGED_FILES:
+          case control::check::CHANGED_FILES:
             file_is_relevant = not shared_file_changes.get().empty();
             break;
-          case feedback::check::ALL_LINES:
+          case control::check::ALL_LINES:
             [[fallthrough]];
-          case feedback::check::ALL_FILES:
+          case control::check::ALL_FILES:
             break;
           }
         }
@@ -179,8 +116,8 @@ namespace feedback {
   }
 
   void print_header(std::ostream&                                 output,
-                    std::shared_future<feedback::rules> const&    shared_rules,
-                    std::shared_future<feedback::workflow> const& shared_workflow,
+                    std::shared_future<control::rules> const&     shared_rules,
+                    std::shared_future<control::workflow> const& shared_workflow,
                     std::string_view                              rules_origin) {
     using fmt::operator""_a;
 
@@ -215,14 +152,18 @@ namespace {{ using dummy = int; }}
                     R"_(#define FEEDBACK_MATCH_{uppercase_id}(match, highlighting) FEEDBACK_RESPONSE_{response}({id}, "{summary} [{type} from file://{origin}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
 )_",
                     "origin"_a = format::as_literal{ rules_origin }, "id"_a = id, "uppercase_id"_a = format::uppercase{ id },
-                    "response"_a = format::uppercase{ to_string(value_or(shared_workflow.get(), rule.type, handling{}).response) },
+                    "response"_a =
+                    format::uppercase{ json::to_string(value_or(shared_workflow.get(), rule.type, control::handling{}).response) },
                     "type"_a = format::as_literal{ rule.type }, "summary"_a = format::as_literal{ rule.summary },
                     "rationale"_a = format::as_literal{ rule.rationale }, "workaround"_a = format::as_literal{ rule.workaround });
   }
 
+  // FIXME: eine print() funktion für eine header und für eine match klasse anbieten
+  // namespace output::print()
+
   template <class FUNCTION>
   auto print_matches(std::ostream&                          output,
-                     feedback::rules::value_type const&     rule,
+                     control::rules::value_type const&      rule,
                      std::shared_future<std::string> const& shared_content,
                      FUNCTION                               is_relevant) {
     auto const& [id, attributes] = rule;
@@ -249,7 +190,7 @@ namespace {{ using dummy = int; }}
 
   template <class FUNCTION>
   void print_matches(std::ostream&                              output,
-                     std::shared_future<feedback::rules> const& shared_rules,
+                     std::shared_future<control::rules> const& shared_rules,
                      std::shared_future<std::string> const&     shared_content,
                      FUNCTION                                   is_relevant_in_file) {
     auto const& rules = shared_rules.get();
@@ -265,8 +206,8 @@ namespace {{ using dummy = int; }}
   }
 
   void print_matches(std::ostream&                                       output,
-                     std::shared_future<feedback::rules> const&          shared_rules,
-                     std::shared_future<feedback::workflow> const&       shared_workflow,
+                     std::shared_future<control::rules> const&           shared_rules,
+                     std::shared_future<control::workflow> const&        shared_workflow,
                      std::shared_future<std::vector<std::string>> const& shared_sources,
                      std::shared_future<scm::diff> const&                shared_diff) {
     auto const  is_relevant = is_relevant_function(shared_workflow, shared_diff);
@@ -298,11 +239,11 @@ namespace {{ using dummy = int; }}
   }
 
   auto async_rules_from(std::string const& filename) {
-    return async::share([=] { return nlohmann::json::parse(content_from(filename)).get<feedback::rules>(); });
+    return async::share([=] { return json::parse_rules(content_from(filename)); });
   }
 
   auto async_workflow_from(std::string const& filename) {
-    return async::share([=] { return nlohmann::json::parse(content_from(filename)).get<feedback::workflow>(); });
+    return async::share([=] { return json::parse_workflow(content_from(filename)); });
   }
 
   auto async_sources_from(std::string const& filename) {
@@ -323,8 +264,8 @@ int main(int argc, char* argv[]) {
     auto const shared_workflow = feedback::async_workflow_from(parameters.workflow_filename);
     auto const shared_sources  = feedback::async_sources_from(parameters.sources_filename);
 
-    print_header(out, shared_rules, shared_workflow, parameters.rules_filename);
-    print_matches(out, shared_rules, shared_workflow, shared_sources, shared_diff);
+    feedback::print_header(out, shared_rules, shared_workflow, parameters.rules_filename);
+    feedback::print_matches(out, shared_rules, shared_workflow, shared_sources, shared_diff);
   }
   catch (std::exception const& e) {
     std::cerr << e.what() << '\n';
