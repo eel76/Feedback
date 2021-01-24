@@ -115,11 +115,11 @@ namespace feedback {
     rule.summary       = json.at("summary");
     rule.rationale     = json.value("rationale", "N/A");
     rule.workaround    = json.value("workaround", "N/A");
-    rule.matched_files = regex::compile(regex::capture(json.value("matched_files", ".*")));
-    rule.ignored_files = regex::compile(regex::capture(json.value("ignored_files", "^$")));
-    rule.matched_text  = regex::compile(regex::capture(json.at("matched_text").get<std::string>()));
-    rule.ignored_text  = regex::compile(regex::capture(json.value("ignored_text", "^$")));
-    rule.marked_text   = regex::compile(regex::capture(json.value("marked_text", ".*")));
+    rule.matched_files = regex::capture(json.value("matched_files", ".*"));
+    rule.ignored_files = regex::capture(json.value("ignored_files", "^$"));
+    rule.matched_text  = regex::capture(json.at("matched_text").get<std::string>());
+    rule.ignored_text  = regex::capture(json.value("ignored_text", "^$"));
+    rule.marked_text   = regex::capture(json.value("marked_text", ".*"));
   }
 
   using rules = json_container<std::unordered_map<std::string, rule>>;

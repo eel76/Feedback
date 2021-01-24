@@ -19,23 +19,13 @@ SCENARIO("regex tests", "[regex]") {
         REQUIRE(any_regex.matches(non_empty_text));
       }
     }
-    WHEN("it is captured") {
-      auto const capture_pattern = feedback::regex::capture(any_character_pattern);
-
-      THEN("it starts with a parenthesis") {
-        REQUIRE(capture_pattern.front() == '(');
-      }
-
-      THEN("it ends with a parenthesis") {
-        REQUIRE(capture_pattern.back() == ')');
-      }
-    }
   }
-  GIVEN("A regex with a capture") {
-    auto const regex_with_a_capture = feedback::regex::compile("(.)");
+  GIVEN("A capture regex") {
+    auto const regex_with_a_capture  = feedback::regex::capture(".");
 
     WHEN("it matches some string") {
       auto const some_string = "test";
+
       if (regex_with_a_capture.matches(some_string)) {
         THEN("it can capture something") {
           auto something = std::string_view{};

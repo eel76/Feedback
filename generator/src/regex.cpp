@@ -20,7 +20,15 @@ namespace feedback::regex {
 
   class precompiled::impl : public re2::RE2 {
   public:
-    explicit impl(std::string_view pattern) : RE2(as_string_piece(pattern), RE2::Quiet) {
+    explicit impl(std::string_view pattern) : RE2(as_string_piece(pattern), default_options()) {
+    }
+
+  private:
+    static auto default_options() -> RE2::Options {
+      auto options = RE2::Options{};
+      options.set_longest_match(false);
+      options.set_log_errors(true);
+      return options;
     }
   };
 
@@ -60,6 +68,7 @@ namespace feedback::regex {
     auto remaining = as_string_piece(input);
     auto match     = re2::StringPiece{};
 
+    // FIXME: FindAndConsume or Consume or something completely different?
     if (not RE2::FindAndConsume(&remaining, *engine, &match))
       return false;
 
@@ -81,7 +90,7 @@ namespace feedback::regex {
     return precompiled{ pattern };
   }
 
-  auto capture(std::string_view pattern) -> std::string {
-    return std::string{ "(" }.append(pattern).append(")");
+  auto capture(std::string_view pattern) -> precompiled {
+    return compile (std::string{ "(" }.append(pattern).append(")"));
   }
 } // namespace feedback::regex

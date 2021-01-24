@@ -26,5 +26,5 @@ namespace feedback::regex {
   };
 
   auto compile(std::string_view pattern) -> precompiled;
-  auto capture(std::string_view pattern) -> std::string;
+  auto capture(std::string_view pattern) -> precompiled;
 } // namespace feedback::regex
