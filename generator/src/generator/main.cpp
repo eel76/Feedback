@@ -81,19 +81,8 @@ namespace feedback {
   public:
     static auto parse_from(std::string const& filename) -> json_container<C> {
       auto const json = nlohmann::json::parse(content_from(filename));
-
-      auto ret    = json.get<json_container<C>>();
-      ret.origin_ = filename;
-
-      return ret;
+      return json.get<json_container<C>>();
     }
-
-    auto origin() const {
-      return origin_;
-    }
-
-  private:
-    std::string origin_;
   };
 
   using workflow = json_container<std::unordered_map<std::string, handling>>;
