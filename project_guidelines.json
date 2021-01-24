@@ -55,13 +55,31 @@
   "GUIDELINE6": {
     "type": "requirement",
     "matched_files": "[.]cmake$",
-    "matched_text": "^( *(#.*)?\\n)* *.*\\n",
-    "ignored_text": "cmake_policy",
+    "matched_text": ".*",
+    "ignored_text": "^( *(#.*)?\n)* *cmake_policy",
     "summary": "cmake_policy() missing.",
     "rationale": "",
     "workaround": "Please add a cmake_policy() to the first line of the file."
   },
   "GUIDELINE7": {
+    "type": "requirement",
+    "matched_files": "CMakeLists[.]txt$",
+    "matched_text": ".*",
+    "ignored_text": "^( *(#.*)?\n)* *cmake_minimum_required",
+    "summary": "cmake_minimum_required() missing.",
+    "rationale": "",
+    "workaround": "Please add a cmake_minimum_required() to the first line of the file."
+  },
+  "GUIDELINE8": {
+    "type": "requirement",
+    "matched_files": "CMakeLists[.]txt$",
+    "matched_text": "project *\\([^)]*\\)",
+    "ignored_text": "LANGUAGES",
+    "summary": "project without languages",
+    "rationale": "",
+    "workaround": "Please add a project() to the file."
+  },
+  "GUIDELINE9": {
     "type": "requirement",
     "matched_files": "[.]cmake$",
     "matched_text": "cmake_parse_arguments *[(].*",
