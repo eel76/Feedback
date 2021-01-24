@@ -1,7 +1,4 @@
-void foo(int i) {
-}
-
 int main() {
-  // FIXME: add more documentations kkkssss
+  // FIXME: add documentation
   return 0;
 }

@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 3.15)
 project (examples LANGUAGES CXX)
 set_property(GLOBAL PROPERTY USE_FOLDERS true)
 
-option (FEEDBACK_AVAILABLE "Feedback project is already available." "OFF")
+option (FEEDBACK_AVAILABLE "Feedback project is already available." OFF)
 
 if (NOT FEEDBACK_AVAILABLE)
   # FIXME: Unsere repository URL eintragen und mit git shallow clonen
