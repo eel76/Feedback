@@ -77,15 +77,7 @@ namespace feedback {
     handling.response = json.value("response", handling.response);
   }
 
-  template <class C> class json_container : public C {
-  public:
-    static auto parse_from(std::string const& filename) -> json_container<C> {
-      auto const json = nlohmann::json::parse(content_from(filename));
-      return json.get<json_container<C>>();
-    }
-  };
-
-  using workflow = json_container<std::unordered_map<std::string, handling>>;
+  using workflow = std::unordered_map<std::string, handling>;
 
   struct rule {
     std::string        type;
@@ -111,7 +103,7 @@ namespace feedback {
     rule.marked_text   = regex::capture(json.value("marked_text", ".*"));
   }
 
-  using rules = json_container<std::unordered_map<std::string, rule>>;
+  using rules = std::unordered_map<std::string, rule>;
 
   auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern) {
     auto search = text::forward_search{ text };
@@ -291,11 +283,7 @@ namespace {{ using dummy = int; }}
     });
   }
 
-  auto parse_diff_from(std::string const& filename) -> scm::diff {
-    return scm::diff::parse_from(content_from(filename));
-  }
-
-  auto parse_sources_from(std::string const& filename) -> std::vector<std::string> {
+  auto parse_sources(std::string const& filename) -> std::vector<std::string> {
     auto sources = std::vector<std::string>{};
     auto content = std::ifstream{ filename };
 
@@ -306,19 +294,19 @@ namespace {{ using dummy = int; }}
   }
 
   auto async_diff_from(std::string const& filename) {
-    return async::share([=] { return parse_diff_from(filename); });
+    return async::share([=] { return scm::diff::parse(content_from(filename)); });
   }
 
   auto async_rules_from(std::string const& filename) {
-    return async::share([=] { return feedback::rules::parse_from(filename); });
+    return async::share([=] { return nlohmann::json::parse(content_from(filename)).get<feedback::rules>(); });
   }
 
   auto async_workflow_from(std::string const& filename) {
-    return async::share([=] { return feedback::workflow::parse_from(filename); });
+    return async::share([=] { return nlohmann::json::parse(content_from(filename)).get<feedback::workflow>(); });
   }
 
   auto async_sources_from(std::string const& filename) {
-    return async::share([=] { return parse_sources_from(filename); });
+    return async::share([=] { return parse_sources(filename); });
   }
 } // namespace feedback
 

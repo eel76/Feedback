@@ -60,7 +60,7 @@ namespace feedback::scm {
     return {};
   }
 
-  auto diff::parse_from(std::string_view output, diff merged) -> diff {
+  auto diff::parse(std::string_view output, diff merged) -> diff {
     // FIXME: debug me: auto const section_pattern = regex::compile("(?:^|\n)([a-z].*\n)+([-][-][-] a/.+\n[+][+][+] b/(.+)\n([-+ @].*\n)*)");
     auto const section_pattern =
     regex::compile("(?:^|\n)((?:[a-z].*\n)+[-][-][-] a/.+\n[+][+][+] b/(.+)\n([-+ @].*\n)*)");

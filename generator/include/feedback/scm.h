@@ -30,7 +30,7 @@ namespace feedback::scm {
       container::interval_map<int, bool> modified{ false };
     };
 
-    static auto parse_from(std::string_view output, diff merged = {}) -> diff;
+    static auto parse(std::string_view output, diff merged = {}) -> diff;
     auto        changes_from(std::string_view filename) const -> changes;
 
   private:
