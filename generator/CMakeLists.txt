@@ -19,22 +19,22 @@ find_package (Threads REQUIRED)
 add_subdirectory (extern)
 
 add_library (${PROJECT_NAME}.core STATIC
-  "src/core/json.cpp"
-  "src/core/output.cpp"
-  "src/core/regex.cpp"
-  "src/core/scm.cpp"
-  "src/core/text.cpp"
-  "include/cxx20/syncstream"
-  "include/feedback/async.h"
-  "include/feedback/container.h"
-  "include/feedback/control.h"
-  "include/feedback/format.h"
-  "include/feedback/json.h"
-  "include/feedback/macros.h"
-  "include/feedback/output.h"
-  "include/feedback/regex.h"
-  "include/feedback/scm.h"
-  "include/feedback/text.h"
+  "core/src/generator/json.cpp"
+  "core/src/generator/output.cpp"
+  "core/src/generator/regex.cpp"
+  "core/src/generator/scm.cpp"
+  "core/src/generator/text.cpp"
+  "core/include/cxx20/syncstream"
+  "core/include/generator/async.h"
+  "core/include/generator/container.h"
+  "core/include/generator/feedback.h"
+  "core/include/generator/format.h"
+  "core/include/generator/json.h"
+  "core/include/generator/macros.h"
+  "core/include/generator/output.h"
+  "core/include/generator/regex.h"
+  "core/include/generator/scm.h"
+  "core/include/generator/text.h"
   )
 target_link_libraries (${PROJECT_NAME}.core
   PUBLIC ${CMAKE_THREAD_LIBS_INIT}
@@ -43,16 +43,16 @@ target_link_libraries (${PROJECT_NAME}.core
   PRIVATE re2::re2
   )
 target_include_directories (${PROJECT_NAME}.core
-  PUBLIC include
+  PUBLIC "core/include"
   )
 target_compile_options (${PROJECT_NAME}.core
   PUBLIC $<$<CXX_COMPILER_ID:MSVC>:-permissive- -W4 -WX> $<$<CXX_COMPILER_ID:Clang,GNU>:-Wall -Werror>
   )
 
 add_executable (${PROJECT_NAME}
-  "src/${PROJECT_NAME}/main.cpp"
-  "src/${PROJECT_NAME}/cli.cpp"
-  "include/${PROJECT_NAME}/cli.h"
+  "src/generator/main.cpp"
+  "src/generator/cli.cpp"
+  "include/generator/cli.h"
   )
 target_link_libraries (${PROJECT_NAME}
   PRIVATE ${PROJECT_NAME}.core
@@ -60,7 +60,7 @@ target_link_libraries (${PROJECT_NAME}
   PRIVATE $<$<CXX_COMPILER_ID:Clang,GNU>:-ltbb>
   )
 target_include_directories (${PROJECT_NAME}
-  PRIVATE include
+  PRIVATE "include"
   )
 
 if (BUILD_TESTING AND GENERATOR_BUILD_TESTS)

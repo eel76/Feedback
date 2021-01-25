@@ -1,11 +1,11 @@
 #pragma once
-#include "feedback/container.h"
+#include "generator/container.h"
 
 #include <string>
 #include <string_view>
 #include <unordered_map>
 
-namespace feedback::scm {
+namespace generator::scm {
   class diff {
   public:
     class changes {
@@ -38,4 +38,4 @@ namespace feedback::scm {
 
     std::unordered_map<std::string, changes> modifications;
   };
-} // namespace feedback::scm
+} // namespace generator::scm

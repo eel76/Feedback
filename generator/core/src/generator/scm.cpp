@@ -1,11 +1,11 @@
-#include "feedback/scm.h"
+#include "generator/scm.h"
 
-#include "feedback/regex.h"
-#include "feedback/text.h"
+#include "generator/regex.h"
+#include "generator/text.h"
 
 #include <charconv>
 
-namespace feedback::scm {
+namespace generator::scm {
 
   namespace {
     auto parse_starting_line(std::string_view block) {

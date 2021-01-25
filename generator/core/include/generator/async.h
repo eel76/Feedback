@@ -1,7 +1,7 @@
 #pragma once
 #include <future>
 
-namespace feedback::async {
+namespace generator::async {
 
   template <class... Args> decltype(auto) launch(Args&&... args) {
     return std::async(std::launch::async, std::forward<Args>(args)...);
@@ -10,4 +10,4 @@ namespace feedback::async {
   template <class... Args> decltype(auto) share(Args&&... args) {
     return async::launch(std::forward<Args>(args)...).share();
   }
-} // namespace feedback::async
+} // namespace generator::async

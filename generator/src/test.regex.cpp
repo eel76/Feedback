@@ -1,13 +1,12 @@
-#include "feedback/regex.h"
-
 #include "catch2/catch.hpp"
+#include "generator/regex.h"
 
 SCENARIO("regex tests", "[regex]") {
   GIVEN("A pattern which matches any character") {
     auto const any_character_pattern = ".";
 
     WHEN("it is compiled to a regex") {
-      auto const any_regex = feedback::regex::compile(any_character_pattern);
+      auto const any_regex = generator::regex::compile(any_character_pattern);
 
       THEN("it doesn't match an empty text") {
         auto const empty_text = "";
@@ -21,7 +20,7 @@ SCENARIO("regex tests", "[regex]") {
     }
   }
   GIVEN("A capture regex") {
-    auto const regex_with_a_capture  = feedback::regex::capture(".");
+    auto const regex_with_a_capture = generator::regex::capture(".");
 
     WHEN("it matches some string") {
       auto const some_string = "test";
@@ -38,7 +37,7 @@ SCENARIO("regex tests", "[regex]") {
   }
 
   GIVEN("A regex which matches a name") {
-    auto const name_pattern = feedback::regex::compile("([a-zA-Z]+)");
+    auto const name_pattern = generator::regex::compile("([a-zA-Z]+)");
 
     WHEN("it is applied to a text with three names") {
       auto const three_names = "Johann Sebastian Bach";
@@ -55,7 +54,7 @@ SCENARIO("regex tests", "[regex]") {
   }
 
   GIVEN("A regex which matches all lines") {
-    auto const all_lines_pattern = feedback::regex::compile("((?:.|\n)*)");
+    auto const all_lines_pattern = generator::regex::compile("((?:.|\n)*)");
 
     WHEN("it is applied to a multiline text") {
       auto const text = R"(first line
@@ -63,7 +62,7 @@ second line
 )";
 
       THEN("it matches the whole text") {
-        auto match = feedback::regex::match{};
+        auto match = generator::regex::match{};
 
         REQUIRE(all_lines_pattern.find(text, &match, nullptr, nullptr));
         REQUIRE(match == text);
@@ -72,7 +71,7 @@ second line
   }
 
   GIVEN("A regex which matches a single line") {
-    auto const single_line_pattern = feedback::regex::compile("(.*)");
+    auto const single_line_pattern = generator::regex::compile("(.*)");
 
     WHEN("it is applied to a multiline text") {
       auto const text = R"(first line
@@ -80,7 +79,7 @@ second line
 )";
 
       THEN("it doesn't match the whole text") {
-        auto match = feedback::regex::match{};
+        auto match = generator::regex::match{};
 
         REQUIRE(single_line_pattern.find(text, &match, nullptr, nullptr));
         REQUIRE(match != text);

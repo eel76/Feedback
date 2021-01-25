@@ -1,6 +1,6 @@
 #include "generator/cli.h"
 
-#include "feedback/macros.h"
+#include "generator/macros.h"
 
 COMPILER_WARNINGS_PUSH
 

@@ -1,4 +1,4 @@
-#include "feedback/regex.h"
+#include "generator/regex.h"
 
 #include <re2/re2.h>
 
@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <string_view>
 
-namespace feedback::regex {
+namespace generator::regex {
   namespace {
     auto as_string_piece(std::string_view sv) {
       return re2::StringPiece{ sv.data(), sv.length() };

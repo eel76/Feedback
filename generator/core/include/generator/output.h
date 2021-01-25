@@ -1,15 +1,15 @@
 #pragma once
-#include "feedback/control.h"
+#include "generator/feedback.h"
 
 #include <future>
 #include <string>
 #include <string_view>
 
-namespace feedback::output {
+namespace generator::output {
   struct header {
-    std::shared_future<control::rules> const&    shared_rules;
-    std::shared_future<control::workflow> const& shared_workflow;
-    std::string_view const&                      rules_origin;
+    std::shared_future<feedback::rules> const&    shared_rules;
+    std::shared_future<feedback::workflow> const& shared_workflow;
+    std::string_view const&                       rules_origin;
   };
 
   struct source {
@@ -35,4 +35,4 @@ namespace feedback::output {
   void print(std::ostream& out, output::header header);
   void print(std::ostream& out, output::source source);
   void print(std::ostream& out, output::match match);
-} // namespace feedback::output
+} // namespace generator::output

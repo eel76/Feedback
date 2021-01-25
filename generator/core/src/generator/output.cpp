@@ -1,16 +1,16 @@
-#include "feedback/output.h"
+#include "generator/output.h"
 
-#include "feedback/container.h"
-#include "feedback/format.h"
-#include "feedback/json.h"
-#include "feedback/text.h"
+#include "generator/container.h"
+#include "generator/format.h"
+#include "generator/json.h"
+#include "generator/text.h"
 
 #include <cassert>
 #include <ostream>
 
 using fmt::operator""_a;
 
-namespace feedback::output {
+namespace generator::output {
 
   excerpt::excerpt(std::string_view text, std::string_view match) {
     assert(text.data() <= match.data());

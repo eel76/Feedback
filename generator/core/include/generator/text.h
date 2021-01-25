@@ -1,11 +1,11 @@
 #pragma once
 #include <string_view>
 
-namespace feedback::regex {
+namespace generator::regex {
   class precompiled;
 }
 
-namespace feedback::text {
+namespace generator::text {
 
   inline auto first_line_of(std::string_view text) -> std::string_view {
     auto const end_of_first_line = text.find_first_of('\n');
@@ -45,11 +45,11 @@ namespace feedback::text {
     auto matched_lines() const -> std::string_view;
 
     auto line() const -> int {
-      return static_cast<int> (processed_line_count);
+      return static_cast<int>(processed_line_count);
     }
 
     auto column() const -> int {
-      return static_cast<int> (last_processed_line.length());
+      return static_cast<int>(last_processed_line.length());
     }
 
   private:
@@ -63,4 +63,4 @@ namespace feedback::text {
     std::string_view first_remaining_line;
     std::string_view remaining;
   };
-} // namespace feedback::text
+} // namespace generator::text

@@ -4,7 +4,7 @@
 #include <limits>
 #include <map>
 
-namespace feedback::container {
+namespace generator::container {
 
   template <class MAP, class KEY> auto value_or_default(MAP const& map, KEY&& key) -> typename MAP::mapped_type {
     if (auto const itr = map.find(std::forward<KEY>(key)); itr != cend(map))
@@ -65,4 +65,4 @@ namespace feedback::container {
   private:
     std::map<K, V> m_map;
   };
-} // namespace feedback::container
+} // namespace generator::container

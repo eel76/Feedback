@@ -4,7 +4,7 @@
 #include <iterator>
 #include <string_view>
 
-namespace feedback::format {
+namespace generator::format {
 
   template <class Stream, class... Args> void print(Stream&& out, std::string_view fmt, Args&&... args) {
     fmt::format_to(std::ostream_iterator<char>(out), fmt, std::forward<Args>(args)...);
@@ -18,16 +18,16 @@ namespace feedback::format {
     std::string_view str;
   };
 
-} // namespace feedback::format
+} // namespace generator::format
 
 namespace fmt {
 
-  template <> struct formatter<feedback::format::as_literal> {
+  template <> struct formatter<generator::format::as_literal> {
     template <typename ParseContext> constexpr auto parse(ParseContext& ctx) {
       return ctx.begin();
     }
 
-    template <typename FormatContext> auto format(feedback::format::as_literal const& text, FormatContext& ctx) {
+    template <typename FormatContext> auto format(generator::format::as_literal const& text, FormatContext& ctx) {
       auto out = ctx.out();
 
       for (auto const& ch : text.str) {
@@ -56,12 +56,12 @@ namespace fmt {
     formatter<char> base;
   };
 
-  template <> struct formatter<feedback::format::uppercase> {
+  template <> struct formatter<generator::format::uppercase> {
     template <typename ParseContext> constexpr auto parse(ParseContext& ctx) {
       return ctx.begin();
     }
 
-    template <typename FormatContext> auto format(feedback::format::uppercase const& text, FormatContext& ctx) {
+    template <typename FormatContext> auto format(generator::format::uppercase const& text, FormatContext& ctx) {
       auto out = ctx.out();
 
       for (auto const& ch : text.str)

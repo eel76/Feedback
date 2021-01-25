@@ -1,17 +1,17 @@
 #pragma once
-#include "feedback/regex.h"
+#include "generator/regex.h"
 
 #include <string>
 #include <unordered_map>
 
-namespace feedback::control {
+namespace generator::feedback {
   enum class response { NONE, MESSAGE, WARNING, ERROR };
 
   enum class check { ALL_FILES, ALL_LINES, CHANGED_FILES, CHANGED_LINES, NO_FILES, NO_LINES };
 
   struct handling {
-    control::check    check{ check::ALL_FILES };
-    control::response response{ response::MESSAGE };
+    feedback::check    check{ check::ALL_FILES };
+    feedback::response response{ response::MESSAGE };
   };
 
   using workflow = std::unordered_map<std::string, handling>;
@@ -29,4 +29,4 @@ namespace feedback::control {
   };
 
   using rules = std::unordered_map<std::string, rule>;
-} // namespace feedback::control
+} // namespace generator::feedback

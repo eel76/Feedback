@@ -1,23 +1,20 @@
-#include "feedback/async.h"
-#include "feedback/format.h"
-#include "feedback/json.h"
-#include "feedback/output.h"
-#include "feedback/regex.h"
-#include "feedback/scm.h"
-#include "feedback/text.h"
-
+#include "generator/async.h"
 #include "generator/cli.h"
+#include "generator/format.h"
+#include "generator/json.h"
+#include "generator/output.h"
+#include "generator/regex.h"
+#include "generator/scm.h"
+#include "generator/text.h"
 
 #include <cxx20/syncstream>
 
 #include <algorithm>
 #include <execution>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 
 namespace generator {
-  using namespace feedback;
 
   auto content(std::string const& filename) -> std::string {
     if (filename.empty())
@@ -42,12 +39,12 @@ namespace generator {
   template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
   template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-  auto is_relevant_function(std::shared_future<control::workflow> const& shared_workflow,
-                            std::shared_future<scm::diff> const&         shared_diff) {
+  auto is_relevant_function(std::shared_future<feedback::workflow> const& shared_workflow,
+                            std::shared_future<scm::diff> const&          shared_diff) {
     return [=](std::string_view filename) {
       auto const shared_file_changes = async::share([=] { return shared_diff.get().changes_from(filename); });
 
-      return [=](control::rules::value_type const& rule) {
+      return [=](feedback::rules::value_type const& rule) {
         auto const& [id, attributes] = rule;
 
         auto const rule_matched_filename = attributes.matched_files.matches(filename);
@@ -58,20 +55,20 @@ namespace generator {
 
         if (file_is_relevant) {
           switch (container::value_or_default(shared_workflow.get(), attributes.type).check) {
-          case control::check::NO_LINES:
+          case feedback::check::NO_LINES:
             [[fallthrough]];
-          case control::check::NO_FILES:
+          case feedback::check::NO_FILES:
             file_is_relevant = false;
             break;
-          case control::check::CHANGED_LINES:
+          case feedback::check::CHANGED_LINES:
             line_is_relevant = [is_modified = shared_file_changes.get()](auto line) { return is_modified[line]; };
             [[fallthrough]];
-          case control::check::CHANGED_FILES:
+          case feedback::check::CHANGED_FILES:
             file_is_relevant = not shared_file_changes.get().empty();
             break;
-          case control::check::ALL_LINES:
+          case feedback::check::ALL_LINES:
             [[fallthrough]];
-          case control::check::ALL_FILES:
+          case feedback::check::ALL_FILES:
             break;
           }
         }
@@ -86,7 +83,7 @@ namespace generator {
   }
 
   struct rule_in_source_matches {
-    control::rules::value_type const&      rule;
+    feedback::rules::value_type const&     rule;
     std::shared_future<std::string> const& shared_content;
   };
 
@@ -110,8 +107,8 @@ namespace generator {
   }
 
   struct source_matches {
-    std::shared_future<control::rules> const& shared_rules;
-    std::shared_future<std::string> const&    shared_content;
+    std::shared_future<feedback::rules> const& shared_rules;
+    std::shared_future<std::string> const&     shared_content;
   };
 
   template <class FUNCTION> void print(std::ostream& out, source_matches matches, FUNCTION is_relevant_in_source) {
@@ -129,8 +126,8 @@ namespace generator {
   }
 
   struct all_matches {
-    std::shared_future<control::rules> const&           shared_rules;
-    std::shared_future<control::workflow> const&        shared_workflow;
+    std::shared_future<feedback::rules> const&          shared_rules;
+    std::shared_future<feedback::workflow> const&       shared_workflow;
     std::shared_future<std::vector<std::string>> const& shared_sources;
     std::shared_future<scm::diff> const&                shared_diff;
   };

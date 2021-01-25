@@ -1,10 +1,10 @@
-#include "feedback/container.h"
+#include "generator/container.h"
 
 #include "catch2/catch.hpp"
 
 SCENARIO("interval map usage", "[container]") {
   GIVEN("An interval map from integers to booleans") {
-    auto const map = feedback::container::interval_map<int, bool>{ false };
+    auto const map = generator::container::interval_map<int, bool>{ false };
 
     WHEN("it is default constructed") {
       THEN("it is canonical") {
