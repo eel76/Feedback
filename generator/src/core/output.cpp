@@ -25,7 +25,7 @@ namespace feedback::output {
       annotation[0] = '^';
   }
 
-  void print(std::ostream& out, output::header const& header) {
+  void print(std::ostream& out, output::header header) {
     format::print(out,
                   R"_(// DO NOT EDIT: this file is generated automatically
 
@@ -64,11 +64,11 @@ namespace {{ using dummy = int; }}
                     "rationale"_a = format::as_literal{ rule.rationale }, "workaround"_a = format::as_literal{ rule.workaround });
   }
 
-  void print(std::ostream& out, output::source const& source) {
+  void print(std::ostream& out, output::source source) {
     format::print(out, "\n# line 1 \"{}\"\n", source.filename);
   }
 
-  void print(std::ostream& out, output::match const& match) {
+  void print(std::ostream& out, output::match match) {
     format::print(out, "# line {}\n{}FEEDBACK_MATCH_{}(\"{}\", \"{}\")\n", match.line_number, match.highlighting.indentation,
                   format::uppercase{ match.id }, format::as_literal{ match.highlighting.first_line },
                   match.highlighting.indentation + match.highlighting.annotation);

@@ -9,11 +9,11 @@ namespace feedback::output {
   struct header {
     std::shared_future<control::rules> const&    shared_rules;
     std::shared_future<control::workflow> const& shared_workflow;
-    std::string_view                             rules_origin;
+    std::string_view const&                      rules_origin;
   };
 
   struct source {
-    std::string filename;
+    std::string const& filename;
   };
 
   class excerpt {
@@ -27,12 +27,12 @@ namespace feedback::output {
   };
 
   struct match {
-    std::string_view id;
-    int              line_number;
-    excerpt          highlighting;
+    std::string_view const& id;
+    int const&              line_number;
+    excerpt const&          highlighting;
   };
 
-  void print(std::ostream& out, output::header const& header);
-  void print(std::ostream& out, output::source const& source);
-  void print(std::ostream& out, output::match const& match);
+  void print(std::ostream& out, output::header header);
+  void print(std::ostream& out, output::source source);
+  void print(std::ostream& out, output::match match);
 } // namespace feedback::output

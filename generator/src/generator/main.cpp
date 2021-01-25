@@ -85,14 +85,15 @@ namespace generator {
     };
   }
 
-  template <class FUNCTION>
-  auto print_matches(std::ostream&                          out,
-                     control::rules::value_type const&      rule,
-                     std::shared_future<std::string> const& shared_content,
-                     FUNCTION                               is_relevant) {
-    auto const& [id, attributes] = rule;
+  struct rule_in_source_matches {
+    control::rules::value_type const&      rule;
+    std::shared_future<std::string> const& shared_content;
+  };
 
-    auto search = text::forward_search{ shared_content.get() };
+  template <class FUNCTION> auto print(std::ostream& out, rule_in_source_matches matches, FUNCTION is_relevant) {
+    auto const& [id, attributes] = matches.rule;
+
+    auto search = text::forward_search{ matches.shared_content.get() };
 
     while (search.next(attributes.matched_text)) {
       auto const matched_lines = search.matched_lines();
@@ -108,12 +109,13 @@ namespace generator {
     }
   }
 
-  template <class FUNCTION>
-  void print_matches(std::ostream&                             out,
-                     std::shared_future<control::rules> const& shared_rules,
-                     std::shared_future<std::string> const&    shared_content,
-                     FUNCTION                                  is_relevant_in_source) {
-    auto const& rules = shared_rules.get();
+  struct source_matches {
+    std::shared_future<control::rules> const& shared_rules;
+    std::shared_future<std::string> const&    shared_content;
+  };
+
+  template <class FUNCTION> void print(std::ostream& out, source_matches matches, FUNCTION is_relevant_in_source) {
+    auto const& rules = matches.shared_rules.get();
 
     std::for_each(std::execution::par, cbegin(rules), cend(rules), [=, &out](auto const& rule) {
       auto const is_rule_in_source_relevant = is_relevant_in_source(rule);
@@ -121,29 +123,33 @@ namespace generator {
         return;
 
       auto synchronized_out = cxx20::osyncstream{ out };
-      print_matches(synchronized_out, rule, shared_content, is_rule_in_source_relevant);
+
+      print(synchronized_out, rule_in_source_matches{ rule, matches.shared_content }, is_rule_in_source_relevant);
     });
   }
 
-  void print_matches(std::ostream&                                       out,
-                     std::shared_future<control::rules> const&           shared_rules,
-                     std::shared_future<control::workflow> const&        shared_workflow,
-                     std::shared_future<std::vector<std::string>> const& shared_sources,
-                     std::shared_future<scm::diff> const&                shared_diff) {
-    auto const  is_relevant = is_relevant_function(shared_workflow, shared_diff);
-    auto const& sources     = shared_sources.get();
+  struct all_matches {
+    std::shared_future<control::rules> const&           shared_rules;
+    std::shared_future<control::workflow> const&        shared_workflow;
+    std::shared_future<std::vector<std::string>> const& shared_sources;
+    std::shared_future<scm::diff> const&                shared_diff;
+  };
+
+  void print(std::ostream& out, all_matches matches) {
+    auto const  is_relevant = is_relevant_function(matches.shared_workflow, matches.shared_diff);
+    auto const& sources     = matches.shared_sources.get();
 
     std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &out](std::string const& filename) {
       auto const shared_content = async::share([=] { return content(filename); });
 
       auto synchronized_out = cxx20::osyncstream{ out };
-      print(synchronized_out, output::source{ filename });
 
-      print_matches(synchronized_out, shared_rules, shared_content, is_relevant(filename));
+      print(synchronized_out, output::source{ filename });
+      print(synchronized_out, source_matches{ matches.shared_rules, shared_content }, is_relevant(filename));
     });
   }
 
-  auto parse_sources(std::string const& filename) -> std::vector<std::string> {
+  auto parse_sources(std::string const& filename) {
     auto sources = std::vector<std::string>{};
     auto content = std::ifstream{ filename };
 
@@ -191,7 +197,7 @@ int main(int argc, char* argv[]) {
     auto const shared_sources  = parse_sources_async(parameters.sources_filename);
 
     print(out, output::header{ shared_rules, shared_workflow, parameters.rules_filename });
-    print_matches(out, shared_rules, shared_workflow, shared_sources, shared_diff);
+    print(out, all_matches{ shared_rules, shared_workflow, shared_sources, shared_diff });
   }
   catch (std::exception const& e) {
     std::cerr << e.what() << '\n';
