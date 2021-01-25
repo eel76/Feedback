@@ -32,7 +32,8 @@ namespace generator {
   template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
   template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-  auto is_relevant(std::shared_future<feedback::workflow> const& shared_workflow, std::shared_future<scm::diff> const& shared_diff) {
+  auto is_relevant_function(std::shared_future<feedback::workflow> const& shared_workflow,
+                            std::shared_future<scm::diff> const&          shared_diff) {
     return [=](std::string_view filename) {
       auto const shared_file_changes = launch_async([=] { return shared_diff.get().changes_from(filename); }).share();
 
@@ -177,7 +178,7 @@ int main(int argc, char* argv[]) {
     auto const shared_sources  = parse_sources_async(parameters.sources_filename).share();
 
     print(out, output::header{ shared_rules, shared_workflow, parameters.rules_filename });
-    print(out, all_matches{ shared_rules, shared_sources }, is_relevant(shared_workflow, shared_diff));
+    print(out, all_matches{ shared_rules, shared_sources }, is_relevant_function(shared_workflow, shared_diff));
   }
   catch (std::exception const& e) {
     std::cerr << e.what() << '\n';
