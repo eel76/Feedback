@@ -27,7 +27,14 @@ namespace generator::text {
       annotation[0] = '^';
   }
 
-  bool forward_search::next(regex::precompiled const& pattern) {
+  auto forward_search::highlighted_text(regex::precompiled const& pattern) const -> excerpt {
+    if (auto search = forward_search{ matched_text() }; search.next(pattern))
+      return { matched_lines(), search.matched_text() };
+
+    return { matched_lines(), matched_text() };
+  }
+
+  auto forward_search::next(regex::precompiled const& pattern) -> bool {
     skip(current_match);
 
     std::string_view no_match;
@@ -41,6 +48,14 @@ namespace generator::text {
     first_remaining_line = text::first_line_of(remaining);
 
     return !current_match.empty();
+  }
+
+  auto forward_search::next_but(regex::precompiled const& pattern, regex::precompiled const& ignored_pattern) -> bool {
+    while (next(pattern))
+      if (not ignored_pattern.matches(matched_lines()))
+        return true;
+
+    return false;
   }
 
   std::string_view forward_search::matched_lines() const {

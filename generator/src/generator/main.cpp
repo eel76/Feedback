@@ -76,15 +76,6 @@ namespace generator {
     };
   }
 
-  auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern) {
-    auto search = text::forward_search{ text };
-
-    if (search.next(pattern))
-      return search.matched_text();
-
-    return text;
-  }
-
   struct rule_in_source_matches {
     feedback::rules::value_type const&     rule;
     std::shared_future<std::string> const& shared_content;
@@ -95,17 +86,12 @@ namespace generator {
 
     auto search = text::forward_search{ matches.shared_content.get() };
 
-    while (search.next(attributes.matched_text)) {
-      auto const matched_lines = search.matched_lines();
-      if (attributes.ignored_text.matches(matched_lines))
-        continue;
-
+    while (search.next_but(attributes.matched_text, attributes.ignored_text)) {
       auto const line_number = search.line() + 1;
       if (not is_relevant(line_number))
         continue;
 
-      auto const marked_text = search_marked_text(search.matched_text(), attributes.marked_text);
-      print(out, output::match{ id, line_number, text::excerpt{ matched_lines, marked_text } });
+      print(out, output::match{ id, line_number, search.highlighted_text(attributes.marked_text) });
     }
   }
 

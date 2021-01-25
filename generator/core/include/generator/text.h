@@ -48,6 +48,9 @@ namespace generator::text {
     }
 
     auto next(regex::precompiled const& pattern) -> bool;
+    auto next_but(regex::precompiled const& pattern, regex::precompiled const& ignored_pattern) -> bool;
+
+    auto highlighted_text(regex::precompiled const& pattern) const -> excerpt;
 
     auto matched_text() const -> std::string_view {
       return current_match;
