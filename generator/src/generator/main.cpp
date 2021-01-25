@@ -81,6 +81,18 @@ namespace generator {
     std::shared_future<std::string> const& shared_content;
   };
 
+  struct source_matches {
+    std::shared_future<feedback::rules> const& shared_rules;
+    std::shared_future<std::string> const&     shared_content;
+  };
+
+  struct all_matches {
+    std::shared_future<feedback::rules> const&          shared_rules;
+    std::shared_future<feedback::workflow> const&       shared_workflow;
+    std::shared_future<std::vector<std::string>> const& shared_sources;
+    std::shared_future<scm::diff> const&                shared_diff;
+  };
+
   template <class FUNCTION> auto print(std::ostream& out, rule_in_source_matches matches, FUNCTION is_relevant) {
     auto const& [id, attributes] = matches.rule;
 
@@ -94,11 +106,6 @@ namespace generator {
       print(out, output::match{ id, line_number, search.highlighted_text(attributes.marked_text) });
     }
   }
-
-  struct source_matches {
-    std::shared_future<feedback::rules> const& shared_rules;
-    std::shared_future<std::string> const&     shared_content;
-  };
 
   template <class FUNCTION> void print(std::ostream& out, source_matches matches, FUNCTION is_relevant_in_source) {
     auto const& rules = matches.shared_rules.get();
@@ -114,13 +121,6 @@ namespace generator {
     });
   }
 
-  struct all_matches {
-    std::shared_future<feedback::rules> const&          shared_rules;
-    std::shared_future<feedback::workflow> const&       shared_workflow;
-    std::shared_future<std::vector<std::string>> const& shared_sources;
-    std::shared_future<scm::diff> const&                shared_diff;
-  };
-
   void print(std::ostream& out, all_matches matches) {
     auto const  is_relevant = is_relevant_function(matches.shared_workflow, matches.shared_diff);
     auto const& sources     = matches.shared_sources.get();
@@ -133,16 +133,6 @@ namespace generator {
       print(synchronized_out, output::source{ filename });
       print(synchronized_out, source_matches{ matches.shared_rules, shared_content }, is_relevant(filename));
     });
-  }
-
-  auto parse_sources(std::string const& filename) {
-    auto sources = std::vector<std::string>{};
-    auto content = std::ifstream{ filename };
-
-    for (std::string source; std::getline(content, source);)
-      sources.emplace_back(source);
-
-    return sources;
   }
 
   auto parse_diff_async(std::string const& filename) {
@@ -163,7 +153,15 @@ namespace generator {
   }
 
   auto parse_sources_async(std::string const& filename) {
-    return launch_async([=] { return parse_sources(filename); });
+    return launch_async([=] {
+      auto sources = std::vector<std::string>{};
+      auto content = std::ifstream{ filename };
+
+      for (std::string source; std::getline(content, source);)
+        sources.emplace_back(source);
+
+      return sources;
+    });
   }
 } // namespace generator
 
