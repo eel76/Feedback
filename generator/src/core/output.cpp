@@ -3,12 +3,28 @@
 #include "feedback/container.h"
 #include "feedback/format.h"
 #include "feedback/json.h"
+#include "feedback/text.h"
 
+#include <cassert>
 #include <ostream>
 
 using fmt::operator""_a;
 
 namespace feedback::output {
+
+  excerpt::excerpt(std::string_view text, std::string_view match) {
+    assert(text.data() <= match.data());
+    assert(text.data() + text.length() >= match.data() + match.length());
+
+    first_line = text::first_line_of(text);
+
+    indentation.append(match.data() - text.data(), ' ');
+    annotation.append(text::first_line_of(match).length(), '~');
+
+    if (not annotation.empty())
+      annotation[0] = '^';
+  }
+
   void print(std::ostream& out, output::header const& header) {
     format::print(out,
                   R"_(// DO NOT EDIT: this file is generated automatically
@@ -46,5 +62,15 @@ namespace {{ using dummy = int; }}
                     container::value_or_default(header.shared_workflow.get(), rule.type).response) },
                     "type"_a = format::as_literal{ rule.type }, "summary"_a = format::as_literal{ rule.summary },
                     "rationale"_a = format::as_literal{ rule.rationale }, "workaround"_a = format::as_literal{ rule.workaround });
+  }
+
+  void print(std::ostream& out, output::source const& source) {
+    format::print(out, "\n# line 1 \"{}\"\n", source.filename);
+  }
+
+  void print(std::ostream& out, output::match const& match) {
+    format::print(out, "# line {}\n{}FEEDBACK_MATCH_{}(\"{}\", \"{}\")\n", match.line_number, match.highlighting.indentation,
+                  format::uppercase{ match.id }, format::as_literal{ match.highlighting.first_line },
+                  match.highlighting.indentation + match.highlighting.annotation);
   }
 } // namespace feedback::output

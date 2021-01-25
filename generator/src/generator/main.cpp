@@ -16,21 +16,19 @@
 #include <fstream>
 #include <iostream>
 
-namespace feedback {
+namespace generator {
+  using namespace feedback;
 
-  namespace {
+  auto content(std::string const& filename) -> std::string {
+    if (filename.empty())
+      return {};
 
-    auto content(std::string const& filename) -> std::string {
-      if (filename.empty())
-        return {};
+    auto input_stream = std::ifstream{ filename };
 
-      auto input_stream = std::ifstream{ filename };
-
-      std::stringstream content;
-      content << input_stream.rdbuf();
-      return content.str();
-    }
-  } // namespace
+    std::stringstream content;
+    content << input_stream.rdbuf();
+    return content.str();
+  }
 
   auto search_marked_text(std::string_view const& text, regex::precompiled const& pattern) {
     auto search = text::forward_search{ text };
@@ -41,31 +39,8 @@ namespace feedback {
     return text;
   }
 
-  class excerpt {
-  public:
-    excerpt(std::string_view text, std::string_view match) {
-      assert(text.data() <= match.data());
-      assert(text.data() + text.length() >= match.data() + match.length());
-
-      first_line = text::first_line_of(text);
-
-      indentation.append(match.data() - text.data(), ' ');
-      annotation.append(text::first_line_of(match).length(), '~');
-
-      if (not annotation.empty())
-        annotation[0] = '^';
-    }
-
-  public:
-    std::string_view first_line;
-    std::string      indentation;
-    std::string      annotation;
-  };
-
-  namespace {
-    template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-    template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-  } // namespace
+  template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+  template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
   auto is_relevant_function(std::shared_future<control::workflow> const& shared_workflow,
                             std::shared_future<scm::diff> const&         shared_diff) {
@@ -110,11 +85,8 @@ namespace feedback {
     };
   }
 
-  // FIXME: eine print() funktion für eine header und für eine match klasse anbieten
-  // namespace output::print()
-
   template <class FUNCTION>
-  auto print_matches(std::ostream&                          output,
+  auto print_matches(std::ostream&                          out,
                      control::rules::value_type const&      rule,
                      std::shared_future<std::string> const& shared_content,
                      FUNCTION                               is_relevant) {
@@ -131,33 +103,29 @@ namespace feedback {
       if (not is_relevant(line_number))
         continue;
 
-      auto const marked_text  = search_marked_text(search.matched_text(), attributes.marked_text);
-      auto const highlighting = excerpt{ matched_lines, marked_text };
-
-      format::print(output, "# line {}\n{}FEEDBACK_MATCH_{}(\"{}\", \"{}\")\n", line_number, highlighting.indentation,
-                    format::uppercase{ id }, format::as_literal{ highlighting.first_line },
-                    highlighting.indentation + highlighting.annotation);
+      auto const marked_text = search_marked_text(search.matched_text(), attributes.marked_text);
+      print(out, output::match{ id, line_number, output::excerpt{ matched_lines, marked_text } });
     }
   }
 
   template <class FUNCTION>
-  void print_matches(std::ostream&                             output,
+  void print_matches(std::ostream&                             out,
                      std::shared_future<control::rules> const& shared_rules,
                      std::shared_future<std::string> const&    shared_content,
-                     FUNCTION                                  is_relevant_in_file) {
+                     FUNCTION                                  is_relevant_in_source) {
     auto const& rules = shared_rules.get();
 
-    std::for_each(std::execution::par, cbegin(rules), cend(rules), [=, &output](auto const& rule) {
-      auto const is_rule_in_file_relevant = is_relevant_in_file(rule);
-      if (not is_rule_in_file_relevant())
+    std::for_each(std::execution::par, cbegin(rules), cend(rules), [=, &out](auto const& rule) {
+      auto const is_rule_in_source_relevant = is_relevant_in_source(rule);
+      if (not is_rule_in_source_relevant())
         return;
 
-      auto synched_output = cxx20::osyncstream{ output };
-      print_matches(synched_output, rule, shared_content, is_rule_in_file_relevant);
+      auto synchronized_out = cxx20::osyncstream{ out };
+      print_matches(synchronized_out, rule, shared_content, is_rule_in_source_relevant);
     });
   }
 
-  void print_matches(std::ostream&                                       output,
+  void print_matches(std::ostream&                                       out,
                      std::shared_future<control::rules> const&           shared_rules,
                      std::shared_future<control::workflow> const&        shared_workflow,
                      std::shared_future<std::vector<std::string>> const& shared_sources,
@@ -165,14 +133,13 @@ namespace feedback {
     auto const  is_relevant = is_relevant_function(shared_workflow, shared_diff);
     auto const& sources     = shared_sources.get();
 
-    std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &output](std::string const& filename) {
+    std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &out](std::string const& filename) {
       auto const shared_content = async::share([=] { return content(filename); });
 
-      auto synched_output = cxx20::osyncstream{ output };
-      format::print(synched_output, "\n# line 1 \"{}\"\n", filename);
+      auto synchronized_out = cxx20::osyncstream{ out };
+      print(synchronized_out, output::source{ filename });
 
-      auto const is_file_relevant = is_relevant(filename);
-      print_matches(synched_output, shared_rules, shared_content, is_file_relevant);
+      print_matches(synchronized_out, shared_rules, shared_content, is_relevant(filename));
     });
   }
 
@@ -206,7 +173,9 @@ namespace feedback {
   auto parse_sources_async(std::string const& filename) {
     return async::share([=] { return parse_sources(filename); });
   }
-} // namespace feedback
+} // namespace generator
+
+using namespace generator;
 
 int main(int argc, char* argv[]) {
   std::ios::sync_with_stdio(false);
@@ -214,15 +183,15 @@ int main(int argc, char* argv[]) {
   std::stringstream out;
 
   try {
-    auto const parameters = generator::cli::parse(argc, argv);
+    auto const parameters = cli::parse(argc, argv);
 
-    auto const shared_diff     = feedback::parse_diff_async(parameters.diff_filename);
-    auto const shared_rules    = feedback::parse_rules_async(parameters.rules_filename);
-    auto const shared_workflow = feedback::parse_workflow_async(parameters.workflow_filename);
-    auto const shared_sources  = feedback::parse_sources_async(parameters.sources_filename);
+    auto const shared_diff     = parse_diff_async(parameters.diff_filename);
+    auto const shared_rules    = parse_rules_async(parameters.rules_filename);
+    auto const shared_workflow = parse_workflow_async(parameters.workflow_filename);
+    auto const shared_sources  = parse_sources_async(parameters.sources_filename);
 
-    print(out, feedback::output::header{ shared_rules, shared_workflow, parameters.rules_filename });
-    feedback::print_matches(out, shared_rules, shared_workflow, shared_sources, shared_diff);
+    print(out, output::header{ shared_rules, shared_workflow, parameters.rules_filename });
+    print_matches(out, shared_rules, shared_workflow, shared_sources, shared_diff);
   }
   catch (std::exception const& e) {
     std::cerr << e.what() << '\n';
