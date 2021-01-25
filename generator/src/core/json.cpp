@@ -2,8 +2,6 @@
 
 #include <nlohmann/json.hpp>
 
-#include <type_traits>
-
 namespace feedback::control {
   NLOHMANN_JSON_SERIALIZE_ENUM(
   response,
@@ -35,13 +33,6 @@ namespace feedback::control {
   }
 } // namespace feedback::control
 
-namespace {
-  template <class T> auto to_string(T value) -> typename std::enable_if<std::is_enum_v<T>, std::string>::type {
-    auto const dump = nlohmann::json{ value }.dump();
-    return dump.substr(2, dump.length() - 4);
-  }
-} // namespace
-
 namespace feedback::json {
 
   auto parse_rules(std::string_view json) -> control::rules {
@@ -51,6 +42,7 @@ namespace feedback::json {
     return nlohmann::json::parse(json).get<control::workflow>();
   }
   auto to_string(control::response response) -> std::string {
-    return ::to_string(response);
+    auto const dump = nlohmann::json{ response }.dump();
+    return dump.substr(2, dump.length() - 4);
   }
 } // namespace feedback::json

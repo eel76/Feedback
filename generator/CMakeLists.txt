@@ -20,6 +20,7 @@ add_subdirectory (extern)
 
 add_library (${PROJECT_NAME}.core STATIC
   "src/core/json.cpp"
+  "src/core/output.cpp"
   "src/core/regex.cpp"
   "src/core/scm.cpp"
   "src/core/text.cpp"
@@ -30,6 +31,7 @@ add_library (${PROJECT_NAME}.core STATIC
   "include/feedback/format.h"
   "include/feedback/json.h"
   "include/feedback/macros.h"
+  "include/feedback/output.h"
   "include/feedback/regex.h"
   "include/feedback/scm.h"
   "include/feedback/text.h"

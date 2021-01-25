@@ -1,6 +1,7 @@
 #include "feedback/async.h"
 #include "feedback/format.h"
 #include "feedback/json.h"
+#include "feedback/output.h"
 #include "feedback/regex.h"
 #include "feedback/scm.h"
 #include "feedback/text.h"
@@ -18,16 +19,6 @@
 namespace feedback {
 
   namespace {
-    template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-    template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
-    template <class MAP, class KEY, class VALUE>
-    auto value_or(MAP const& map, KEY&& key, VALUE default_value) -> typename MAP::mapped_type {
-      if (auto const itr = map.find(std::forward<KEY>(key)); itr != cend(map))
-        return itr->second;
-
-      return default_value;
-    }
 
     auto content(std::string const& filename) -> std::string {
       if (filename.empty())
@@ -71,6 +62,11 @@ namespace feedback {
     std::string      annotation;
   };
 
+  namespace {
+    template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+    template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+  } // namespace
+
   auto is_relevant_function(std::shared_future<control::workflow> const& shared_workflow,
                             std::shared_future<scm::diff> const&         shared_diff) {
     return [=](std::string_view filename) {
@@ -86,7 +82,7 @@ namespace feedback {
         auto line_is_relevant = std::function<bool(int)>{ [](auto) { return true; } };
 
         if (file_is_relevant) {
-          switch (value_or(shared_workflow.get(), attributes.type, control::handling{}).check) {
+          switch (container::value_or_default(shared_workflow.get(), attributes.type).check) {
           case control::check::NO_LINES:
             [[fallthrough]];
           case control::check::NO_FILES:
@@ -112,49 +108,6 @@ namespace feedback {
         return overloaded{ [=]() { return file_is_relevant; }, [=](auto line) { return line_is_relevant(line); } };
       };
     };
-  }
-
-  void print_header(std::ostream&                                output,
-                    std::shared_future<control::rules> const&    shared_rules,
-                    std::shared_future<control::workflow> const& shared_workflow,
-                    std::string_view                             rules_origin) {
-    using fmt::operator""_a;
-
-    format::print(output,
-                  R"_(// DO NOT EDIT: this file is generated automatically
-
-namespace {{ using dummy = int; }}
-
-#define __STRINGIFY(x) #x
-#define STRINGIFY(x)   __STRINGIFY(x)
-#define PRAGMA(x)      _Pragma(#x)
-
-#if defined __GNUC__
-#define FEEDBACK_RESPONSE_ERROR(id, msg)   PRAGMA(GCC error "feedback " STRINGIFY(id) ": " msg)
-#define FEEDBACK_RESPONSE_WARNING(id, msg) PRAGMA(GCC warning "feedback " STRINGIFY(id) ": " msg)
-#define FEEDBACK_RESPONSE_MESSAGE(id, msg) PRAGMA(message "feedback " STRINGIFY(id) ": " msg)
-#define FEEDBACK_RESPONSE_NONE(id, msg)    /* no feedback response for id */
-#elif defined _MSC_VER
-#define FEEDBACK_MESSAGE(msg)              PRAGMA(message(__FILE__ "(" STRINGIFY(__LINE__) "): " msg))
-#define FEEDBACK_RESPONSE_ERROR(id, msg)   FEEDBACK_MESSAGE("feedback error " STRINGIFY(id) ": " msg)
-#define FEEDBACK_RESPONSE_WARNING(id, msg) FEEDBACK_MESSAGE("feedback warning " STRINGIFY(id) ": " msg)
-#define FEEDBACK_RESPONSE_MESSAGE(id, msg) FEEDBACK_MESSAGE("feedback message " STRINGIFY(id) ": " msg)
-#define FEEDBACK_RESPONSE_NONE(id, msg)    /* no feedback response for id */
-#else
-#error "Unsupported compiler"
-#endif
-
-)_");
-
-    for (auto [id, rule] : shared_rules.get())
-      format::print(output,
-                    R"_(#define FEEDBACK_MATCH_{uppercase_id}(match, highlighting) FEEDBACK_RESPONSE_{response}({id}, "{summary} [{type} from file://{origin}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
-)_",
-                    "origin"_a = format::as_literal{ rules_origin }, "id"_a = id, "uppercase_id"_a = format::uppercase{ id },
-                    "response"_a =
-                    format::uppercase{ json::to_string(value_or(shared_workflow.get(), rule.type, control::handling{}).response) },
-                    "type"_a = format::as_literal{ rule.type }, "summary"_a = format::as_literal{ rule.summary },
-                    "rationale"_a = format::as_literal{ rule.rationale }, "workaround"_a = format::as_literal{ rule.workaround });
   }
 
   // FIXME: eine print() funktion für eine header und für eine match klasse anbieten
@@ -263,7 +216,7 @@ int main(int argc, char* argv[]) {
     auto const shared_workflow = feedback::parse_workflow_async(parameters.workflow_filename);
     auto const shared_sources  = feedback::parse_sources_async(parameters.sources_filename);
 
-    feedback::print_header(out, shared_rules, shared_workflow, parameters.rules_filename);
+    print(out, feedback::output::header{ shared_rules, shared_workflow, parameters.rules_filename });
     feedback::print_matches(out, shared_rules, shared_workflow, shared_sources, shared_diff);
   }
   catch (std::exception const& e) {
