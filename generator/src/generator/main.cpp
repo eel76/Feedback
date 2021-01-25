@@ -1,6 +1,4 @@
-#include "generator/async.h"
 #include "generator/cli.h"
-#include "generator/format.h"
 #include "generator/json.h"
 #include "generator/output.h"
 #include "generator/regex.h"
@@ -12,9 +10,14 @@
 #include <algorithm>
 #include <execution>
 #include <fstream>
+#include <future>
 #include <iostream>
 
 namespace generator {
+
+  template <class... Args> decltype(auto) launch_async(Args&&... args) {
+    return std::async(std::launch::async, std::forward<Args>(args)...);
+  }
 
   auto content(std::string const& filename) -> std::string {
     if (filename.empty())
@@ -42,7 +45,7 @@ namespace generator {
   auto is_relevant_function(std::shared_future<feedback::workflow> const& shared_workflow,
                             std::shared_future<scm::diff> const&          shared_diff) {
     return [=](std::string_view filename) {
-      auto const shared_file_changes = async::share([=] { return shared_diff.get().changes_from(filename); });
+      auto const shared_file_changes = launch_async([=] { return shared_diff.get().changes_from(filename); }).share();
 
       return [=](feedback::rules::value_type const& rule) {
         auto const& [id, attributes] = rule;
@@ -137,7 +140,7 @@ namespace generator {
     auto const& sources     = matches.shared_sources.get();
 
     std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &out](std::string const& filename) {
-      auto const shared_content = async::share([=] { return content(filename); });
+      auto const shared_content = launch_async([=] { return content(filename); }).share();
 
       auto synchronized_out = cxx20::osyncstream{ out };
 
@@ -157,7 +160,7 @@ namespace generator {
   }
 
   auto parse_diff_async(std::string const& filename) {
-    return async::share([=] {
+    return launch_async([=] {
       scm::diff accumulated;
       if (not filename.empty())
         accumulated = scm::diff::parse(content(filename), std::move(accumulated));
@@ -166,15 +169,15 @@ namespace generator {
   }
 
   auto parse_rules_async(std::string const& filename) {
-    return async::share([=] { return json::parse_rules(content(filename)); });
+    return launch_async([=] { return json::parse_rules(content(filename)); });
   }
 
   auto parse_workflow_async(std::string const& filename) {
-    return async::share([=] { return json::parse_workflow(content(filename)); });
+    return launch_async([=] { return json::parse_workflow(content(filename)); });
   }
 
   auto parse_sources_async(std::string const& filename) {
-    return async::share([=] { return parse_sources(filename); });
+    return launch_async([=] { return parse_sources(filename); });
   }
 } // namespace generator
 
@@ -186,10 +189,10 @@ int main(int argc, char* argv[]) {
   try {
     auto const parameters = generator::cli::parse(argc, argv);
 
-    auto const shared_diff     = generator::parse_diff_async(parameters.diff_filename);
-    auto const shared_rules    = generator::parse_rules_async(parameters.rules_filename);
-    auto const shared_workflow = generator::parse_workflow_async(parameters.workflow_filename);
-    auto const shared_sources  = generator::parse_sources_async(parameters.sources_filename);
+    auto const shared_diff     = generator::parse_diff_async(parameters.diff_filename).share();
+    auto const shared_rules    = generator::parse_rules_async(parameters.rules_filename).share();
+    auto const shared_workflow = generator::parse_workflow_async(parameters.workflow_filename).share();
+    auto const shared_sources  = generator::parse_sources_async(parameters.sources_filename).share();
 
     print(out, generator::output::header{ shared_rules, shared_workflow, parameters.rules_filename });
     print(out, generator::all_matches{ shared_rules, shared_workflow, shared_sources, shared_diff });

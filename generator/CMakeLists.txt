@@ -25,7 +25,6 @@ add_library (${PROJECT_NAME}.core STATIC
   "core/src/generator/scm.cpp"
   "core/src/generator/text.cpp"
   "core/include/cxx20/syncstream"
-  "core/include/generator/async.h"
   "core/include/generator/container.h"
   "core/include/generator/feedback.h"
   "core/include/generator/format.h"
