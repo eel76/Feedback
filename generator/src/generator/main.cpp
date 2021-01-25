@@ -187,7 +187,12 @@ namespace feedback {
   }
 
   auto parse_diff_async(std::string const& filename) {
-    return async::share([=] { return scm::diff::parse(content(filename)); });
+    return async::share([=] {
+      scm::diff accumulated;
+      if (not filename.empty())
+        accumulated = scm::diff::parse(content(filename), std::move(accumulated));
+      return accumulated;
+    });
   }
 
   auto parse_rules_async(std::string const& filename) {
