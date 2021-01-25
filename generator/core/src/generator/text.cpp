@@ -7,9 +7,24 @@
 
 namespace generator::text {
 
-  auto operator|(std::string_view const& lhs, std::string_view const& rhs) {
-    assert(lhs.data() + lhs.length() == rhs.data());
-    return std::string_view{ lhs.data(), lhs.length() + rhs.length() };
+  namespace {
+    auto operator|(std::string_view const& lhs, std::string_view const& rhs) {
+      assert(lhs.data() + lhs.length() == rhs.data());
+      return std::string_view{ lhs.data(), lhs.length() + rhs.length() };
+    }
+  } // namespace
+
+  excerpt::excerpt(std::string_view text, std::string_view match) {
+    assert(text.data() <= match.data());
+    assert(text.data() + text.length() >= match.data() + match.length());
+
+    first_line = text::first_line_of(text);
+
+    indentation.append(match.data() - text.data(), ' ');
+    annotation.append(text::first_line_of(match).length(), '~');
+
+    if (not annotation.empty())
+      annotation[0] = '^';
   }
 
   bool forward_search::next(regex::precompiled const& pattern) {

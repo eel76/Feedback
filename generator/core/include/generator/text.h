@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <string_view>
 
 namespace generator::regex {
@@ -29,6 +30,16 @@ namespace generator::text {
 
     return (0 == text.compare(text.length() - suffix.length(), suffix.length(), suffix));
   }
+
+  class excerpt {
+  public:
+    excerpt(std::string_view text, std::string_view match);
+
+  public:
+    std::string_view first_line;
+    std::string      indentation;
+    std::string      annotation;
+  };
 
   class forward_search {
   public:

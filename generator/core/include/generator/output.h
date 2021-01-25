@@ -1,5 +1,6 @@
 #pragma once
 #include "generator/feedback.h"
+#include "generator/text.h"
 
 #include <future>
 #include <string>
@@ -16,20 +17,10 @@ namespace generator::output {
     std::string const& filename;
   };
 
-  class excerpt {
-  public:
-    excerpt(std::string_view text, std::string_view match);
-
-  public:
-    std::string_view first_line;
-    std::string      indentation;
-    std::string      annotation;
-  };
-
   struct match {
     std::string_view const& id;
     int const&              line_number;
-    excerpt const&          highlighting;
+    text::excerpt const&    highlighting;
   };
 
   void print(std::ostream& out, output::header header);

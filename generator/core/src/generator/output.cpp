@@ -3,27 +3,12 @@
 #include "generator/container.h"
 #include "generator/format.h"
 #include "generator/json.h"
-#include "generator/text.h"
 
-#include <cassert>
 #include <ostream>
 
 using fmt::operator""_a;
 
 namespace generator::output {
-
-  excerpt::excerpt(std::string_view text, std::string_view match) {
-    assert(text.data() <= match.data());
-    assert(text.data() + text.length() >= match.data() + match.length());
-
-    first_line = text::first_line_of(text);
-
-    indentation.append(match.data() - text.data(), ' ');
-    annotation.append(text::first_line_of(match).length(), '~');
-
-    if (not annotation.empty())
-      annotation[0] = '^';
-  }
 
   void print(std::ostream& out, output::header header) {
     format::print(out,
