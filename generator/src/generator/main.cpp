@@ -178,23 +178,21 @@ namespace generator {
   }
 } // namespace generator
 
-using namespace generator;
-
 int main(int argc, char* argv[]) {
   std::ios::sync_with_stdio(false);
 
   std::stringstream out;
 
   try {
-    auto const parameters = cli::parse(argc, argv);
+    auto const parameters = generator::cli::parse(argc, argv);
 
-    auto const shared_diff     = parse_diff_async(parameters.diff_filename);
-    auto const shared_rules    = parse_rules_async(parameters.rules_filename);
-    auto const shared_workflow = parse_workflow_async(parameters.workflow_filename);
-    auto const shared_sources  = parse_sources_async(parameters.sources_filename);
+    auto const shared_diff     = generator::parse_diff_async(parameters.diff_filename);
+    auto const shared_rules    = generator::parse_rules_async(parameters.rules_filename);
+    auto const shared_workflow = generator::parse_workflow_async(parameters.workflow_filename);
+    auto const shared_sources  = generator::parse_sources_async(parameters.sources_filename);
 
-    print(out, output::header{ shared_rules, shared_workflow, parameters.rules_filename });
-    print(out, all_matches{ shared_rules, shared_workflow, shared_sources, shared_diff });
+    print(out, generator::output::header{ shared_rules, shared_workflow, parameters.rules_filename });
+    print(out, generator::all_matches{ shared_rules, shared_workflow, shared_sources, shared_diff });
   }
   catch (std::exception const& e) {
     std::cerr << e.what() << '\n';
