@@ -32,8 +32,7 @@ namespace generator {
   template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
   template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-  auto is_relevant_function(std::shared_future<feedback::workflow> const& shared_workflow,
-                            std::shared_future<scm::diff> const&          shared_diff) {
+  auto is_relevant(std::shared_future<feedback::workflow> const& shared_workflow, std::shared_future<scm::diff> const& shared_diff) {
     return [=](std::string_view filename) {
       auto const shared_file_changes = launch_async([=] { return shared_diff.get().changes_from(filename); }).share();
 
@@ -87,19 +86,18 @@ namespace generator {
 
   struct all_matches {
     std::shared_future<feedback::rules> const&          shared_rules;
-    std::shared_future<feedback::workflow> const&       shared_workflow;
     std::shared_future<std::vector<std::string>> const& shared_sources;
-    std::shared_future<scm::diff> const&                shared_diff;
   };
 
-  template <class FUNCTION> auto print(std::ostream& out, rule_in_source_matches matches, FUNCTION is_relevant) {
+  template <class FUNCTION>
+  auto print(std::ostream& out, rule_in_source_matches matches, FUNCTION is_rule_in_source_relevant) {
     auto const& [id, attributes] = matches.rule;
 
     auto search = text::forward_search{ matches.shared_content.get() };
 
     while (search.next_but(attributes.matched_text, attributes.ignored_text)) {
       auto const line_number = search.line() + 1;
-      if (not is_relevant(line_number))
+      if (not is_rule_in_source_relevant(line_number))
         continue;
 
       print(out, output::match{ id, line_number, search.highlighted_text(attributes.marked_text) });
@@ -120,9 +118,8 @@ namespace generator {
     });
   }
 
-  void print(std::ostream& out, all_matches matches) {
-    auto const  is_relevant = is_relevant_function(matches.shared_workflow, matches.shared_diff);
-    auto const& sources     = matches.shared_sources.get();
+  template <class FUNCTION> void print(std::ostream& out, all_matches matches, FUNCTION is_relevant) {
+    auto const& sources = matches.shared_sources.get();
 
     std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &out](std::string const& filename) {
       auto const shared_content = launch_async([=] { return content(filename); }).share();
@@ -165,20 +162,22 @@ namespace generator {
 } // namespace generator
 
 int main(int argc, char* argv[]) {
+  using namespace generator;
+
   std::ios::sync_with_stdio(false);
 
   std::stringstream out;
 
   try {
-    auto const parameters = generator::cli::parse(argc, argv);
+    auto const parameters = cli::parse(argc, argv);
 
-    auto const shared_diff     = generator::parse_diff_async(parameters.diff_filename).share();
-    auto const shared_rules    = generator::parse_rules_async(parameters.rules_filename).share();
-    auto const shared_workflow = generator::parse_workflow_async(parameters.workflow_filename).share();
-    auto const shared_sources  = generator::parse_sources_async(parameters.sources_filename).share();
+    auto const shared_diff     = parse_diff_async(parameters.diff_filename).share();
+    auto const shared_rules    = parse_rules_async(parameters.rules_filename).share();
+    auto const shared_workflow = parse_workflow_async(parameters.workflow_filename).share();
+    auto const shared_sources  = parse_sources_async(parameters.sources_filename).share();
 
-    print(out, generator::output::header{ shared_rules, shared_workflow, parameters.rules_filename });
-    print(out, generator::all_matches{ shared_rules, shared_workflow, shared_sources, shared_diff });
+    print(out, output::header{ shared_rules, shared_workflow, parameters.rules_filename });
+    print(out, all_matches{ shared_rules, shared_sources }, is_relevant(shared_workflow, shared_diff));
   }
   catch (std::exception const& e) {
     std::cerr << e.what() << '\n';
