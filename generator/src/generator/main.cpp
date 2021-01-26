@@ -165,8 +165,7 @@ int main(int argc, char* argv[]) {
   using namespace generator;
 
   std::ios::sync_with_stdio(false);
-
-  std::stringstream out;
+  cxx20::osyncstream out{std::cout};
 
   try {
     auto const parameters = cli::parse(argc, argv);
@@ -184,6 +183,5 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  std::cout << out.rdbuf();
   return 0;
 }
