@@ -37,6 +37,14 @@ Distributed under the [MIT](https://opensource.org/licenses/MIT) license.
 
 // end::goals[]
 
+== Principles
+
+// tag::principles[]
+
+https://kislayverma.com/platform-thinking/the-golden-rule-of-platforms/
+
+// end::principles[]
+
 == Using
 
 // tag::using[]
