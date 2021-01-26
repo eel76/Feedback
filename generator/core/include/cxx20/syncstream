@@ -16,7 +16,7 @@ namespace cxx20 {
 #else
   class osyncstream : public std::ostream {
   public:
-    explicit osyncstream(std::ostream& output_stream) : std::ostream(&buffer_), output_(output_stream) {
+    explicit osyncstream(std::ostream& output) : std::ostream(&buffer_), output_(output) {
     }
     ~osyncstream() {
       emit();
@@ -30,8 +30,10 @@ namespace cxx20 {
       using std::swap;
       swap(buffer, buffer_);
 
-      auto const locked = std::lock_guard{ locks[&output_] };
-      output_ << buffer.str();
+      auto const content = buffer.str();
+      auto const locked  = std::lock_guard{ locks[&output_] };
+
+      output_ << content;
     }
 
   private:
