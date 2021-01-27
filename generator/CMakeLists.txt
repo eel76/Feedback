@@ -67,6 +67,7 @@ if (BUILD_TESTING AND GENERATOR_BUILD_TESTS)
     "src/test.container.cpp"
     "src/test.main.cpp"
     "src/test.regex.cpp"
+    "src/test.syncstream.cpp"
     )
   target_link_libraries (${PROJECT_NAME}.test
     PRIVATE ${PROJECT_NAME}.core
