@@ -1,8 +1,13 @@
 cmake_policy (VERSION 3.15)
 
-find_package (Git REQUIRED)
+include (FeedbackPrivate)
 
-include ("${CMAKE_CURRENT_LIST_DIR}/feedback_private.cmake")
+if (TARGET feedback_module)
+  set_target_properties (feedback_module PROPERTIES LINKER_LANGUAGE "CXX")
+
+  target_sources (feedback_module PUBLIC "${CMAKE_CURRENT_LIST_DIR}/Feedback.cmake")
+  target_sources (feedback_module PRIVATE "${CMAKE_CURRENT_LIST_DIR}/FeedbackPrivate.cmake")
+endif ()
 
 function (Feedback_FindTargets targets_variable)
   cmake_parse_arguments (parameter "" "IMPORTED" "DIRECTORIES;TARGETS;TYPES" ${ARGN})

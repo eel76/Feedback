@@ -7,24 +7,30 @@ project (feedback_main
   LANGUAGES CXX
   )
 
-set (CMAKE_CXX_STANDARD 17)
-set (CMAKE_CXX_STANDARD_REQUIRED ON)
-set (CMAKE_CXX_EXTENSIONS OFF)
-
 if (NOT DEFINED FEEEBACK_MAIN_PROJECT)
   set (FEEEBACK_MAIN_PROJECT false)
 
   if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set (FEEEBACK_MAIN_PROJECT true)
-    set_property(GLOBAL PROPERTY USE_FOLDERS true)
-    include (CTest)
   endif ()
+endif ()
+
+if (FEEEBACK_MAIN_PROJECT)
+  include (CTest)
+  set_property(GLOBAL PROPERTY USE_FOLDERS true)
+  add_library (feedback_module STATIC EXCLUDE_FROM_ALL)
 endif ()
 
 option (FEEDBACK_BUILD_TESTS "Build tests for the feedback project." "${FEEEBACK_MAIN_PROJECT}")
 option (FEEDBACK_BUILD_EXAMPLES "Build examples for the feedback project." "${FEEEBACK_MAIN_PROJECT}")
 
-include ("module/feedback.cmake")
+set (CMAKE_CXX_STANDARD 17)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+set (CMAKE_CXX_EXTENSIONS OFF)
+
+list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/module")
+
+include (Feedback)
 
 # FIXME: add a target for this cmakelist.txt, the included cmake files, the README, ...
 

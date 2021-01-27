@@ -1,9 +1,5 @@
 cmake_policy (VERSION 3.15)
 
-define_property (TARGET PROPERTY EXCLUDED_FROM_FEEDBACK
-                 BRIEF_DOCS "exclude this target from feedback targets"
-                 FULL_DOCS "exclude this target from feedback targets")
-
 function (_Feedback_RelevantTargets relevant_targets_variable feedback_target)
   foreach (target IN LISTS ARGN)
     get_target_property (excluded_from_feedback "${target}" EXCLUDED_FROM_FEEDBACK)
@@ -256,6 +252,12 @@ function (AddFeedbackSourceForTarget feedback_target rules workflow diff target)
 endfunction ()
 
 function (_Feedback_Configure)
+  find_package (Git REQUIRED)
+
+  define_property (TARGET PROPERTY EXCLUDED_FROM_FEEDBACK
+                   BRIEF_DOCS "exclude this target from feedback targets"
+                   FULL_DOCS "exclude this target from feedback targets")
+
   # adding the generator as an external project is preferable because we
   #  * build the generator always in release configuration
   #  * do not inherit compile options from the client project
@@ -264,6 +266,8 @@ function (_Feedback_Configure)
   # even though we
   #  * have to define imported targets manually
   #  * will have a permanent build check
+
+  # FIXME: use feedback_module target instead of FEEDBACK_MAIN_PROJECT all_sources_variable?
 
   include (ExternalProject)
   ExternalProject_Add(generator-build
