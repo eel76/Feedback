@@ -1,4 +1,4 @@
-cmake_policy (VERSION 3.18)
+cmake_policy (VERSION 3.15)
 
 define_property (TARGET PROPERTY EXCLUDED_FROM_FEEDBACK
                  BRIEF_DOCS "exclude this target from feedback targets"
@@ -46,7 +46,12 @@ function (_Feedback_RelevantSourcesFromTargets all_sources_variable)
       get_filename_component (source "${source}" ABSOLUTE BASE_DIR "${source_dir}")
 
       # skip generated files
-      get_source_file_property (generated "${source}" TARGET_DIRECTORY "${target}" GENERATED)
+      unset (directory_scope)
+      if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
+        set (directory_scope TARGET_DIRECTORY "${target}")
+      endif ()
+
+      get_source_file_property (generated "${source}" ${directory_scope} GENERATED)
       if (generated)
         continue ()
       endif ()
