@@ -11,11 +11,11 @@ SCENARIO("regex tests", "[regex]") {
       THEN("it doesn't match an empty text") {
         auto const empty_text = "";
         REQUIRE(not any_regex.matches(empty_text));
-      }
 
-      THEN("it matches a non-empty text") {
-        auto const non_empty_text = "42";
-        REQUIRE(any_regex.matches(non_empty_text));
+        AND_THEN("it matches a non-empty text") {
+          auto const non_empty_text = "42";
+          REQUIRE(any_regex.matches(non_empty_text));
+        }
       }
     }
   }
