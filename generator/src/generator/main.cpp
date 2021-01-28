@@ -20,7 +20,7 @@ namespace generator {
 
   auto content(std::string const& filename) -> std::string {
     if (filename.empty())
-      return {};
+      throw std::invalid_argument{"empty filename"};
 
     auto input_stream = std::ifstream{ filename };
 
@@ -164,8 +164,7 @@ namespace generator {
 int main(int argc, char* argv[]) {
   using namespace generator;
 
-  std::ios::sync_with_stdio(false);
-  cxx20::osyncstream out{std::cout};
+  std::ostringstream out;
 
   try {
     auto const parameters = cli::parse(argc, argv);
@@ -183,5 +182,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  std::ios::sync_with_stdio(false);
+  std::cout << out.str();
   return 0;
 }
