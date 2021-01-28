@@ -30,9 +30,14 @@ namespace cxx20 {
       using std::swap;
       swap(buffer, buffer_);
 
+      // FIXME: according to our tests, the following code should be sufficient (and more efficient)
+      // however, the generator output files are not written reliably?!
+
+      //auto const locked  = std::lock_guard{ locks[&output_] };
+      //output_ << &buffer;
+
       auto const content = buffer.str();
       auto const locked  = std::lock_guard{ locks[&output_] };
-
       output_ << content;
     }
 
