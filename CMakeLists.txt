@@ -37,14 +37,12 @@ include (Feedback)
 if (FEEDBACK_BUILD_TESTS AND BUILD_TESTING)
   add_subdirectory(tests)
 
-  # also: build all examples like a client would do
+  # also as a test: build all examples like a client would do
 
   include (ExternalProject)
   ExternalProject_Add(examples-test
     SOURCE_DIR "${feedback_main_SOURCE_DIR}/examples"
     BINARY_DIR "${feedback_main_BINARY_DIR}/examples-test"
-#    CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release" "-DBUILD_TESTING=OFF"
-#    BUILD_COMMAND "${CMAKE_COMMAND}" "--build" "${CMAKE_CURRENT_BINARY_DIR}/examples-build" "--config" "Release"
     BUILD_ALWAYS "ON"
     INSTALL_COMMAND ""
     EXCLUDE_FROM_ALL OFF)
