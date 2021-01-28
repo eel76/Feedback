@@ -84,16 +84,16 @@ function (_Feedback_WriteFileList filename)
 endfunction ()
 
 function (_Feedback_Worktree worktree_variable)
-  cmake_parse_arguments (Worktree "" "HINT" "" ${ARGN})
+  cmake_parse_arguments (parameter "" "HINT" "" ${ARGN})
 
-  if (DEFINED Worktree_UNPARSED_ARGUMENTS)
-    message (FATAL_ERROR "Unparsed arguments: ${Worktree_UNPARSED_ARGUMENTS}")
+  if (DEFINED parameter_UNPARSED_ARGUMENTS)
+    message (FATAL_ERROR "Unparsed arguments: ${parameter_UNPARSED_ARGUMENTS}")
   endif ()
 
   set (worktree "${CMAKE_SOURCE_DIR}")
 
-  if (DEFINED Worktree_HINT)
-    set (worktree "${Worktree_HINT}")
+  if (DEFINED parameter_HINT)
+    set (worktree "${parameter_HINT}")
   endif ()
 
   while (NOT EXISTS "${worktree}/.git")
