@@ -157,7 +157,7 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
     OUTPUT "${feedback_source_dir}/${feedback_target}/${changes}.diff"
     COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${feedback_source_dir}/${feedback_target}/${changes}.diff"
     WORKING_DIRECTORY "${worktree}"
-    DEPENDS Git::Git "${repository}/.git/HEAD" "${repository}/.git/index" ${relevant_sources}
+    DEPENDS Git::Git "${repository}/.git/logs/HEAD" "${repository}/.git/HEAD" "${repository}/.git/FETCH_HEAD" "${repository}/.git/index" ${relevant_sources}
     )
 
   _Feedback_WriteFileIfDifferent ("${feedback_source_dir}/${feedback_target}/diff.cpp" "namespace { using dummy = void; }")
@@ -246,7 +246,7 @@ function (AddFeedbackSourceForTarget feedback_target rules workflow diff target)
   add_custom_command (
     OUTPUT "${feedback_source_dir}/${feedback_target}/${target}.cpp"
     COMMAND "$<TARGET_FILE:feedback-generator>" "--diff=${diff}" "${rules}" "${workflow}" "${feedback_source_dir}/${feedback_target}/${target}.sources.txt" ">" "${feedback_source_dir}/${feedback_target}/${target}.cpp"
-    DEPENDS feedback-generator "${rules}" "${workflow}" "${feedback_source_dir}/${feedback_target}/${target}.sources.txt" ${relevant_sources} # sic! no dependency to diff
+    DEPENDS feedback-generator "${rules}" "${workflow}" "${feedback_source_dir}/${feedback_target}/${target}.sources.txt" ${relevant_sources} # sic! no dependency to diff. really?
     )
   target_sources ("${feedback_target}" PRIVATE "${feedback_source_dir}/${feedback_target}/${target}.cpp")
 endfunction ()
