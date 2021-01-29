@@ -151,10 +151,12 @@ namespace generator {
   }
 
   auto parse_sources_async(std::string const& filename) {
-    // FIXME: line generator
     return launch_async([=] {
+      std::stringstream content;
+      content << std::ifstream{ filename }.rdbuf();
+
+      // FIXME: capture content and provide a generator instead of a vector
       auto sources = std::vector<std::string>{};
-      auto content = std::ifstream{ filename };
 
       for (std::string source; std::getline(content, source);)
         sources.emplace_back(source);
