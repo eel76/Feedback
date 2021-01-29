@@ -22,10 +22,8 @@ namespace generator {
     if (filename.empty())
       throw std::invalid_argument{ "empty filename" };
 
-    auto input_stream = std::ifstream{ filename };
-
-    std::stringstream content;
-    content << input_stream.rdbuf();
+    std::ostringstream content;
+    content << std::ifstream{ filename }.rdbuf();
     return content.str();
   }
 
