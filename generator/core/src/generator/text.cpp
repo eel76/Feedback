@@ -28,8 +28,8 @@ namespace generator::text {
   }
 
   auto forward_search::highlighted_text(regex::precompiled const& pattern) const -> excerpt {
-    if (auto search = forward_search{ matched_text() }; search.next(pattern))
-      return { matched_lines(), search.matched_text() };
+    if (auto highlighting = forward_search{ matched_text() }; highlighting.next(pattern))
+      return { matched_lines(), highlighting.matched_text() };
 
     return { matched_lines(), matched_text() };
   }
@@ -52,7 +52,7 @@ namespace generator::text {
 
   auto forward_search::next_but(regex::precompiled const& pattern, regex::precompiled const& ignored_pattern) -> bool {
     while (next(pattern))
-      if (not ignored_pattern.matches(matched_lines()))
+      if (not ignored_pattern.matches(matched_text()))
         return true;
 
     return false;
