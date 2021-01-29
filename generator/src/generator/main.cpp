@@ -20,7 +20,7 @@ namespace generator {
 
   auto content(std::string const& filename) -> std::string {
     if (filename.empty())
-      throw std::invalid_argument{"empty filename"};
+      throw std::invalid_argument{ "empty filename" };
 
     auto input_stream = std::ifstream{ filename };
 
@@ -131,6 +131,14 @@ namespace generator {
     });
   }
 
+  auto parse_workflow_async(std::string const& filename) {
+    return launch_async([=] {
+      if (not filename.empty())
+        return json::parse_workflow(content(filename));
+      return feedback::workflow{};
+    });
+  }
+
   auto parse_diff_async(std::string const& filename) {
     return launch_async([=] {
       scm::diff accumulated;
@@ -144,11 +152,8 @@ namespace generator {
     return launch_async([=] { return json::parse_rules(content(filename)); });
   }
 
-  auto parse_workflow_async(std::string const& filename) {
-    return launch_async([=] { return json::parse_workflow(content(filename)); });
-  }
-
   auto parse_sources_async(std::string const& filename) {
+    // FIXME: line generator
     return launch_async([=] {
       auto sources = std::vector<std::string>{};
       auto content = std::ifstream{ filename };
@@ -169,9 +174,9 @@ int main(int argc, char* argv[]) {
   try {
     auto const parameters = cli::parse(argc, argv);
 
+    auto const shared_workflow = parse_workflow_async(parameters.workflow_filename).share();
     auto const shared_diff     = parse_diff_async(parameters.diff_filename).share();
     auto const shared_rules    = parse_rules_async(parameters.rules_filename).share();
-    auto const shared_workflow = parse_workflow_async(parameters.workflow_filename).share();
     auto const shared_sources  = parse_sources_async(parameters.sources_filename).share();
 
     print(out, output::header{ shared_rules, shared_workflow, parameters.rules_filename });
