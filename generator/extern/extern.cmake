@@ -1,7 +1,5 @@
 cmake_policy (VERSION 3.15)
 
-include(FetchContent)
-
 function (Extern_FindTargets targets_variable)
   cmake_parse_arguments (parameter "" "IMPORTED" "DIRECTORIES;TYPES" ${ARGN})
 
@@ -48,9 +46,30 @@ function (Extern_FindTargets targets_variable)
 endfunction ()
 
 function (Extern_MakeAvailable package)
-  cmake_parse_arguments(parameter "" "SOURCE_DIR_VARIABLE" "" ${ARGN})
+  cmake_parse_arguments(parameter "" "GIT_REPOSITORY;GIT_TAG;GIT_SHALLOW;SOURCE_DIR_VARIABLE" "" ${ARGN})
 
-  FetchContent_Declare("${package}" ${parameter_UNPARSED_ARGUMENTS})
+  # CMake's GIT_SHALLOW is not shallow enough (https://gitlab.kitware.com/cmake/cmake/-/issues/17770) ... so we do it ourselves
+  if (parameter_GIT_REPOSITORY AND parameter_GIT_TAG AND parameter_GIT_SHALLOW)
+    string (MAKE_C_IDENTIFIER "${parameter_GIT_REPOSITORY}-${parameter_GIT_TAG}-src" package_src)
+    
+    if (NOT EXISTS "${FETCHCONTENT_BASE_DIR}/${package_src}")
+      execute_process (COMMAND "${GIT_EXECUTABLE}" clone --depth 1 --single-branch "--branch=${parameter_GIT_TAG}" "${parameter_GIT_REPOSITORY}" "${FETCHCONTENT_BASE_DIR}/${package_src}" ERROR_QUIET)
+      message (STATUS "Cloning into '${FETCHCONTENT_BASE_DIR}/${package_src}'...")
+    endif ()
+
+    FetchContent_Declare("${package}" SOURCE_DIR "${FETCHCONTENT_BASE_DIR}/${package_src}" ${parameter_UNPARSED_ARGUMENTS})
+  else ()
+    unset (passthrough_parameters)
+
+    foreach (option GIT_REPOSITORY GIT_TAG GIT_SHALLOW)
+      if (DEFINED parameter_${option})
+        list (APPEND passthrough_parameters "${option}" "${parameter_${option}}")
+      endif ()
+    endforeach ()
+
+    FetchContent_Declare("${package}" ${passthrough_parameters} ${parameter_UNPARSED_ARGUMENTS})
+  endif ()
+
   FetchContent_MakeAvailable("${package}")
 
   Extern_FindTargets (extern_targets DIRECTORIES "${${package}_SOURCE_DIR}")
