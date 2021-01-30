@@ -1,5 +1,9 @@
 cmake_policy (VERSION 3.15)
 
+if (TARGET modules_loaded)
+  target_sources (modules_loaded INTERFACE "${CMAKE_CURRENT_LIST_DIR}/FeedbackPrivate.cmake")
+endif ()
+
 function (_Feedback_RelevantTargets relevant_targets_variable feedback_target)
   foreach (target IN LISTS ARGN)
     get_target_property (excluded_from_feedback "${target}" EXCLUDED_FROM_FEEDBACK)

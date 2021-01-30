@@ -1,6 +1,13 @@
 cmake_policy (VERSION 3.15)
 
-function (Extern_FindTargets targets_variable)
+if (TARGET modules_loaded)
+  target_sources (modules_loaded INTERFACE "${CMAKE_CURRENT_LIST_FILE}")
+endif ()
+
+include (FetchContent)
+find_package (Git REQUIRED)
+
+function (_Generator_FindTargets targets_variable)
   cmake_parse_arguments (parameter "" "IMPORTED" "DIRECTORIES;TYPES" ${ARGN})
 
   if (DEFINED parameter_UNPARSED_ARGUMENTS)
@@ -37,7 +44,7 @@ function (Extern_FindTargets targets_variable)
     get_directory_property(subdirectories DIRECTORY "${directory}" SUBDIRECTORIES)
 
     if (subdirectories)
-      Extern_FindTargets (subdirectory_targets DIRECTORIES ${subdirectories} TYPES ${parameter_TYPES})
+      _Generator_FindTargets (subdirectory_targets DIRECTORIES ${subdirectories} TYPES ${parameter_TYPES})
       list (APPEND targets ${subdirectory_targets})
     endif ()
   endforeach ()
@@ -45,7 +52,7 @@ function (Extern_FindTargets targets_variable)
   set ("${targets_variable}" ${targets} PARENT_SCOPE)
 endfunction ()
 
-function (Extern_MakeAvailable package)
+function (_Generator_MakeAvailable package)
   cmake_parse_arguments(parameter "" "GIT_REPOSITORY;GIT_TAG;GIT_SHALLOW;SOURCE_DIR_VARIABLE" "" ${ARGN})
 
   # CMake's GIT_SHALLOW is not shallow enough (https://gitlab.kitware.com/cmake/cmake/-/issues/17770) ... so we do it ourselves
@@ -72,7 +79,7 @@ function (Extern_MakeAvailable package)
 
   FetchContent_MakeAvailable("${package}")
 
-  Extern_FindTargets (extern_targets DIRECTORIES "${${package}_SOURCE_DIR}")
+  _Generator_FindTargets (extern_targets DIRECTORIES "${${package}_SOURCE_DIR}")
   set_target_properties (${extern_targets} PROPERTIES FOLDER "extern/${package}")
 
   if (DEFINED parameter_SOURCE_DIR_VARIABLE)

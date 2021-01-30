@@ -2,11 +2,8 @@ cmake_policy (VERSION 3.15)
 
 include (FeedbackPrivate)
 
-if (TARGET feedback_module)
-  set_target_properties (feedback_module PROPERTIES LINKER_LANGUAGE "CXX")
-
-  target_sources (feedback_module PUBLIC "${CMAKE_CURRENT_LIST_DIR}/Feedback.cmake")
-  target_sources (feedback_module PRIVATE "${CMAKE_CURRENT_LIST_DIR}/FeedbackPrivate.cmake")
+if (TARGET modules_loaded)
+  target_sources (modules_loaded INTERFACE "${CMAKE_CURRENT_LIST_DIR}/Feedback.cmake")
 endif ()
 
 function (Feedback_FindTargets targets_variable)

@@ -2,21 +2,30 @@ cmake_minimum_required(VERSION 3.15)
 
 project (generator LANGUAGES CXX)
 
+if (NOT DEFINED GENERATOR_MAIN_PROJECT)
+  set (GENERATOR_MAIN_PROJECT false)
+
+  if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    set (GENERATOR_MAIN_PROJECT true)
+  endif ()
+endif ()
+
+option (GENERATOR_BUILD_TESTS "Build tests for the generator project." "${GENERATOR_MAIN_PROJECT}")
+
+if (GENERATOR_MAIN_PROJECT)
+  include (CTest)
+  set_property(GLOBAL PROPERTY USE_FOLDERS true)
+endif ()
+
 set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 set (CMAKE_CXX_EXTENSIONS OFF)
 
-if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-  include (CTest)
-  set_property(GLOBAL PROPERTY USE_FOLDERS true)
+list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/module")
 
-  set (GENERATOR_BUILD_TESTS ON CACHE INTERNAL "")
-else ()
-  option (GENERATOR_BUILD_TESTS "Enable testing for ${PROJECT_NAME} project." OFF)
-endif ()
+add_subdirectory ("extern")
 
 find_package (Threads REQUIRED)
-add_subdirectory (extern)
 
 add_library (${PROJECT_NAME}.core STATIC
   "core/src/generator/json.cpp"
@@ -63,6 +72,7 @@ target_include_directories (${PROJECT_NAME}
   )
 
 if (BUILD_TESTING AND GENERATOR_BUILD_TESTS)
+  # FIXME: add a tests folder
   add_executable (${PROJECT_NAME}.test
     "src/test.container.cpp"
     "src/test.main.cpp"

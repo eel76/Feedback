@@ -1,0 +1,1 @@
+namespace { using dummy = void; }

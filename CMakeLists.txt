@@ -15,14 +15,14 @@ if (NOT DEFINED FEEEBACK_MAIN_PROJECT)
   endif ()
 endif ()
 
+option (FEEDBACK_BUILD_TESTS "Build tests for the feedback project." "${FEEEBACK_MAIN_PROJECT}")
+option (FEEDBACK_BUILD_EXAMPLES "Build examples for the feedback project." "${FEEEBACK_MAIN_PROJECT}")
+
 if (FEEEBACK_MAIN_PROJECT)
   include (CTest)
   set_property(GLOBAL PROPERTY USE_FOLDERS true)
-  add_library (feedback_module STATIC EXCLUDE_FROM_ALL)
+  add_library (modules_loaded INTERFACE)
 endif ()
-
-option (FEEDBACK_BUILD_TESTS "Build tests for the feedback project." "${FEEEBACK_MAIN_PROJECT}")
-option (FEEDBACK_BUILD_EXAMPLES "Build examples for the feedback project." "${FEEEBACK_MAIN_PROJECT}")
 
 set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -62,6 +62,9 @@ if (FEEEBACK_MAIN_PROJECT)
   add_subdirectory("generator")
 
   Feedback_GroupTargets (DIRECTORIES "generator" FOLDER "generator")
+
+  add_library (feedback_module STATIC EXCLUDE_FROM_ALL "module/dummy.cpp")
+  target_link_libraries (feedback_module PRIVATE modules_loaded)
 
   Feedback_Exclude (project_guidelines DIRECTORIES "generator/extern")
   Feedback_Add (project_guidelines RULES project_guidelines.json DIRECTORIES "${CMAKE_SOURCE_DIR}")
