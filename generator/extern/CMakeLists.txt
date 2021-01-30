@@ -8,6 +8,7 @@ include(extern.cmake)
 Extern_MakeAvailable (fmt GIT_REPOSITORY "https://github.com/fmtlib/fmt.git" GIT_TAG 7.1.3 GIT_SHALLOW ON)
 Extern_MakeAvailable (lyra GIT_REPOSITORY "https://github.com/bfgroup/Lyra.git" GIT_TAG 1.5.1 GIT_SHALLOW ON)
 
+set (JSON_BuildTests OFF CACHE BOOL "")
 Extern_MakeAvailable (nlohmann_json GIT_REPOSITORY "https://github.com/nlohmann/json.git" GIT_TAG v3.9.1 GIT_SHALLOW ON)
 
 set (RE2_BUILD_TESTING OFF CACHE BOOL "")
