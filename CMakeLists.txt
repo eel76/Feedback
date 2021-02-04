@@ -63,8 +63,10 @@ if (FEEEBACK_MAIN_PROJECT)
 
   Feedback_GroupTargets (DIRECTORIES "generator" FOLDER "generator")
 
-  add_library (feedback_module STATIC EXCLUDE_FROM_ALL "module/dummy.cpp")
+  add_library (feedback_module STATIC EXCLUDE_FROM_ALL)
   target_link_libraries (feedback_module PRIVATE modules_loaded)
+
+  target_sources (feedback_module PRIVATE "module/dummy.cpp")
 
   set ("FEEDBACK_GUIDELINES_WORKFLOW" "maintainer" CACHE STRING "Workflow for feedback project guidelines")
   set_property (CACHE "FEEDBACK_GUIDELINES_WORKFLOW" PROPERTY STRINGS "maintainer" "disabled")

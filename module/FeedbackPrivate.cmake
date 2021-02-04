@@ -26,12 +26,69 @@ function (_Feedback_SourceDir source_dir_variable)
   set (${source_dir_variable} "${CMAKE_BINARY_DIR}/feedback" PARENT_SCOPE)
 endfunction ()
 
-function (_Feedback_RelevantSourcesFromTargets all_sources_variable)
+function (_Feedback_InterfaceSources all_sources_variable)
   unset (all_sources)
 
   foreach (target IN LISTS ARGN)
-    get_target_property (sources ${target} SOURCES)
-    get_target_property (source_dir ${target} SOURCE_DIR)
+    get_target_property (link_libraries "${target}" LINK_LIBRARIES)
+
+    if (NOT link_libraries)
+      continue ()
+    endif ()
+
+    foreach (library IN LISTS link_libraries)
+      if (NOT TARGET "${library}")
+        continue ()
+      endif ()
+
+      get_target_property (interface_sources "${library}" INTERFACE_SOURCES)
+
+      if (NOT interface_sources)
+        continue ()
+      endif ()
+
+      unset (library_sources)
+
+      foreach (source IN LISTS interface_sources)
+
+        # skip generator expressions
+        if (source MATCHES "^[$][<].+[>]$")
+          continue ()
+        endif ()
+
+        # skip generated files
+        unset (directory_scope)
+        if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
+          set (directory_scope TARGET_DIRECTORY "${target}")
+        endif ()
+
+        get_source_file_property (generated "${source}" ${directory_scope} GENERATED)
+
+        if (generated)
+          continue ()
+        endif ()
+
+        list (APPEND library_sources "${source}")
+      endforeach ()
+
+      list (APPEND all_sources ${library_sources})
+    endforeach ()
+  endforeach ()
+
+  set ("${all_sources_variable}" ${all_sources} PARENT_SCOPE)
+endfunction ()
+
+function (_Feedback_RelevantSourcesFromTargets all_sources_variable)
+  _Feedback_InterfaceSources (all_sources ${ARGN})
+
+  foreach (target IN LISTS ARGN)
+    get_target_property (sources "${target}" SOURCES)
+
+    if (NOT sources)
+      continue ()
+    endif ()
+
+    get_target_property (source_dir "${target}" SOURCE_DIR)
 
     unset (target_sources)
 
@@ -52,6 +109,7 @@ function (_Feedback_RelevantSourcesFromTargets all_sources_variable)
       endif ()
 
       get_source_file_property (generated "${source}" ${directory_scope} GENERATED)
+
       if (generated)
         continue ()
       endif ()
