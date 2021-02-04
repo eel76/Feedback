@@ -59,6 +59,13 @@ endfunction ()
 function (Feedback_Exclude name)
   cmake_parse_arguments (parameter "" "" "" ${ARGN})
 
+  string (MAKE_C_IDENTIFIER "${name}" feedback_target_library)
+  string (TOLOWER "${feedback_target_library}" feedback_target_library)
+
+  if (TARGET "${feedback_target_library}")
+    message (AUTHOR_WARNING "Excluding targets *after* feedback '${name}' has already been added has no effect.")
+  endif ()
+
   Feedback_FindTargets (targets ${parameter_UNPARSED_ARGUMENTS})
 
   foreach (target IN LISTS targets)
@@ -69,7 +76,7 @@ function (Feedback_Exclude name)
     endif ()
 
     list (APPEND excluded_from_feedback "(^${name}$)")
-    set_target_properties ("${target}" PROPERTIES EXCLUDED_FROM_FEEDBACK ${excluded_from_feedback})
+    set_target_properties ("${target}" PROPERTIES EXCLUDED_FROM_FEEDBACK "${excluded_from_feedback}")
   endforeach ()
 endfunction ()
 
