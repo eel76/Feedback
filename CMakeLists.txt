@@ -37,7 +37,7 @@ include (Feedback)
 if (FEEDBACK_BUILD_TESTS AND BUILD_TESTING)
   add_subdirectory(tests)
 
-  # also as a test: build all examples like a client would do
+  # another test scenario: build all examples like a project user would do
 
   include (ExternalProject)
   ExternalProject_Add(examples-test
@@ -66,6 +66,9 @@ if (FEEEBACK_MAIN_PROJECT)
   add_library (feedback_module STATIC EXCLUDE_FROM_ALL "module/dummy.cpp")
   target_link_libraries (feedback_module PRIVATE modules_loaded)
 
-  Feedback_Exclude (project_guidelines DIRECTORIES "generator/extern")
-  Feedback_Add (project_guidelines RULES project_guidelines.json DIRECTORIES "${CMAKE_SOURCE_DIR}")
+  set ("FEEDBACK_GUIDELINES_WORKFLOW" "maintainer" CACHE STRING "Workflow for feedback project guidelines")
+  set_property (CACHE "FEEDBACK_GUIDELINES_WORKFLOW" PROPERTY STRINGS "maintainer" "disabled")
+
+  Feedback_Exclude ("Project guidelines" DIRECTORIES "generator/extern")
+  Feedback_Add ("Project guidelines" RULES "doc/guidelines/rules.json" WORKFLOW "doc/guidelines/${FEEDBACK_GUIDELINES_WORKFLOW}_workflow.json" DIRECTORIES "${CMAKE_SOURCE_DIR}")
 endif ()

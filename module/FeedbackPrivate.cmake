@@ -123,17 +123,15 @@ function (_Feedback_Repository repository_variable)
   set (${repository_variable} "${worktree}" PARENT_SCOPE)
 endfunction ()
 
-function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow changes)
+function (ConfigureFeedbackTargetFromTargets name rules workflow changes)
 
-  _Feedback_RelevantTargets (relevant_targets "${feedback_target}" ${ARGN})
+  _Feedback_RelevantTargets (relevant_targets "${name}" ${ARGN})
 
   if (NOT relevant_targets)
     return ()
   endif ()
 
   find_package(Git REQUIRED)
-
-  _Feedback_SourceDir (feedback_source_dir)
 
     # FIXME: read HEAD file and parse ref, depend on that ref, too!
 #    file (GLOB_RECURSE refs CONFIGURE_DEPENDS "${repository}/.git/refs/*")
@@ -152,22 +150,27 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
 #      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
 #      )
 
+  _Feedback_SourceDir (feedback_source_dir)
+
   _Feedback_Worktree (worktree)
   _Feedback_Repository (repository HINT "${worktree}")
 
   _Feedback_RelevantSourcesFromTargets (relevant_sources ${relevant_targets})
 
+  string (MAKE_C_IDENTIFIER "${name}-diff" feedback_target_diff)
+  string (TOLOWER "${feedback_target_diff}" feedback_target_diff)
+
   add_custom_command (
-    OUTPUT "${feedback_source_dir}/${feedback_target}/${changes}.diff"
-    COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${feedback_source_dir}/${feedback_target}/${changes}.diff"
+    OUTPUT "${feedback_source_dir}/${feedback_target_diff}/${changes}.diff"
+    COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${feedback_source_dir}/${feedback_target_diff}/${changes}.diff"
     WORKING_DIRECTORY "${worktree}"
     DEPENDS Git::Git "${repository}/.git/logs/HEAD" "${repository}/.git/HEAD" "${repository}/.git/FETCH_HEAD" "${repository}/.git/index" ${relevant_sources}
     )
 
-  _Feedback_WriteFileIfDifferent ("${feedback_source_dir}/${feedback_target}/diff.cpp" "namespace { using dummy = void; }")
+  _Feedback_WriteFileIfDifferent ("${feedback_source_dir}/${feedback_target_diff}/diff.cpp" "namespace { using dummy = void; }")
 
-  add_library ("DIFF_${feedback_target}" STATIC EXCLUDE_FROM_ALL "${feedback_source_dir}/${feedback_target}/diff.cpp" "${feedback_source_dir}/${feedback_target}/${changes}.diff")
-  set_target_properties ("DIFF_${feedback_target}" PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
+  add_library ("${feedback_target_diff}" STATIC EXCLUDE_FROM_ALL "${feedback_source_dir}/${feedback_target_diff}/diff.cpp" "${feedback_source_dir}/${feedback_target_diff}/${changes}.diff")
+  set_target_properties ("${feedback_target_diff}" PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
 
   # target_sources ("DIFF_${feedback_target}" INTERFACE "${feedback_source_dir}/DIFF/${feedback_target}.diff")
   # add_dependencies (DIFF "DIFF_${feedback_target}")
@@ -204,55 +207,33 @@ function (ConfigureFeedbackTargetFromTargets feedback_target rules workflow chan
 #      BYPRODUCTS "${feedback_source_dir}/all.diff"
 #      )
 
-  _Feedback_WriteWorkflow ("${feedback_source_dir}/${feedback_target}/workflow.json" "${workflow}")
+  string (MAKE_C_IDENTIFIER "${name}" feedback_target_library)
+  string (TOLOWER "${feedback_target_library}" feedback_target_library)
 
-  add_library ("${feedback_target}" STATIC EXCLUDE_FROM_ALL)
-  target_sources ("${feedback_target}" PRIVATE "${rules}" "${feedback_source_dir}/${feedback_target}/workflow.json")
+  add_library ("${feedback_target_library}" STATIC EXCLUDE_FROM_ALL)
+  add_dependencies ("${feedback_target_library}" "${feedback_target_diff}")
+
+  target_sources ("${feedback_target_library}" PRIVATE "${rules}" "${workflow}")
 
   foreach (target IN LISTS relevant_targets)
-    AddFeedbackSourceForTarget ("${feedback_target}" "${rules}" "${feedback_source_dir}/${feedback_target}/workflow.json" "${feedback_source_dir}/${feedback_target}/${changes}.diff" "${target}")
-    add_dependencies ("${target}" "${feedback_target}")
-    add_dependencies ("${feedback_target}" "DIFF_${feedback_target}")
+    _Feedback_RelevantSourcesFromTargets (relevant_sources "${target}")
+    _Feedback_WriteFileList ("${feedback_source_dir}/${feedback_target_library}/${target}.sources.txt" ${relevant_sources})
+
+    add_custom_command (
+      OUTPUT "${feedback_source_dir}/${feedback_target_library}/${target}.cpp"
+      COMMAND "$<TARGET_FILE:feedback-generator>" "--workflow=${workflow}" "--diff=${feedback_source_dir}/${feedback_target_diff}/${changes}.diff" "${rules}" "${feedback_source_dir}/${feedback_target_library}/${target}.sources.txt" ">" "${feedback_source_dir}/${feedback_target_library}/${target}.cpp"
+      DEPENDS feedback-generator "${rules}" "${workflow}" "${feedback_source_dir}/${feedback_target_library}/${target}.sources.txt" ${relevant_sources} # sic! no dependency to diff. really?
+      )
+    target_sources ("${feedback_target_library}" PRIVATE "${feedback_source_dir}/${feedback_target_library}/${target}.cpp")
+
+    # FIXME: should we link against feedback_target_library?
+    add_dependencies ("${target}" "${feedback_target_library}")
   endforeach()
 
-  target_compile_options("${feedback_target}" PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
-  target_compile_options("${feedback_target}" PRIVATE $<$<CXX_COMPILER_ID:MSVC>:-WX->)
+  target_compile_options("${feedback_target_library}" PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wno-error>)
+  target_compile_options("${feedback_target_library}" PRIVATE $<$<CXX_COMPILER_ID:MSVC>:-WX->)
 
-  set_target_properties ("${feedback_target}" PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
-endfunction ()
-
-function (_Feedback_WriteWorkflow filename workflow)
-  unset (content)
-  unset (separator)
-
-  string (APPEND content "{\n")
-
-  foreach (type IN LISTS "FEEDBACK_WORKFLOW_${workflow}_TYPES")
-    string (APPEND content "${separator}")
-    set (separator ",\n")
-
-    string (APPEND content "  \"${type}\": {\n")
-    string (APPEND content "    \"check\": \"${FEEDBACK_WORKFLOW_${workflow}_CHECK_${type}}\",\n")
-    string (APPEND content "    \"response\": \"${FEEDBACK_WORKFLOW_${workflow}_RESPONSE_${type}}\"\n")
-    string (APPEND content "  }")
-  endforeach()
-
-  string (APPEND content "\n}")
-
-  _Feedback_WriteFileIfDifferent ("${filename}" "${content}")
-endfunction ()
-
-function (AddFeedbackSourceForTarget feedback_target rules workflow diff target)
-  _Feedback_SourceDir (feedback_source_dir)
-  _Feedback_RelevantSourcesFromTargets (relevant_sources "${target}")
-  _Feedback_WriteFileList ("${feedback_source_dir}/${feedback_target}/${target}.sources.txt" ${relevant_sources})
-
-  add_custom_command (
-    OUTPUT "${feedback_source_dir}/${feedback_target}/${target}.cpp"
-    COMMAND "$<TARGET_FILE:feedback-generator>" "--workflow=${workflow}" "--diff=${diff}" "${rules}" "${feedback_source_dir}/${feedback_target}/${target}.sources.txt" ">" "${feedback_source_dir}/${feedback_target}/${target}.cpp"
-    DEPENDS feedback-generator "${rules}" "${workflow}" "${feedback_source_dir}/${feedback_target}/${target}.sources.txt" ${relevant_sources} # sic! no dependency to diff. really?
-    )
-  target_sources ("${feedback_target}" PRIVATE "${feedback_source_dir}/${feedback_target}/${target}.cpp")
+  set_target_properties ("${feedback_target_library}" PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
 endfunction ()
 
 function (_Feedback_Configure)
