@@ -1,0 +1,18 @@
+{
+  "requirement": {
+    "check": "all_lines",
+    "response": "error"
+  },
+  "guideline": {
+    "check": "all_lines",
+    "response": "warning"
+  },
+  "improvement": {
+    "check": "all_lines",
+    "response": "warning"
+  },
+  "suggestion": {
+    "check": "changed_files",
+    "response": "warning"
+  }
+}
