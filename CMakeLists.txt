@@ -69,7 +69,7 @@ if (FEEEBACK_MAIN_PROJECT)
   target_sources (feedback_module PRIVATE "module/dummy.cpp")
 
   set ("FEEDBACK_GUIDELINES_WORKFLOW" "maintainer" CACHE STRING "Workflow for feedback project guidelines")
-  set_property (CACHE "FEEDBACK_GUIDELINES_WORKFLOW" PROPERTY STRINGS "maintainer" "disabled")
+  set_property (CACHE "FEEDBACK_GUIDELINES_WORKFLOW" PROPERTY STRINGS "maintainer" "just_my_code")
 
   Feedback_Exclude ("Project guidelines" DIRECTORIES "generator/extern")
   Feedback_Add ("Project guidelines" RULES "doc/guidelines/rules.json" WORKFLOW "doc/guidelines/${FEEDBACK_GUIDELINES_WORKFLOW}_workflow.json" DIRECTORIES "${CMAKE_SOURCE_DIR}")
