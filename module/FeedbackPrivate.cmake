@@ -26,21 +26,41 @@ function (_Feedback_SourceDir source_dir_variable)
   set (${source_dir_variable} "${CMAKE_BINARY_DIR}/feedback" PARENT_SCOPE)
 endfunction ()
 
-function (_Feedback_InterfaceSources all_sources_variable)
-  unset (all_sources)
+function (_Feedback_LinkLibraries libraries_variable target)
+  unset (libraries)
 
-  foreach (target IN LISTS ARGN)
-    get_target_property (link_libraries "${target}" LINK_LIBRARIES)
+  get_target_property (link_libraries "${target}" LINK_LIBRARIES)
 
-    if (NOT link_libraries)
-      continue ()
-    endif ()
-
+  if (link_libraries)
     foreach (library IN LISTS link_libraries)
       if (NOT TARGET "${library}")
         continue ()
       endif ()
 
+      get_target_property (interface_link_libraries "${library}" INTERFACE_LINK_LIBRARIES)
+
+      foreach (interface_library IN LISTS interface_link_libraries)
+        if (NOT TARGET "${interface_library}")
+          continue ()
+        endif ()
+
+        list (APPEND libraries "${interface_library}")
+      endforeach ()
+
+      list (APPEND libraries "${library}")
+    endforeach ()
+  endif ()
+ 
+  set ("${libraries_variable}" ${libraries} PARENT_SCOPE)
+endfunction ()
+
+function (_Feedback_InterfaceSources all_sources_variable)
+  unset (all_sources)
+
+  foreach (target IN LISTS ARGN)
+    _Feedback_LinkLibraries (link_libraries "${target}")
+
+    foreach (library IN LISTS link_libraries)
       get_target_property (interface_sources "${library}" INTERFACE_SOURCES)
 
       if (NOT interface_sources)
