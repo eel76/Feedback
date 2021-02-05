@@ -114,20 +114,18 @@ function (Feedback_Add name)
   endif ()
 
   if (NOT DEFINED parameter_RELEVANT_CHANGES)
-    set (parameter_RELEVANT_CHANGES "configurable")
+    set (parameter_RELEVANT_CHANGES "default")
+  endif ()
+
+  # FIXME: move to implementation
+  if (parameter_RELEVANT_CHANGES STREQUAL "default")
+    set (parameter_RELEVANT_CHANGES "modified_or_staged")
   endif ()
 
   Feedback_FindTargets (targets ${parameter_UNPARSED_ARGUMENTS})
 
   if (NOT targets)
     message (FATAL_ERROR "No targets given.")
-  endif ()
-
-  if (parameter_RELEVANT_CHANGES STREQUAL "configurable")
-    set ("${name}_RELEVANT_CHANGES" "modified_or_staged" CACHE STRING "Relevant changes for '${name}' feedback")
-    set_property(CACHE "${name}_RELEVANT_CHANGES" PROPERTY STRINGS "all" "modified" "modified_or_staged" "staged" "staged_or_committed" "committed")
-
-    set (parameter_RELEVANT_CHANGES "${${name}_RELEVANT_CHANGES}")
   endif ()
 
   get_filename_component (parameter_RULES "${parameter_RULES}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")

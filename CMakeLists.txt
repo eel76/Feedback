@@ -71,6 +71,9 @@ if (FEEEBACK_MAIN_PROJECT)
   set ("FEEDBACK_GUIDELINES_WORKFLOW" "maintainer" CACHE STRING "Workflow for feedback project guidelines")
   set_property (CACHE "FEEDBACK_GUIDELINES_WORKFLOW" PROPERTY STRINGS "maintainer" "just_my_code")
 
+  set ("FEEDBACK_GUIDELINES_RELEVANT_CHANGES" "default" CACHE STRING "Relevant changes for feedback project guidelines")
+  set_property(CACHE "FEEDBACK_GUIDELINES_RELEVANT_CHANGES" PROPERTY STRINGS "default" "all" "modified" "modified_or_staged" "staged" "staged_or_committed" "committed")
+
   Feedback_Exclude ("Project guidelines" DIRECTORIES "generator/extern")
-  Feedback_Add ("Project guidelines" RULES "doc/guidelines/rules.json" WORKFLOW "doc/guidelines/${FEEDBACK_GUIDELINES_WORKFLOW}_workflow.json" DIRECTORIES "${CMAKE_SOURCE_DIR}")
+  Feedback_Add ("Project guidelines" RULES "doc/guidelines/rules.json" WORKFLOW "doc/guidelines/${FEEDBACK_GUIDELINES_WORKFLOW}_workflow.json" RELEVANT_CHANGES "${FEEDBACK_GUIDELINES_RELEVANT_CHANGES}" DIRECTORIES "${CMAKE_SOURCE_DIR}")
 endif ()
