@@ -14,7 +14,17 @@ namespace generator::feedback {
     feedback::response response{ response::MESSAGE };
   };
 
-  using workflow = std::unordered_map<std::string, handling>;
+  using handlings = std::unordered_map<std::string, handling>;
+
+  class workflow {
+  public:
+    explicit workflow(feedback::handlings handlings = {});
+
+    auto operator[](std::string const& type) const -> handling;
+
+  private:
+    handlings handlings_;
+  };
 
   struct rule {
     std::string        type;

@@ -1,18 +1,6 @@
 {
-  "requirement": {
+  "default": {
     "check": "no_lines",
-    "response": "error"
-  },
-  "guideline": {
-    "check": "no_lines",
-    "response": "warning"
-  },
-  "improvement": {
-    "check": "no_lines",
-    "response": "warning"
-  },
-  "suggestion": {
-    "check": "no_lines",
-    "response": "warning"
+    "response": "none"
   }
 }

@@ -3,15 +3,7 @@
     "check": "changed_files",
     "response": "error"
   },
-  "guideline": {
-    "check": "changed_lines",
-    "response": "warning"
-  },
-  "improvement": {
-    "check": "changed_lines",
-    "response": "warning"
-  },
-  "suggestion": {
+  "default": {
     "check": "changed_lines",
     "response": "warning"
   }

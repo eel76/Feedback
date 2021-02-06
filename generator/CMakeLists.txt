@@ -28,6 +28,7 @@ add_subdirectory ("extern")
 find_package (Threads REQUIRED)
 
 add_library (${PROJECT_NAME}.core STATIC
+  "core/src/generator/feedback.cpp"
   "core/src/generator/json.cpp"
   "core/src/generator/output.cpp"
   "core/src/generator/regex.cpp"

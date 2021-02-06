@@ -44,7 +44,9 @@ namespace generator {
         auto line_is_relevant = std::function<bool(int)>{ [](auto) { return true; } };
 
         if (file_is_relevant) {
-          switch (container::value_or_default(shared_workflow.get(), attributes.type).check) {
+          auto const& workflow = shared_workflow.get();
+
+          switch (workflow[attributes.type].check) {
           case feedback::check::NO_LINES:
             [[fallthrough]];
           case feedback::check::NO_FILES:

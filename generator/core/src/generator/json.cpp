@@ -39,7 +39,7 @@ namespace generator::json {
     return nlohmann::json::parse(json).get<feedback::rules>();
   }
   auto parse_workflow(std::string_view json) -> feedback::workflow {
-    return nlohmann::json::parse(json).get<feedback::workflow>();
+    return feedback::workflow{ nlohmann::json::parse(json).get<feedback::handlings>() };
   }
   auto to_string(feedback::response response) -> std::string {
     auto const dump = nlohmann::json{ response }.dump();
