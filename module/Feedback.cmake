@@ -110,16 +110,15 @@ function (Feedback_Add name)
   endif ()
 
   if (NOT DEFINED parameter_WORKFLOW)
-    set (parameter_WORKFLOW "${feedback_main_SOURCE_DIR}/module/default_workflow.json")
+    get_property(parameter_WORKFLOW GLOBAL PROPERTY FEEDBACK_DEFAULT_WORKFLOW)
   endif ()
 
   if (NOT DEFINED parameter_RELEVANT_CHANGES)
     set (parameter_RELEVANT_CHANGES "default")
   endif ()
 
-  # FIXME: move to implementation
   if (parameter_RELEVANT_CHANGES STREQUAL "default")
-    set (parameter_RELEVANT_CHANGES "modified_or_staged")
+    get_property(parameter_RELEVANT_CHANGES GLOBAL PROPERTY FEEDBACK_DEFAULT_RELEVANT_CHANGES)
   endif ()
 
   Feedback_FindTargets (targets ${parameter_UNPARSED_ARGUMENTS})
@@ -133,6 +132,22 @@ function (Feedback_Add name)
 
   message (STATUS "Adding feedback: ${name}")
   ConfigureFeedbackTargetFromTargets ("${name}" "${parameter_RULES}" "${parameter_WORKFLOW}" "${parameter_RELEVANT_CHANGES}" ${targets})
+endfunction ()
+
+function (Feedback_SetDefaults)
+  cmake_parse_arguments (parameter "" "WORKFLOW;RELEVANT_CHANGES" "" ${ARGN})
+
+  if (DEFINED parameter_UNPARSED_ARGUMENTS)
+    message (FATAL_ERROR "Unparsed arguments: ${parameter_UNPARSED_ARGUMENTS}")
+  endif ()
+
+  if (DEFINED parameter_WORKFLOW)
+    set_property(GLOBAL PROPERTY FEEDBACK_DEFAULT_WORKFLOW "${parameter_WORKFLOW}")
+  endif ()
+
+  if (DEFINED parameter_RELEVANT_CHANGES)
+    set_property(GLOBAL PROPERTY FEEDBACK_DEFAULT_RELEVANT_CHANGES "${parameter_RELEVANT_CHANGES}")
+  endif ()
 endfunction ()
 
 #  Feedback_AddWorkflow (ci)

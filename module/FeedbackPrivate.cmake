@@ -321,6 +321,17 @@ function (_Feedback_Configure)
                    BRIEF_DOCS "exclude this target from feedback targets"
                    FULL_DOCS "exclude this target from feedback targets")
 
+  define_property (GLOBAL PROPERTY FEEDBACK_DEFAULT_WORKFLOW
+                   BRIEF_DOCS "default workflow for feedback"
+                   FULL_DOCS "default workflow for feedback")
+
+  define_property (GLOBAL PROPERTY FEEDBACK_DEFAULT_RELEVANT_CHANGES
+                   BRIEF_DOCS "default relevant changes for feedback"
+                   FULL_DOCS "default relevant changes for feedback")
+
+set_property(GLOBAL PROPERTY FEEDBACK_DEFAULT_WORKFLOW "${feedback_main_SOURCE_DIR}/module/default_workflow.json")
+set_property(GLOBAL PROPERTY FEEDBACK_DEFAULT_RELEVANT_CHANGES "modified_or_staged")
+
   # adding the generator as an external project is preferable because we
   #  * build the generator always in release configuration
   #  * do not inherit compile options from the client project
