@@ -211,23 +211,6 @@ function (ConfigureFeedbackTargetFromTargets name rules workflow changes)
 
   find_package(Git REQUIRED)
 
-    # FIXME: read HEAD file and parse ref, depend on that ref, too!
-#    file (GLOB_RECURSE refs CONFIGURE_DEPENDS "${repository}/.git/refs/*")
-
-#    add_custom_command (
-#      OUTPUT "${feedback_source_dir}/all.diff"
-#      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@{push}" ">" "${feedback_source_dir}/all.diff"
-#      WORKING_DIRECTORY "${worktree}"
-#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
-#      )
-
-#    add_custom_command (
-#      OUTPUT "${feedback_source_dir}/modified.diff"
-#      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" ">" "${feedback_source_dir}/modified.diff"
-#      WORKING_DIRECTORY "${worktree}"
-#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
-#      )
-
   _Feedback_SourceDir (feedback_source_dir)
 
   _Feedback_Worktree (worktree)
@@ -238,52 +221,68 @@ function (ConfigureFeedbackTargetFromTargets name rules workflow changes)
   string (MAKE_C_IDENTIFIER "${name}-diff" feedback_target_diff)
   string (TOLOWER "${feedback_target_diff}" feedback_target_diff)
 
+  set (WORKING_DIRECTORY "${worktree}")
+  set (UNTRACKED_FILES_DIFF "${feedback_source_dir}/${feedback_target_diff}/untracked.diff")
+
+  configure_file ("${feedback_main_SOURCE_DIR}/module/diff-untracked-files.cmake" "${feedback_source_dir}/${feedback_target_diff}/diff-untracked-files.cmake" @ONLY)
+
+  add_library ("${feedback_target_diff}" STATIC EXCLUDE_FROM_ALL)
+
   add_custom_command (
-    OUTPUT "${feedback_source_dir}/${feedback_target_diff}/${changes}.diff"
-    COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" ">" "${feedback_source_dir}/${feedback_target_diff}/${changes}.diff"
-    WORKING_DIRECTORY "${worktree}"
-    DEPENDS Git::Git "${repository}/.git/logs/HEAD" "${repository}/.git/HEAD" "${repository}/.git/FETCH_HEAD" "${repository}/.git/index" ${relevant_sources}
+    OUTPUT "${UNTRACKED_FILES_DIFF}"
+    COMMAND "${CMAKE_COMMAND}" "-P" "${feedback_source_dir}/${feedback_target_diff}/diff-untracked-files.cmake"
+    WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+    DEPENDS "${repository}/.git/index" ${relevant_sources}
     )
 
-  _Feedback_WriteFileIfDifferent ("${feedback_source_dir}/${feedback_target_diff}/diff.cpp" "namespace { using dummy = void; }")
+  add_custom_command (
+    OUTPUT "${feedback_source_dir}/${feedback_target_diff}/all.diff"
+    COMMAND "${CMAKE_COMMAND}" "-E" "cat" "${UNTRACKED_FILES_DIFF}" > "${feedback_source_dir}/${feedback_target_diff}/all.diff"
+    COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@{push}" >> "${feedback_source_dir}/${feedback_target_diff}/all.diff"
+    WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+    DEPENDS Git::Git "${repository}/.git/FETCH_HEAD" "${UNTRACKED_FILES_DIFF}"
+    )
 
-  add_library ("${feedback_target_diff}" STATIC EXCLUDE_FROM_ALL "${feedback_source_dir}/${feedback_target_diff}/diff.cpp" "${feedback_source_dir}/${feedback_target_diff}/${changes}.diff")
-  set_target_properties ("${feedback_target_diff}" PROPERTIES FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
+  add_custom_command (
+    OUTPUT "${feedback_source_dir}/${feedback_target_diff}/modified.diff"
+    COMMAND "${CMAKE_COMMAND}" "-E" "cat" "${UNTRACKED_FILES_DIFF}" > "${feedback_source_dir}/${feedback_target_diff}/modified.diff"
+    COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" >> "${feedback_source_dir}/${feedback_target_diff}/modified.diff"
+    WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+    DEPENDS Git::Git "${repository}/.git/index" "${UNTRACKED_FILES_DIFF}"
+    )
 
-  # target_sources ("DIFF_${feedback_target}" INTERFACE "${feedback_source_dir}/DIFF/${feedback_target}.diff")
-  # add_dependencies (DIFF "DIFF_${feedback_target}")
+  add_custom_command (
+    OUTPUT "${feedback_source_dir}/${feedback_target_diff}/modified_or_staged.diff"
+    COMMAND "${CMAKE_COMMAND}" "-E" "cat" "${UNTRACKED_FILES_DIFF}" > "${feedback_source_dir}/${feedback_target_diff}/modified_or_staged.diff"
+    COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" >> "${feedback_source_dir}/${feedback_target_diff}/modified_or_staged.diff"
+    WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+    DEPENDS Git::Git "${repository}/.git/logs/HEAD" "${repository}/.git/HEAD" "${UNTRACKED_FILES_DIFF}"
+    )
 
-    # target_sources (DIFF PRIVATE "${feedback_source_dir}/DIFF/${changes}.cpp")
+  add_custom_command (
+    OUTPUT "${feedback_source_dir}/${feedback_target_diff}/staged.diff"
+    COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--staged" "@" > "${feedback_source_dir}/${feedback_target_diff}/staged.diff"
+    WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+    DEPENDS Git::Git "${repository}/.git/logs/HEAD" "${repository}/.git/HEAD" "${repository}/.git/index"
+    )
 
-#    add_custom_command (
-#      OUTPUT "${feedback_source_dir}/staged.diff"
-#      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--staged" "@" ">" "${feedback_source_dir}/staged.diff"
-#      WORKING_DIRECTORY "${worktree}"
-#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
-#      )
+  add_custom_command (
+    OUTPUT "${feedback_source_dir}/${feedback_target_diff}/staged_or_committed.diff"
+    COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--staged" "@{push}" > "${feedback_source_dir}/${feedback_target_diff}/staged_or_committed.diff"
+    WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+    DEPENDS Git::Git "${repository}/.git/FETCH_HEAD" "${repository}/.git/index"
+    )
 
-#    add_custom_command (
-#      OUTPUT "${feedback_source_dir}/staged_or_committed.diff"
-#      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--staged" "@{push}" ">" "${feedback_source_dir}/staged_or_committed.diff"
-#      WORKING_DIRECTORY "${worktree}"
-#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
-#      )
+  add_custom_command (
+    OUTPUT "${feedback_source_dir}/${feedback_target_diff}/committed.diff"
+    COMMAND "$<TARGET_FILE:Git::Git>" "log" "--unified=0" "--branches" "--not" "--remotes" "--format=format:" > "${feedback_source_dir}/${feedback_target_diff}/committed.diff"
+    WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+    DEPENDS Git::Git "${repository}/.git/logs/HEAD" "${repository}/.git/HEAD" "${repository}/.git/FETCH_HEAD"
+    )
 
-#    add_custom_command (
-#      OUTPUT "${feedback_source_dir}/committed.diff"
-#      COMMAND "$<TARGET_FILE:Git::Git>" "log" "--unified=0" "--branches" "--not" "--remotes" "--format=format:" ">" "${feedback_source_dir}/committed.diff"
-#      WORKING_DIRECTORY "${worktree}"
-#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
-#      )
-
-#    add_custom_command (
-#      OUTPUT "${feedback_source_dir}/all.git.diff"
-#      COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "--output=${feedback_source_dir}/all.git.diff" "@"
-#      COMMAND "${CMAKE_COMMAND}" "-E" "copy_if_different" "${feedback_source_dir}/all.git.diff" "${feedback_source_dir}/all.diff"
-#      WORKING_DIRECTORY "${worktree}"
-#      DEPENDS Git::Git ${refs} "${repository}/.git/HEAD" "${repository}/.git/index"
-#      BYPRODUCTS "${feedback_source_dir}/all.diff"
-#      )
+  target_sources ("${feedback_target_diff}" PRIVATE "${UNTRACKED_FILES_DIFF}")
+  target_sources ("${feedback_target_diff}" PRIVATE "${feedback_source_dir}/${feedback_target_diff}/${changes}.diff")
+  set_target_properties ("${feedback_target_diff}" PROPERTIES LINKER_LANGUAGE "CXX" FOLDER "feedback" EXCLUDED_FROM_FEEDBACK "(^.*$)")
 
   string (MAKE_C_IDENTIFIER "${name}" feedback_target_library)
   string (TOLOWER "${feedback_target_library}" feedback_target_library)
