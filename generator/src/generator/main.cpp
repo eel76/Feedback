@@ -30,7 +30,8 @@ namespace generator {
   template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
   template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-  auto relevant_matches(std::shared_future<feedback::workflow> const& shared_workflow, std::shared_future<scm::diff> const& shared_diff) {
+  auto make_relevant_matches(std::shared_future<feedback::workflow> const& shared_workflow,
+                             std::shared_future<scm::diff> const&          shared_diff) {
     return [=](std::string_view filename) {
       auto const shared_file_changes = launch_async([=] { return shared_diff.get().changes_from(filename); }).share();
 
@@ -75,18 +76,25 @@ namespace generator {
   }
 
   struct rule_in_source_matches {
-    feedback::rules::value_type const&     rule;
-    std::shared_future<std::string> const& shared_source;
+    std::string_view const&                       rule_origin;
+    feedback::rules::value_type const&            rule;
+    std::shared_future<std::string> const&        shared_source;
+    std::shared_future<feedback::workflow> const& shared_workflow;
   };
 
   struct source_matches {
-    std::shared_future<feedback::rules> const& shared_rules;
-    std::shared_future<std::string> const&     shared_source;
+    std::string_view const&                       rules_origin;
+    std::shared_future<feedback::rules> const&    shared_rules;
+    std::shared_future<std::string> const&        shared_source;
+    std::shared_future<feedback::workflow> const& shared_workflow;
   };
 
   struct matches {
+    std::string_view const&                             rules_origin;
     std::shared_future<feedback::rules> const&          shared_rules;
     std::shared_future<std::vector<std::string>> const& shared_sources;
+    std::shared_future<feedback::workflow> const&       shared_workflow;
+    std::shared_future<scm::diff> const&                shared_diff;
   };
 
   template <class FUNCTION>
@@ -114,12 +122,16 @@ namespace generator {
 
       auto synchronized_out = cxx20::osyncstream{ out };
 
-      print(synchronized_out, rule_in_source_matches{ rule, matches.shared_source }, relevant_rule_in_source_matches);
+      print(synchronized_out, rule_in_source_matches{ matches.rules_origin, rule, matches.shared_source, matches.shared_workflow },
+            relevant_rule_in_source_matches);
     });
   }
 
-  template <class FUNCTION> void print(std::ostream& out, generator::matches matches, FUNCTION relevant_matches) {
-    auto const& sources = matches.shared_sources.get();
+  void print(std::ostream& out, generator::matches matches) {
+    print(out, output::header{ matches.rules_origin, matches.shared_rules, matches.shared_workflow });
+
+    auto const  relevant_matches = make_relevant_matches(matches.shared_workflow, matches.shared_diff);
+    auto const& sources          = matches.shared_sources.get();
 
     std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &out](std::string const& source) {
       auto const shared_source = launch_async([=] { return content(source); }).share();
@@ -127,7 +139,8 @@ namespace generator {
       auto synchronized_out = cxx20::osyncstream{ out };
 
       print(synchronized_out, output::source{ source });
-      print(synchronized_out, source_matches{ matches.shared_rules, shared_source }, relevant_matches(source));
+      print(synchronized_out, source_matches{ matches.rules_origin, matches.shared_rules, shared_source, matches.shared_workflow },
+            relevant_matches(source));
     });
   }
 
@@ -176,13 +189,12 @@ int main(int argc, char* argv[]) {
   try {
     auto const parameters = cli::parse(argc, argv);
 
-    auto const shared_workflow = parse_workflow_async(parameters.workflow_filename).share();
-    auto const shared_diff     = parse_diff_async(parameters.diff_filename).share();
     auto const shared_rules    = parse_rules_async(parameters.rules_filename).share();
     auto const shared_sources  = parse_sources_async(parameters.sources_filename).share();
+    auto const shared_workflow = parse_workflow_async(parameters.workflow_filename).share();
+    auto const shared_diff     = parse_diff_async(parameters.diff_filename).share();
 
-    print(out, output::header{ parameters.rules_filename, shared_rules, shared_workflow });
-    print(out, matches{ shared_rules, shared_sources }, relevant_matches(shared_workflow, shared_diff));
+    print(out, matches{ parameters.rules_filename, shared_rules, shared_sources, shared_workflow, shared_diff });
   }
   catch (std::exception const& e) {
     std::cerr << e.what() << '\n';
