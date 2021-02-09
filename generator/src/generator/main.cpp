@@ -96,7 +96,7 @@ namespace generator {
     auto search = text::forward_search{ matches.shared_source.get() };
 
     while (search.next_but(attributes.matched_text, attributes.ignored_text)) {
-      auto const line_number = search.line() + 1;
+      auto const line_number = search.line();
       if (not relevant_rule_in_source_matches(line_number))
         continue;
 

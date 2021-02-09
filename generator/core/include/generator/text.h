@@ -59,11 +59,11 @@ namespace generator::text {
     auto matched_lines() const -> std::string_view;
 
     auto line() const -> int {
-      return static_cast<int>(processed_line_count);
+      return static_cast<int>(processed_line_count + 1);
     }
 
     auto column() const -> int {
-      return static_cast<int>(last_processed_line.length());
+      return static_cast<int>(last_processed_line.length() + 1);
     }
 
   private:
