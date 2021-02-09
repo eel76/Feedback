@@ -8,9 +8,9 @@
 
 namespace generator::output {
   struct header {
+    std::string_view const&                       rules_origin;
     std::shared_future<feedback::rules> const&    shared_rules;
     std::shared_future<feedback::workflow> const& shared_workflow;
-    std::string_view const&                       rules_origin;
   };
 
   struct source {

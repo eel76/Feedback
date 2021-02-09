@@ -181,7 +181,7 @@ int main(int argc, char* argv[]) {
     auto const shared_rules    = parse_rules_async(parameters.rules_filename).share();
     auto const shared_sources  = parse_sources_async(parameters.sources_filename).share();
 
-    print(out, output::header{ shared_rules, shared_workflow, parameters.rules_filename });
+    print(out, output::header{ parameters.rules_filename, shared_rules, shared_workflow });
     print(out, matches{ shared_rules, shared_sources }, relevant_matches(shared_workflow, shared_diff));
   }
   catch (std::exception const& e) {
