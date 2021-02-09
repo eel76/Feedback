@@ -29,6 +29,7 @@ find_package (Threads REQUIRED)
 
 add_library (${PROJECT_NAME}.core STATIC
   "core/src/generator/feedback.cpp"
+  "core/src/generator/io.cpp"
   "core/src/generator/json.cpp"
   "core/src/generator/output.cpp"
   "core/src/generator/regex.cpp"
@@ -38,6 +39,8 @@ add_library (${PROJECT_NAME}.core STATIC
   "core/include/generator/container.h"
   "core/include/generator/feedback.h"
   "core/include/generator/format.h"
+  "core/include/generator/future.h"
+  "core/include/generator/io.h"
   "core/include/generator/json.h"
   "core/include/generator/macros.h"
   "core/include/generator/output.h"

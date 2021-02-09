@@ -2,13 +2,100 @@
 
 #include "generator/container.h"
 #include "generator/format.h"
+#include "generator/future.h"
+#include "generator/io.h"
 #include "generator/json.h"
+#include "generator/text.h"
 
+#include <cxx20/syncstream>
+
+#include <algorithm>
+#include <execution>
+#include <fstream>
+#include <future>
 #include <ostream>
 
 using fmt::operator""_a;
 
 namespace generator::output {
+
+  template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+  template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+  auto make_relevant_matches(std::shared_future<feedback::workflow> const& shared_workflow,
+                             std::shared_future<scm::diff> const&          shared_diff) {
+    return [=](std::string_view filename) {
+      auto const shared_file_changes = future::launch_async([=] { return shared_diff.get().changes_from(filename); }).share();
+
+      return [=](feedback::rules::value_type const& rule) {
+        auto const& [id, attributes] = rule;
+
+        auto const rule_matched_filename = attributes.matched_files.matches(filename);
+        auto const rule_ignored_filename = attributes.ignored_files.matches(filename);
+
+        auto file_is_relevant = rule_matched_filename and not rule_ignored_filename;
+        auto line_is_relevant = std::function<bool(int)>{ [](auto) { return true; } };
+
+        if (file_is_relevant) {
+          auto const& workflow = shared_workflow.get();
+
+          switch (workflow[attributes.type].check) {
+          case feedback::check::NO_LINES:
+            [[fallthrough]];
+          case feedback::check::NO_FILES:
+            file_is_relevant = false;
+            break;
+          case feedback::check::CHANGED_LINES:
+            line_is_relevant = [is_modified = shared_file_changes.get()](auto line) { return is_modified[line]; };
+            [[fallthrough]];
+          case feedback::check::CHANGED_FILES:
+            file_is_relevant = not shared_file_changes.get().empty();
+            break;
+          case feedback::check::ALL_LINES:
+            [[fallthrough]];
+          case feedback::check::ALL_FILES:
+            break;
+          }
+        }
+
+        if (!file_is_relevant) {
+          line_is_relevant = [](auto) { return false; };
+        }
+
+        return overloaded{ [=]() { return file_is_relevant; }, [=](auto line) { return line_is_relevant(line); } };
+      };
+    };
+  }
+
+  struct header {
+    std::string_view const&                       rules_origin;
+    std::shared_future<feedback::rules> const&    shared_rules;
+    std::shared_future<feedback::workflow> const& shared_workflow;
+  };
+
+  struct source {
+    std::string const& filename;
+  };
+
+  struct match {
+    std::string_view const& id;
+    int const&              line_number;
+    text::excerpt const&    highlighting;
+  };
+
+  struct rule_in_source_matches {
+    std::string_view const&                       rule_origin;
+    feedback::rules::value_type const&            rule;
+    std::shared_future<std::string> const&        shared_source;
+    std::shared_future<feedback::workflow> const& shared_workflow;
+  };
+
+  struct source_matches {
+    std::string_view const&                       rules_origin;
+    std::shared_future<feedback::rules> const&    shared_rules;
+    std::shared_future<std::string> const&        shared_source;
+    std::shared_future<feedback::workflow> const& shared_workflow;
+  };
 
   void print(std::ostream& out, output::header header) {
     format::print(out,
@@ -58,5 +145,52 @@ namespace {{ using dummy = int; }}
     format::print(out, "# line {}\n{}FEEDBACK_MATCH_{}(\"{}\", \"{}\")\n", match.line_number, match.highlighting.indentation,
                   format::uppercase{ match.id }, format::as_literal{ match.highlighting.first_line },
                   match.highlighting.indentation + match.highlighting.annotation);
+  }
+
+  template <class FUNCTION>
+  auto print(std::ostream& out, rule_in_source_matches matches, FUNCTION relevant_rule_in_source_matches) {
+    auto const& [id, attributes] = matches.rule;
+
+    auto search = text::forward_search{ matches.shared_source.get() };
+
+    while (search.next_but(attributes.matched_text, attributes.ignored_text)) {
+      auto const line_number = search.line();
+      if (not relevant_rule_in_source_matches(line_number))
+        continue;
+
+      print(out, output::match{ id, line_number, search.highlighted_text(attributes.marked_text) });
+    }
+  }
+
+  template <class FUNCTION> void print(std::ostream& out, source_matches matches, FUNCTION relevant_source_matches) {
+    auto const& rules = matches.shared_rules.get();
+
+    std::for_each(std::execution::par, cbegin(rules), cend(rules), [=, &out](auto const& rule) {
+      auto const relevant_rule_in_source_matches = relevant_source_matches(rule);
+      if (not relevant_rule_in_source_matches())
+        return;
+
+      auto synchronized_out = cxx20::osyncstream{ out };
+
+      print(synchronized_out, rule_in_source_matches{ matches.rules_origin, rule, matches.shared_source, matches.shared_workflow },
+            relevant_rule_in_source_matches);
+    });
+  }
+
+  void print(std::ostream& out, output::matches matches) {
+    print(out, header{ matches.rules_origin, matches.shared_rules, matches.shared_workflow });
+
+    auto const  relevant_matches = make_relevant_matches(matches.shared_workflow, matches.shared_diff);
+    auto const& sources          = matches.shared_sources.get();
+
+    std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &out](std::string const& source) {
+      auto const shared_source = future::launch_async([=] { return io::content(source); }).share();
+
+      auto synchronized_out = cxx20::osyncstream{ out };
+
+      print(synchronized_out, output::source{ source });
+      print(synchronized_out, source_matches{ matches.rules_origin, matches.shared_rules, shared_source, matches.shared_workflow },
+            relevant_matches(source));
+    });
   }
 } // namespace generator::output
