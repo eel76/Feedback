@@ -237,7 +237,7 @@ function (ConfigureFeedbackTargetFromTargets name rules workflow changes)
 
   add_custom_command (
     OUTPUT "${feedback_source_dir}/${feedback_target_diff}/all.diff"
-    COMMAND "${CMAKE_COMMAND}" "-E" "cat" "${UNTRACKED_FILES_DIFF}" > "${feedback_source_dir}/${feedback_target_diff}/all.diff"
+    COMMAND "${CMAKE_COMMAND}" "-E" "copy" "${UNTRACKED_FILES_DIFF}" "${feedback_source_dir}/${feedback_target_diff}/all.diff"
     COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@{push}" >> "${feedback_source_dir}/${feedback_target_diff}/all.diff"
     WORKING_DIRECTORY "${WORKING_DIRECTORY}"
     DEPENDS Git::Git "${repository}/.git/FETCH_HEAD" "${UNTRACKED_FILES_DIFF}"
@@ -245,7 +245,7 @@ function (ConfigureFeedbackTargetFromTargets name rules workflow changes)
 
   add_custom_command (
     OUTPUT "${feedback_source_dir}/${feedback_target_diff}/modified.diff"
-    COMMAND "${CMAKE_COMMAND}" "-E" "cat" "${UNTRACKED_FILES_DIFF}" > "${feedback_source_dir}/${feedback_target_diff}/modified.diff"
+    COMMAND "${CMAKE_COMMAND}" "-E" "copy" "${UNTRACKED_FILES_DIFF}" "${feedback_source_dir}/${feedback_target_diff}/modified.diff"
     COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" >> "${feedback_source_dir}/${feedback_target_diff}/modified.diff"
     WORKING_DIRECTORY "${WORKING_DIRECTORY}"
     DEPENDS Git::Git "${repository}/.git/index" "${UNTRACKED_FILES_DIFF}"
@@ -253,7 +253,7 @@ function (ConfigureFeedbackTargetFromTargets name rules workflow changes)
 
   add_custom_command (
     OUTPUT "${feedback_source_dir}/${feedback_target_diff}/modified_or_staged.diff"
-    COMMAND "${CMAKE_COMMAND}" "-E" "cat" "${UNTRACKED_FILES_DIFF}" > "${feedback_source_dir}/${feedback_target_diff}/modified_or_staged.diff"
+    COMMAND "${CMAKE_COMMAND}" "-E" "copy" "${UNTRACKED_FILES_DIFF}" "${feedback_source_dir}/${feedback_target_diff}/modified_or_staged.diff"
     COMMAND "$<TARGET_FILE:Git::Git>" "diff" "--unified=0" "@" >> "${feedback_source_dir}/${feedback_target_diff}/modified_or_staged.diff"
     WORKING_DIRECTORY "${WORKING_DIRECTORY}"
     DEPENDS Git::Git "${repository}/.git/logs/HEAD" "${repository}/.git/HEAD" "${UNTRACKED_FILES_DIFF}"
