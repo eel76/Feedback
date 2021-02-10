@@ -66,4 +66,4 @@ namespace generator::text {
     processed = processed | text;
     processed_line_count += std::count(begin(text), end(text), '\n');
   }
-} // namespace feedback::text
+} // namespace generator::text

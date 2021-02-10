@@ -24,14 +24,14 @@ namespace generator::output {
 
   auto make_relevant_matches(std::shared_future<feedback::workflow> const& shared_workflow,
                              std::shared_future<scm::diff> const&          shared_diff) {
-    return [=](std::string_view source) {
+    return [=](std::filesystem::path const& source) {
       auto const shared_source_changes = future::launch_async([=] { return shared_diff.get().changes_from(source); }).share();
 
       return [=](feedback::rules::value_type const& rule) {
         auto const& [id, attributes] = rule;
 
-        auto const rule_matched_filename = attributes.matched_files.matches(source);
-        auto const rule_ignored_filename = attributes.ignored_files.matches(source);
+        auto const rule_matched_filename = attributes.matched_files.matches(source.generic_u8string());
+        auto const rule_ignored_filename = attributes.ignored_files.matches(source.generic_u8string());
 
         auto file_is_relevant = rule_matched_filename and not rule_ignored_filename;
         auto line_is_relevant = std::function<bool(int)>{ [](auto) { return true; } };
@@ -68,13 +68,13 @@ namespace generator::output {
   }
 
   struct header {
-    std::string_view const&                       rules_origin;
+    std::filesystem::path const&                  rules_origin;
     std::shared_future<feedback::rules> const&    shared_rules;
     std::shared_future<feedback::workflow> const& shared_workflow;
   };
 
   struct source {
-    std::string const& filename;
+    std::filesystem::path const& filename;
   };
 
   struct match {
@@ -84,14 +84,14 @@ namespace generator::output {
   };
 
   struct rule_in_source_matches {
-    std::string_view const&                       rule_origin;
+    std::filesystem::path const&                  rules_origin;
     feedback::rules::value_type const&            rule;
     std::shared_future<std::string> const&        shared_source;
     std::shared_future<feedback::workflow> const& shared_workflow;
   };
 
   struct source_matches {
-    std::string_view const&                       rules_origin;
+    std::filesystem::path const&                  rules_origin;
     std::shared_future<feedback::rules> const&    shared_rules;
     std::shared_future<std::string> const&        shared_source;
     std::shared_future<feedback::workflow> const& shared_workflow;
@@ -130,7 +130,7 @@ namespace {{ using dummy = int; }}
       format::print(out,
                     R"_(#define FEEDBACK_MATCH_{uppercase_id}(match, highlighting) FEEDBACK_RESPONSE_{response}({id}, "{summary} [{type} from file://{origin}]\n |\n | " match "\n | " highlighting "\n |\n | RATIONALE : {rationale}\n | WORKAROUND: {workaround}\n |")
 )_",
-                    "origin"_a = format::as_literal{ header.rules_origin }, "id"_a = id,
+                    "origin"_a = format::as_literal{ header.rules_origin.generic_u8string() }, "id"_a = id,
                     "uppercase_id"_a = format::uppercase{ id },
                     "response"_a     = format::uppercase{ json::to_string(workflow[rule.type].response) },
                     "type"_a = format::as_literal{ rule.type }, "summary"_a = format::as_literal{ rule.summary },
@@ -138,7 +138,7 @@ namespace {{ using dummy = int; }}
   }
 
   void print(std::ostream& out, output::source source) {
-    format::print(out, "\n# line 1 \"{}\"\n", source.filename);
+    format::print(out, "\n# line 1 \"{}\"\n", source.filename.generic_u8string());
   }
 
   void print(std::ostream& out, output::match match) {
@@ -183,7 +183,7 @@ namespace {{ using dummy = int; }}
     auto const  relevant_matches = make_relevant_matches(matches.shared_workflow, matches.shared_diff);
     auto const& sources          = matches.shared_sources.get();
 
-    std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &out](std::string const& source) {
+    std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &out](std::filesystem::path const& source) {
       auto const shared_source = future::launch_async([=] { return io::content(source); }).share();
 
       auto synchronized_out = cxx20::osyncstream{ out };

@@ -91,6 +91,6 @@ namespace generator::regex {
   }
 
   auto capture(std::string_view pattern) -> precompiled {
-    return compile (std::string{ "(" }.append(pattern).append(")"));
+    return compile(std::string{ "(" }.append(pattern).append(")"));
   }
-} // namespace feedback::regex
+} // namespace generator::regex

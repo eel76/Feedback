@@ -11,17 +11,19 @@
 
 namespace generator {
 
-  auto parse_rules_async(std::string const& filename) {
+  auto parse_rules_async(std::filesystem::path const& filename) {
     return future::launch_async([=] { return json::parse_rules(io::content(filename)); });
   }
 
-  auto parse_sources_async(std::string const& filename) {
+  auto parse_sources_async(std::filesystem::path const& filename) {
     return future::launch_async([=] {
+      if (filename.empty())
+        throw std::invalid_argument{ "empty filename" };
+
       std::stringstream content;
       content << std::ifstream{ filename }.rdbuf();
 
-      // FIXME: capture content and provide a generator instead of a vector
-      auto sources = std::vector<std::string>{};
+      auto sources = std::vector<std::filesystem::path>{};
 
       for (std::string source; std::getline(content, source);)
         sources.emplace_back(source);
@@ -30,7 +32,7 @@ namespace generator {
     });
   }
 
-  auto parse_workflow_async(std::string const& filename) {
+  auto parse_workflow_async(std::filesystem::path const& filename) {
     return future::launch_async([=] {
       if (not filename.empty())
         return json::parse_workflow(io::content(filename));
@@ -38,7 +40,7 @@ namespace generator {
     });
   }
 
-  auto parse_diff_async(std::string const& filename) {
+  auto parse_diff_async(std::filesystem::path const& filename) {
     return future::launch_async([=] {
       scm::diff accumulated;
       if (not filename.empty())

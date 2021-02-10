@@ -1,12 +1,12 @@
 #pragma once
-#include <string>
+#include <filesystem>
 
 namespace generator::cli {
   struct parameters {
-    std::string diff_filename;
-    std::string rules_filename;
-    std::string workflow_filename;
-    std::string sources_filename;
+    std::filesystem::path diff_filename;
+    std::filesystem::path rules_filename;
+    std::filesystem::path workflow_filename;
+    std::filesystem::path sources_filename;
   };
 
   auto parse(int argc, char* argv[]) -> parameters;

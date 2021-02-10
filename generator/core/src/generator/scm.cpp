@@ -21,14 +21,28 @@ namespace generator::scm {
       return line_number;
     }
 
-    auto parse_filename(std::string_view section) -> std::string_view {
+    auto parse_filename(std::string_view section) -> std::filesystem::path {
       auto filename_pattern = regex::compile("\n[-][-][-] a/.+\n[+][+][+] b/(.+)\n");
 
       regex::match filename;
       if (not filename_pattern.matches(section, { &filename }))
         return {};
 
-      return filename;
+      return { filename };
+    }
+
+    auto ends_with(std::filesystem::path const& path, std::filesystem::path const& suffix) -> bool {
+      auto const first1 = path.begin();
+      auto const first2 = suffix.begin();
+
+      auto itr1 = path.end();
+      auto itr2 = suffix.end();
+
+      while (itr2 != first2)
+        if (itr1 == first1 || *--itr1 != *--itr2)
+          return false;
+
+      return true;
     }
   } // namespace
 
@@ -52,9 +66,9 @@ namespace generator::scm {
     return merged;
   }
 
-  auto diff::changes_from(std::string_view filename) const -> changes {
-    for (auto const& [changed_filename, changed_lines] : modifications)
-      if (text::ends_with(filename, changed_filename))
+  auto diff::changes_from(std::filesystem::path const& source) const -> changes {
+    for (auto const& [path, changed_lines] : modifications)
+      if (ends_with(source, path))
         return changed_lines;
 
     return {};
@@ -73,7 +87,7 @@ namespace generator::scm {
   }
 
   void diff::parse_section(std::string_view section) {
-    auto const filename = std::string{ parse_filename(section) };
+    auto const filename = parse_filename(section);
     if (filename.empty())
       return;
 
@@ -85,4 +99,4 @@ namespace generator::scm {
     while (search.next(block_pattern))
       modified = changes::parse_from(search.matched_text(), std::move(modified));
   }
-} // namespace feedback::scm
+} // namespace generator::scm

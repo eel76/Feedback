@@ -1,7 +1,7 @@
 #pragma once
 #include "generator/container.h"
 
-#include <string>
+#include <filesystem>
 #include <string_view>
 #include <unordered_map>
 
@@ -31,11 +31,17 @@ namespace generator::scm {
     };
 
     static auto parse(std::string_view output, diff merged = {}) -> diff;
-    auto        changes_from(std::string_view filename) const -> changes;
+    auto        changes_from(std::filesystem::path const& source) const -> changes;
 
   private:
     void parse_section(std::string_view section);
 
-    std::unordered_map<std::string, changes> modifications;
+    struct hash {
+      std::size_t operator()(std::filesystem::path const& source) const noexcept {
+        return hash_value(source);
+      }
+    };
+
+    std::unordered_map<std::filesystem::path, changes, hash> modifications;
   };
 } // namespace generator::scm

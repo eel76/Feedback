@@ -4,7 +4,7 @@
 #include <sstream>
 
 namespace generator::io {
-  auto content(std::string const& filename) -> std::string {
+  auto content(std::filesystem::path const& filename) -> std::string {
     if (filename.empty())
       throw std::invalid_argument{ "empty filename" };
 
