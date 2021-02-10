@@ -79,7 +79,7 @@ namespace generator::scm {
 
     auto& modified = modifications[filename];
 
-    auto block_pattern = regex::compile("\n(@@ [-][,0-9]+ [+][,0-9]+ @@.*\n([-+ ].*\n)*)");
+    auto block_pattern = regex::compile("(@@ [-][,0-9]+ [+][,0-9]+ @@.*\n([-+ ].*\n)*)");
 
     auto search = text::forward_search{ section };
     while (search.next(block_pattern))
