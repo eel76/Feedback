@@ -24,14 +24,14 @@ namespace generator::output {
 
   auto make_relevant_matches(std::shared_future<feedback::workflow> const& shared_workflow,
                              std::shared_future<scm::diff> const&          shared_diff) {
-    return [=](std::string_view filename) {
-      auto const shared_file_changes = future::launch_async([=] { return shared_diff.get().changes_from(filename); }).share();
+    return [=](std::string_view source) {
+      auto const shared_source_changes = future::launch_async([=] { return shared_diff.get().changes_from(source); }).share();
 
       return [=](feedback::rules::value_type const& rule) {
         auto const& [id, attributes] = rule;
 
-        auto const rule_matched_filename = attributes.matched_files.matches(filename);
-        auto const rule_ignored_filename = attributes.ignored_files.matches(filename);
+        auto const rule_matched_filename = attributes.matched_files.matches(source);
+        auto const rule_ignored_filename = attributes.ignored_files.matches(source);
 
         auto file_is_relevant = rule_matched_filename and not rule_ignored_filename;
         auto line_is_relevant = std::function<bool(int)>{ [](auto) { return true; } };
@@ -46,10 +46,10 @@ namespace generator::output {
             file_is_relevant = false;
             break;
           case feedback::check::CHANGED_LINES:
-            line_is_relevant = [is_modified = shared_file_changes.get()](auto line) { return is_modified[line]; };
+            line_is_relevant = [is_modified = shared_source_changes.get()](auto line) { return is_modified[line]; };
             [[fallthrough]];
           case feedback::check::CHANGED_FILES:
-            file_is_relevant = not shared_file_changes.get().empty();
+            file_is_relevant = not shared_source_changes.get().empty();
             break;
           case feedback::check::ALL_LINES:
             [[fallthrough]];
