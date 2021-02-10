@@ -1,10 +1,9 @@
 #include "generator/cli.h"
-#include "generator/json.h"
 #include "generator/future.h"
 #include "generator/io.h"
+#include "generator/json.h"
 #include "generator/output.h"
 #include "generator/scm.h"
-#include "generator/text.h"
 
 #include <fstream>
 #include <iostream>
