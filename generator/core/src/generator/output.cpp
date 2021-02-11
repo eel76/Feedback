@@ -2,7 +2,6 @@
 
 #include "generator/container.h"
 #include "generator/format.h"
-#include "generator/future.h"
 #include "generator/io.h"
 #include "generator/json.h"
 #include "generator/text.h"
@@ -25,7 +24,8 @@ namespace generator::output {
   auto make_relevant_matches(std::shared_future<feedback::workflow> const& shared_workflow,
                              std::shared_future<scm::diff> const&          shared_diff) {
     return [=](std::filesystem::path const& source) {
-      auto const shared_source_changes = future::launch_async([=] { return shared_diff.get().changes_from(source); }).share();
+      auto const shared_source_changes =
+      std::async(std::launch::async, [=] { return shared_diff.get().changes_from(source); }).share();
 
       return [=](feedback::rules::value_type const& rule) {
         auto const& [id, attributes] = rule;
@@ -184,7 +184,7 @@ namespace {{ using dummy = int; }}
     auto const& sources          = matches.shared_sources.get();
 
     std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &out](std::filesystem::path const& source) {
-      auto const shared_source = future::launch_async([=] { return io::content(source); }).share();
+      auto const shared_source = std::async(std::launch::async, [=] { return io::content(source); }).share();
 
       auto synchronized_out = cxx20::osyncstream{ out };
 

@@ -39,7 +39,6 @@ add_library (${PROJECT_NAME}.core STATIC
   "core/include/generator/container.h"
   "core/include/generator/feedback.h"
   "core/include/generator/format.h"
-  "core/include/generator/future.h"
   "core/include/generator/io.h"
   "core/include/generator/json.h"
   "core/include/generator/macros.h"

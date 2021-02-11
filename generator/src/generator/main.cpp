@@ -1,22 +1,22 @@
 #include "generator/cli.h"
-#include "generator/future.h"
 #include "generator/io.h"
 #include "generator/json.h"
 #include "generator/output.h"
 #include "generator/scm.h"
 
 #include <fstream>
+#include <future>
 #include <iostream>
 #include <sstream>
 
 namespace generator {
 
   auto parse_rules_async(std::filesystem::path const& filename) {
-    return future::launch_async([=] { return json::parse_rules(io::content(filename)); });
+    return std::async(std::launch::async, [=] { return json::parse_rules(io::content(filename)); });
   }
 
   auto parse_sources_async(std::filesystem::path const& filename) {
-    return future::launch_async([=] {
+    return std::async(std::launch::async, [=] {
       if (filename.empty())
         throw std::invalid_argument{ "empty filename" };
 
@@ -33,7 +33,7 @@ namespace generator {
   }
 
   auto parse_workflow_async(std::filesystem::path const& filename) {
-    return future::launch_async([=] {
+    return std::async(std::launch::async, [=] {
       if (not filename.empty())
         return json::parse_workflow(io::content(filename));
       return feedback::workflow{};
@@ -41,7 +41,7 @@ namespace generator {
   }
 
   auto parse_diff_async(std::filesystem::path const& filename) {
-    return future::launch_async([=] {
+    return std::async(std::launch::async, [=] {
       scm::diff accumulated;
       if (not filename.empty())
         accumulated = scm::diff::parse(io::content(filename), std::move(accumulated));
