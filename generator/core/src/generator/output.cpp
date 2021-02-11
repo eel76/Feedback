@@ -78,9 +78,11 @@ namespace generator::output {
   };
 
   struct match {
-    std::string_view const& id;
-    int const&              line_number;
-    text::excerpt const&    highlighting;
+    std::filesystem::path const&                  rules_origin;
+    feedback::rules::value_type const&            rule;
+    int const&                                    line_number;
+    text::excerpt const&                          highlighting;
+    std::shared_future<feedback::workflow> const& shared_workflow;
   };
 
   struct rule_in_source_matches {
@@ -96,6 +98,54 @@ namespace generator::output {
     std::shared_future<std::string> const&        shared_source;
     std::shared_future<feedback::workflow> const& shared_workflow;
   };
+
+  /*
+
+  // use interface/implementation pattern
+
+  std::vector<backend> backends;
+
+  // for each backend a backend printer
+
+  // if gcc then
+
+
+  class compiler
+  {
+  public:
+    void emit (response, ...);
+  };
+
+  class msvc_backend : public backend
+  {
+
+  };
+
+  class gcc_backend : public backend
+  {
+
+  };
+
+  template<typename Interface>
+struct Implementation
+{
+public:
+  template<typename ConcreteType>
+  explicit Implementation(ConcreteType&& object)
+  : storage{std::forward<ConcreteType>(object)}
+  , getter{ [](std::any &storage) -> Interface& { return std::any_cast<ConcreteType&>(storage); } }
+    {}
+
+  Interface *operator->() { return &getter(storage); }
+
+private:
+  std::any storage;
+  Interface& (*getter)(std::any&);
+};
+  
+  
+  */
+
 
   void print(std::ostream& out, output::header header) {
     format::print(out,
@@ -138,13 +188,30 @@ namespace {{ using dummy = int; }}
   }
 
   void print(std::ostream& out, output::source source) {
-    format::print(out, "\n# line 1 \"{}\"\n", source.filename.generic_u8string());
+    format::print(out, "\n#line 1 \"{}\"\n", source.filename.generic_u8string());
   }
 
   void print(std::ostream& out, output::match match) {
-    format::print(out, "# line {}\n{}FEEDBACK_MATCH_{}(\"{}\", \"{}\")\n", match.line_number, match.highlighting.indentation,
-                  format::uppercase{ match.id }, format::as_literal{ match.highlighting.first_line },
-                  match.highlighting.indentation + match.highlighting.annotation);
+    auto const& [id, attributes] = match.rule;
+
+    format::print(out,
+                  R"_(#if defined __GNUC__
+# line {line}
+# pragma GCC warning \
+{indentation}"feedback {id}: {summary} [ {type} from file://{origin} ]\n      | > rationale  > {rationale}\n      | > workaround > {workaround}\n      |"
+#elif defined _MSC_VER
+# line {line}
+
+{indentation}FEEDBACK_MATCH_{ID}("{match}", "{highlighting}")
+#endif
+)_",
+                  "line"_a = match.line_number - 1, "indentation"_a = match.highlighting.indentation,
+                  "origin"_a = match.rules_origin.generic_u8string(), "id"_a = id, "ID"_a = format::uppercase{ id },
+                  "type"_a = format::as_literal{ attributes.type }, "summary"_a = format::as_literal{ attributes.summary },
+                  "rationale"_a    = format::as_literal{ attributes.rationale },
+                  "workaround"_a   = format::as_literal{ attributes.workaround },
+                  "match"_a        = format::as_literal{ match.highlighting.first_line },
+                  "highlighting"_a = match.highlighting.indentation + match.highlighting.annotation);
   }
 
   template <class FUNCTION>
@@ -158,7 +225,8 @@ namespace {{ using dummy = int; }}
       if (not relevant_rule_in_source_matches(line_number))
         continue;
 
-      print(out, output::match{ id, line_number, search.highlighted_text(attributes.marked_text) });
+      print(out, output::match{ matches.rules_origin, matches.rule, line_number,
+                                search.highlighted_text(attributes.marked_text), matches.shared_workflow });
     }
   }
 
