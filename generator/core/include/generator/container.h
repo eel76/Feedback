@@ -40,18 +40,18 @@ namespace generator::container {
       emplace_hint(m_map, hint, keyEnd, valBehind);
     }
 
-    bool is_constant() const {
+    bool is_constant() const noexcept {
       assert(is_canonical());
       return (++m_map.begin() == m_map.end());
     }
 
-    bool is_canonical() const {
+    bool is_canonical() const noexcept {
       auto const position =
       std::adjacent_find(begin(m_map), end(m_map), [](auto&& lhs, auto&& rhs) { return lhs.second == rhs.second; });
       return position == end(m_map);
     }
 
-    V const& operator[](K const& key) const {
+    V const& operator[](K const& key) const noexcept {
       return (--m_map.upper_bound(key))->second;
     }
 
