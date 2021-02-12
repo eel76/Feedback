@@ -41,23 +41,17 @@ namespace generator::output {
         if (file_is_relevant) {
           auto const& workflow = shared_workflow.get();
 
-          switch (workflow[attributes.type].check) {
-          case feedback::check::NO_LINES:
-            [[fallthrough]];
-          case feedback::check::NO_FILES:
-            file_is_relevant = false;
-            break;
-          case feedback::check::CHANGED_LINES:
-            line_is_relevant = [is_modified = shared_source_changes.get()](auto line) { return is_modified[line]; };
-            [[fallthrough]];
-          case feedback::check::CHANGED_FILES:
-            file_is_relevant = not shared_source_changes.get().empty();
-            break;
-          case feedback::check::ALL_LINES:
-            [[fallthrough]];
-          case feedback::check::ALL_FILES:
-            break;
-          }
+          std::visit(overloaded{
+                     [&](feedback::nothing) { file_is_relevant = false; },
+                     [&](feedback::changed_lines) {
+                       line_is_relevant = [is_modified = shared_source_changes.get()](auto line) {
+                         return is_modified[line];
+                       };
+                       file_is_relevant = not shared_source_changes.get().empty();
+                     },
+                     [&](feedback::changed_files) { file_is_relevant = not shared_source_changes.get().empty(); },
+                     [&](feedback::everything) {} },
+                     workflow[attributes.type].check);
         }
 
         if (!file_is_relevant) {

@@ -1,6 +1,6 @@
 {
   "default": {
-    "check": "no_lines",
+    "check": "nothing",
     "response": "none"
   }
 }

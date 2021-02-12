@@ -6,6 +6,16 @@
 #include <variant>
 
 namespace generator::feedback {
+
+  struct everything {};
+  struct changed_files {};
+  struct changed_lines {};
+  struct nothing {};
+
+  using check = std::variant<everything, changed_files, changed_lines, nothing>;
+
+  auto to_string(feedback::check check) -> std::string_view;
+
   struct none {};
   struct message {};
   struct warning {};
@@ -15,12 +25,8 @@ namespace generator::feedback {
 
   auto to_string(feedback::response response) -> std::string_view;
 
-  auto parse_response(std::string_view text) -> response;
-
-  enum class check { ALL_FILES, ALL_LINES, CHANGED_FILES, CHANGED_LINES, NO_FILES, NO_LINES };
-
   struct handling {
-    feedback::check    check{ check::ALL_FILES };
+    feedback::check    check;
     feedback::response response;
   };
 

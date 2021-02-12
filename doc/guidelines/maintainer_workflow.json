@@ -1,10 +1,10 @@
 {
   "requirement": {
-    "check": "all_lines",
+    "check": "everything",
     "response": "error"
   },
   "default": {
-    "check": "all_lines",
+    "check": "everything",
     "response": "warning"
   }
 }

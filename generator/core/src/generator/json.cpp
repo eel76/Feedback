@@ -3,17 +3,26 @@
 #include <nlohmann/json.hpp>
 
 namespace generator::feedback {
-  void from_json(nlohmann::json const& json, feedback::response& response) {
-    response = parse_response(json.get<std::string>());
+  namespace {
+    template <class V, std::size_t... Index>
+    auto get_variant_values(std::index_sequence<Index...>) -> std::unordered_map<std::string_view, V> {
+      return { { to_string(V{ std::in_place_index<Index> }), V{ std::in_place_index<Index> } }... };
+    }
+
+    template <class V> auto all_variant_values() {
+      return get_variant_values<V>(std::make_index_sequence<std::variant_size_v<V>>{});
+    }
+  } // namespace
+
+  void from_json(nlohmann::json const& json, feedback::check& check) {
+    static auto const all_checks{ all_variant_values<feedback::check>() };
+    check = all_checks.at(json.get<std::string>());
   }
 
-  NLOHMANN_JSON_SERIALIZE_ENUM(check,
-                               { { check::ALL_FILES, "all_files" },
-                                 { check::ALL_LINES, "all_lines" },
-                                 { check::CHANGED_FILES, "changed_files" },
-                                 { check::CHANGED_LINES, "changed_lines" },
-                                 { check::NO_FILES, "no_files" },
-                                 { check::NO_LINES, "no_lines" } })
+  void from_json(nlohmann::json const& json, feedback::response& response) {
+    static auto const all_responses{ all_variant_values<feedback::response>() };
+    response = all_responses.at(json.get<std::string>());
+  }
 
   void from_json(nlohmann::json const& json, feedback::handling& handling) {
     handling.check    = json.value("check", handling.check);
