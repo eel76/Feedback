@@ -8,6 +8,7 @@
 #include <cxx20/syncstream>
 
 #include <algorithm>
+#include <any>
 #include <execution>
 #include <fstream>
 #include <future>
@@ -100,53 +101,67 @@ namespace generator::output {
     std::shared_future<feedback::workflow> const& shared_workflow;
   };
 
+  template <typename Interface> struct polymorphic_value {
+  public:
+    template <typename ConcreteType>
+    explicit polymorphic_value(ConcreteType&& object)
+    : storage{ std::forward<ConcreteType>(object) }, getter{ [](std::any* storage) -> Interface* {
+        return std::any_cast<ConcreteType>(storage);
+      } } {
+    }
+
+    auto operator->() -> Interface* {
+      return getter(&storage);
+    }
+    auto operator->() const -> Interface const* {
+      return getter(const_cast<std::any*>(&storage));
+    }
+
+  private:
+    std::any storage;
+    Interface* (*getter)(std::any*);
+  };
+
   /*
 
-  // use interface/implementation pattern
-
-  std::vector<backend> backends;
-
-  // for each backend a backend printer
-
-  // if gcc then
+  using compiler = polymorphic_value<compiler_interface>;
 
 
-  class compiler
+  std::vector<compiler> compilers;
+
+
+  class compiler_interface
   {
   public:
-    void emit (response, ...);
+    // return a printer which prints #line 1 filename and then #ifdef in constructor and #endif in destructor
+    auto get_source_printer (std::ostream& out, filename) const -> source_printer;
+
+    class source_printer
+    {
+    public:
+      auto get_response_printer (response) const;
+      void emit (response, match);
+    };
+
+  protected:
+    virtual void emit_header (out) const = 0;
+    virtual void emit_footer (out) const = 0;
+
+    virtual void emit_message (out, match) const = 0;
+    virtual void emit_warning (out, match) const = 0;
+    virtual void emit_error (out, match) const = 0;
   };
 
-  class msvc_backend : public backend
+  class msvc : public compiler_interface
   {
-
   };
 
-  class gcc_backend : public backend
+  class gcc : public compiler_interface
   {
-
   };
 
-  template<typename Interface>
-struct Implementation
-{
-public:
-  template<typename ConcreteType>
-  explicit Implementation(ConcreteType&& object)
-  : storage{std::forward<ConcreteType>(object)}
-  , getter{ [](std::any &storage) -> Interface& { return std::any_cast<ConcreteType&>(storage); } }
-    {}
 
-  Interface *operator->() { return &getter(storage); }
-
-private:
-  std::any storage;
-  Interface& (*getter)(std::any&);
-};
-  
-  
   */
-
 
   void print(std::ostream& out, output::header header) {
     format::print(out,
@@ -216,6 +231,8 @@ namespace {{ using dummy = int; }}
   }
 
   template <class FUNCTION>
+  // emit (compiler, relevant_rule_in_source_matches)
+
   auto print(std::ostream& out, rule_in_source_matches matches, FUNCTION relevant_rule_in_source_matches) {
     auto const& [id, attributes] = matches.rule;
 
@@ -226,12 +243,15 @@ namespace {{ using dummy = int; }}
       if (not relevant_rule_in_source_matches(line_number))
         continue;
 
+      // compiler.emit_feedback (response, ...)
       print(out, output::match{ matches.rules_origin, matches.rule, line_number,
                                 search.highlighted_text(attributes.marked_text), matches.shared_workflow });
     }
   }
 
-  template <class FUNCTION> void print(std::ostream& out, source_matches matches, FUNCTION relevant_source_matches) {
+  template <class FUNCTION>
+  // emit (compiler, relevant_source_matches)
+  void print(std::ostream& out, source_matches matches, FUNCTION relevant_source_matches) {
     auto const& rules = matches.shared_rules.get();
 
     std::for_each(std::execution::par, cbegin(rules), cend(rules), [=, &out](auto const& rule) {
@@ -239,6 +259,7 @@ namespace {{ using dummy = int; }}
       if (not relevant_rule_in_source_matches())
         return;
 
+      // compiler.share ()
       auto synchronized_out = cxx20::osyncstream{ out };
 
       print(synchronized_out, rule_in_source_matches{ matches.rules_origin, rule, matches.shared_source, matches.shared_workflow },
@@ -246,7 +267,9 @@ namespace {{ using dummy = int; }}
     });
   }
 
+  // emit (compiler, matches)
   void print(std::ostream& out, output::matches matches) {
+    // compiler.emit_header (header{})
     print(out, header{ matches.rules_origin, matches.shared_rules, matches.shared_workflow });
 
     auto const  relevant_matches = make_relevant_matches(matches.shared_workflow, matches.shared_diff);
@@ -255,6 +278,7 @@ namespace {{ using dummy = int; }}
     std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &out](std::filesystem::path const& source) {
       auto const shared_source = std::async(std::launch::async, [=] { return io::content(source); }).share();
 
+      // auto local_compiler = compiler.share ().source_scope (source)
       auto synchronized_out = cxx20::osyncstream{ out };
 
       print(synchronized_out, output::source{ source });
