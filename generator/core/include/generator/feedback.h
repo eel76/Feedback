@@ -3,15 +3,25 @@
 
 #include <string>
 #include <unordered_map>
+#include <variant>
 
 namespace generator::feedback {
-  enum class response { NONE, MESSAGE, WARNING, ERROR };
+  struct none {};
+  struct message {};
+  struct warning {};
+  struct error {};
+
+  using response = std::variant<message, warning, error, none>;
+
+  auto to_string(feedback::response response) -> std::string_view;
+
+  auto parse_response(std::string_view text) -> response;
 
   enum class check { ALL_FILES, ALL_LINES, CHANGED_FILES, CHANGED_LINES, NO_FILES, NO_LINES };
 
   struct handling {
     feedback::check    check{ check::ALL_FILES };
-    feedback::response response{ response::MESSAGE };
+    feedback::response response;
   };
 
   using handlings = std::unordered_map<std::string, handling>;

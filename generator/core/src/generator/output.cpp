@@ -3,7 +3,6 @@
 #include "generator/container.h"
 #include "generator/format.h"
 #include "generator/io.h"
-#include "generator/json.h"
 #include "generator/text.h"
 
 #include <cxx20/syncstream>
@@ -18,8 +17,10 @@ using fmt::operator""_a;
 
 namespace generator::output {
 
-  template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-  template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+  namespace {
+    template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+    template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+  } // namespace
 
   auto make_relevant_matches(std::shared_future<feedback::workflow> const& shared_workflow,
                              std::shared_future<scm::diff> const&          shared_diff) {
@@ -182,7 +183,7 @@ namespace {{ using dummy = int; }}
 )_",
                     "origin"_a = format::as_literal{ header.rules_origin.generic_u8string() }, "id"_a = id,
                     "uppercase_id"_a = format::uppercase{ id },
-                    "response"_a     = format::uppercase{ json::to_string(workflow[rule.type].response) },
+                    "response"_a     = format::uppercase{ to_string(workflow[rule.type].response) },
                     "type"_a = format::as_literal{ rule.type }, "summary"_a = format::as_literal{ rule.summary },
                     "rationale"_a = format::as_literal{ rule.rationale }, "workaround"_a = format::as_literal{ rule.workaround });
   }

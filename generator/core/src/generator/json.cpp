@@ -3,9 +3,9 @@
 #include <nlohmann/json.hpp>
 
 namespace generator::feedback {
-  NLOHMANN_JSON_SERIALIZE_ENUM(
-  response,
-  { { response::NONE, "none" }, { response::MESSAGE, "message" }, { response::WARNING, "warning" }, { response::ERROR, "error" } })
+  void from_json(nlohmann::json const& json, feedback::response& response) {
+    response = parse_response(json.get<std::string>());
+  }
 
   NLOHMANN_JSON_SERIALIZE_ENUM(check,
                                { { check::ALL_FILES, "all_files" },
@@ -40,9 +40,5 @@ namespace generator::json {
   }
   auto parse_workflow(std::string_view json) -> feedback::workflow {
     return feedback::workflow{ nlohmann::json::parse(json).get<feedback::handlings>() };
-  }
-  auto to_string(feedback::response response) -> std::string {
-    auto const dump = nlohmann::json{ response }.dump();
-    return dump.substr(2, dump.length() - 4);
   }
 } // namespace generator::json
