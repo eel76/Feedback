@@ -52,6 +52,9 @@ namespace generator::output {
                      [&](feedback::changed_files) { file_is_relevant = not shared_source_changes.get().empty(); },
                      [&](feedback::everything) {} },
                      workflow[attributes.type].check);
+
+          if (std::holds_alternative<feedback::none>(workflow[attributes.type].response))
+            file_is_relevant = false;
         }
 
         if (!file_is_relevant) {
