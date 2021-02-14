@@ -166,9 +166,14 @@ namespace generator::output {
 
 namespace {{ using dummy = int; }}
 
-#define __STRINGIFY(x) #x
-#define STRINGIFY(x)   __STRINGIFY(x)
-#define PRAGMA(x)      _Pragma(#x)
+#if defined _MSC_VER
+# define __STRINGIFY(x) #x
+# define STRINGIFY(x)   __STRINGIFY(x)
+# define PRAGMA(x)      _Pragma(#x)
+# define MESSAGE(msg)   PRAGMA(message(__FILE__ "(" STRINGIFY(__LINE__) "): " msg))
+#endif
+
+
 
 )_");
   }
@@ -196,7 +201,7 @@ namespace {{ using dummy = int; }}
 {indentation}"                                                                                          "
 #elif defined _MSC_VER
 # line {line}
-{indentation}PRAGMA(message(__FILE__ "(" STRINGIFY(__LINE__) "): message {text}\n      |\n{line:>5} | {match}\n      | {indentation}{annotation}"))
+{indentation}MESSAGE("{text}\n      |\n{line:>5} | {match}\n      | {indentation}{annotation}")
 #endif
 )_",
                   "line_before"_a = message.location.line - 1, "line"_a = message.location.line,
@@ -212,21 +217,20 @@ namespace {{ using dummy = int; }}
   };
 
   void print(std::ostream& out, output::warning warning) {
-
     format::print(out,
                   R"_(#if defined __GNUC__
 # line {line_before}
 # pragma GCC warning \
-{indentation}"{text}\n      |                    "
+{indentation}"{text}\n      |                                                                           "
 #elif defined _MSC_VER
 # line {line}
-{indentation}PRAGMA(message(__FILE__ "(" STRINGIFY(__LINE__) "): warning {text}\n      |\n{line:>5} | {match}\n      | {indentation}{annotation}"))
+{indentation}MESSAGE("warning {text}\n      |\n{line:>5} | {match}\n      | {indentation}{annotation}")
 #endif
 )_",
                   "line_before"_a = warning.location.line - 1, "line"_a = warning.location.line,
-                  "match"_a = format::as_compiler_message{ warning.highlighting.first_line },
-                  "text"_a = format::as_compiler_message{ warning.text }, "indentation"_a = warning.highlighting.indentation,
-                  "annotation"_a = warning.highlighting.annotation);   
+                  "match"_a       = format::as_compiler_message{ warning.highlighting.first_line },
+                  "text"_a        = format::as_compiler_message{ warning.text },
+                  "indentation"_a = warning.highlighting.indentation, "annotation"_a = warning.highlighting.annotation);
   }
 
   struct error {
@@ -240,10 +244,10 @@ namespace {{ using dummy = int; }}
                   R"_(#if defined __GNUC__
 # line {line_before}
 # pragma GCC error \
-{indentation}"{text}\n      |                    "
+{indentation}"{text}\n      |                                                                           "
 #elif defined _MSC_VER
 # line {line}
-{indentation}PRAGMA(message(__FILE__ "(" STRINGIFY(__LINE__) "): error {text}\n      |\n{line:>5} | {match}\n      | {indentation}{annotation}"))
+{indentation}MESSAGE("error {text}\n      |\n{line:>5} | {match}\n      | {indentation}{annotation}")
 #endif
 )_",
                   "line_before"_a = error.location.line - 1, "line"_a = error.location.line,
@@ -265,10 +269,11 @@ namespace {{ using dummy = int; }}
       if (not relevant_rule_in_source_matches(line_number))
         continue;
 
-      auto const feedback = fmt::format(
-      "{id}: {summary} [ {type} from file://{origin} ]\nrationale  : {rationale}\nworkaround : {workaround}",
-      "id"_a = id, "type"_a = attributes.type, "summary"_a = attributes.summary, "rationale"_a = attributes.rationale,
-      "workaround"_a = attributes.workaround, "origin"_a = matches.rules_origin.generic_u8string());
+      auto const feedback = fmt::format("{id}: {summary} [ {type} from file://{origin} ]\nrationale  : "
+                                        "{rationale}\nworkaround : {workaround}",
+                                        "id"_a = id, "type"_a = attributes.type, "summary"_a = attributes.summary,
+                                        "rationale"_a = attributes.rationale, "workaround"_a = attributes.workaround,
+                                        "origin"_a = matches.rules_origin.generic_u8string());
 
       // compiler.emit_feedback (response, ...)
 
