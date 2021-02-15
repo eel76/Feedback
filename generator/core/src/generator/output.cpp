@@ -166,14 +166,10 @@ namespace generator::output {
 
 namespace {{ using dummy = int; }}
 
-#if defined _MSC_VER
 # define __STRINGIFY(x) #x
 # define STRINGIFY(x)   __STRINGIFY(x)
 # define PRAGMA(x)      _Pragma(#x)
 # define MESSAGE(msg)   PRAGMA(message(__FILE__ "(" STRINGIFY(__LINE__) "): " msg))
-#endif
-
-
 
 )_");
   }
@@ -201,7 +197,7 @@ namespace {{ using dummy = int; }}
 {indentation}"                                                                                          "
 #elif defined _MSC_VER
 # line {line}
-{indentation}MESSAGE("{text}\n      |\n{line:>5} | {match}\n      | {indentation}{annotation}")
+{indentation}MESSAGE("note {text}\n      |\n{line:>5} | {match}\n      | {indentation}{annotation}")
 #endif
 )_",
                   "line_before"_a = message.location.line - 1, "line"_a = message.location.line,
