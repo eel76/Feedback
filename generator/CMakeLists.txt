@@ -52,6 +52,7 @@ target_link_libraries (${PROJECT_NAME}.core
   PUBLIC fmt::fmt-header-only
   PRIVATE nlohmann_json::nlohmann_json
   PRIVATE re2::re2
+  PRIVATE mio::mio
   )
 target_include_directories (${PROJECT_NAME}.core
   PUBLIC "core/include"

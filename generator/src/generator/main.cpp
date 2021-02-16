@@ -17,8 +17,10 @@ namespace generator {
 
   auto parse_sources_async(std::filesystem::path const& filename) {
     return std::async(std::launch::async, [=] {
-      if (filename.empty())
-        throw std::invalid_argument{ "empty filename" };
+      if (!std::filesystem::exists(filename))
+        throw std::invalid_argument{ "file not found" };
+
+      // FIXME: use mmap
 
       std::stringstream content;
       content << std::ifstream{ filename }.rdbuf();

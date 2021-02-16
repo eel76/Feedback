@@ -1,16 +1,13 @@
 #include "generator/io.h"
 
-#include <fstream>
-#include <sstream>
+#include <mio/mmap.hpp>
 
 namespace generator::io {
   auto content(std::filesystem::path const& filename) -> std::string {
-    if (filename.empty())
-      throw std::invalid_argument{ "empty filename" };
+    if (!std::filesystem::exists(filename))
+      throw std::invalid_argument{ "file not found" };
 
-    std::ostringstream content;
-    content << std::ifstream{ filename }.rdbuf();
-    return content.str();
+    auto const mmap = mio::mmap_source{ filename.native() };
+    return { mmap.cbegin(), mmap.cend() };
   }
-
 } // namespace generator::io

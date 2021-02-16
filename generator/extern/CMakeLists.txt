@@ -4,6 +4,7 @@ include(GeneratorPrivate)
 
 _Generator_MakeAvailable (fmt GIT_REPOSITORY "https://github.com/fmtlib/fmt.git" GIT_TAG 7.1.3 GIT_SHALLOW ON)
 _Generator_MakeAvailable (lyra GIT_REPOSITORY "https://github.com/bfgroup/Lyra.git" GIT_TAG 1.5.1 GIT_SHALLOW ON)
+_Generator_MakeAvailable (mio GIT_REPOSITORY "https://github.com/mandreyel/mio.git" GIT_TAG 3f86a95c0784d73ce6815237ec33ed25f233b643)
 
 set (JSON_BuildTests OFF CACHE BOOL "")
 set (JSON_Install OFF CACHE BOOL "")
