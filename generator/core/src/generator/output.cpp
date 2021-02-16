@@ -12,6 +12,7 @@
 #include <execution>
 #include <fstream>
 #include <future>
+#include <iostream>
 #include <ostream>
 
 using fmt::operator""_a;
@@ -252,6 +253,16 @@ namespace {{ using dummy = int; }}
                   "indentation"_a = error.highlighting.indentation, "annotation"_a = error.highlighting.annotation);
   }
 
+  struct stats {
+    void process(std::string_view source) {
+      ++sources;
+      bytes += source.length();
+    }
+
+    size_t sources{ 0 };
+    size_t bytes{ 0 };
+  };
+
   template <class FUNCTION>
   // emit (compiler, relevant_rule_in_source_matches)
 
@@ -293,13 +304,17 @@ namespace {{ using dummy = int; }}
 
   template <class FUNCTION>
   // emit (compiler, relevant_source_matches)
-  void print(std::ostream& out, source_matches matches, FUNCTION relevant_source_matches) {
+  auto print(std::ostream& out, source_matches matches, FUNCTION relevant_source_matches, stats merged_stats = {}) {
     auto const& rules = matches.shared_rules.get();
 
-    std::for_each(std::execution::par, cbegin(rules), cend(rules), [=, &out](auto const& rule) {
+    std::atomic_bool any_rule_relevant{ false };
+
+    std::for_each(std::execution::par, cbegin(rules), cend(rules), [=, &out, &any_rule_relevant](auto const& rule) {
       auto const relevant_rule_in_source_matches = relevant_source_matches(rule);
       if (not relevant_rule_in_source_matches())
         return;
+
+      any_rule_relevant = true;
 
       // compiler.share ()
       auto synchronized_out = cxx20::osyncstream{ out };
@@ -307,25 +322,40 @@ namespace {{ using dummy = int; }}
       print(synchronized_out, rule_in_source_matches{ matches.rules_origin, rule, matches.shared_source, matches.shared_workflow },
             relevant_rule_in_source_matches);
     });
+
+    if (any_rule_relevant)
+      merged_stats.process(matches.shared_source.get());
+
+    return merged_stats;
   }
 
   // emit (compiler, matches)
   void print(std::ostream& out, output::matches matches) {
+    auto const start = std::chrono::steady_clock::now();
+
+    stats merged_stats;
+
     // compiler.emit_header (header{})
     print(out, header{ matches.rules_origin, matches.shared_rules, matches.shared_workflow });
 
     auto const  relevant_matches = make_relevant_matches(matches.shared_workflow, matches.shared_diff);
     auto const& sources          = matches.shared_sources.get();
 
-    std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &out](std::filesystem::path const& source) {
+    std::for_each(std::execution::par, cbegin(sources), cend(sources), [=, &out, &merged_stats](std::filesystem::path const& source) {
       auto const shared_source = std::async(std::launch::async, [=] { return io::content(source); }).share();
 
       // auto local_compiler = compiler.share ().source_scope (source)
       auto synchronized_out = cxx20::osyncstream{ out };
 
       print(synchronized_out, output::source{ source });
-      print(synchronized_out, source_matches{ matches.rules_origin, matches.shared_rules, shared_source, matches.shared_workflow },
-            relevant_matches(source));
+      merged_stats = print(synchronized_out,
+                           source_matches{ matches.rules_origin, matches.shared_rules, shared_source, matches.shared_workflow },
+                           relevant_matches(source), std::move(merged_stats));
     });
+
+    auto const end = std::chrono::steady_clock::now();
+
+    format::print(std::cerr, "Processed {} source(s) with {} byte(s) in {} microsecond(s).\n", merged_stats.sources,
+                  merged_stats.bytes, std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
   }
 } // namespace generator::output
