@@ -16,5 +16,20 @@ namespace generator::output {
     std::shared_future<scm::diff> const&                          shared_diff;
   };
 
-  void print(std::ostream& out, output::matches matches);
+  struct stats {
+    void process(std::string_view source) {
+      ++sources;
+      bytes += source.length();
+    }
+
+    void merge(stats const& other) {
+      sources += other.sources;
+      bytes += other.bytes;
+    }
+
+    size_t sources{ 0 };
+    size_t bytes{ 0 };
+  };
+
+  auto print(std::ostream& out, output::matches matches, stats merged_stats = {}) -> stats;
 } // namespace generator::output

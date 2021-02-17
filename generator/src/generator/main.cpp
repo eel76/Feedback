@@ -1,9 +1,11 @@
 #include "generator/cli.h"
+#include "generator/format.h"
 #include "generator/io.h"
 #include "generator/json.h"
 #include "generator/output.h"
 #include "generator/scm.h"
 
+#include <chrono>
 #include <fstream>
 #include <future>
 #include <iostream>
@@ -55,7 +57,8 @@ namespace generator {
 int main(int argc, char* argv[]) {
   using namespace generator;
 
-  std::ostringstream out;
+  auto       stats = output::stats{};
+  auto const start = std::chrono::steady_clock::now();
 
   try {
     auto const parameters = cli::parse(argc, argv);
@@ -65,14 +68,21 @@ int main(int argc, char* argv[]) {
     auto const shared_workflow = parse_workflow_async(parameters.workflow_filename).share();
     auto const shared_diff     = parse_diff_async(parameters.diff_filename).share();
 
-    print(out, output::matches{ parameters.rules_filename, shared_rules, shared_sources, shared_workflow, shared_diff });
+    std::ostringstream out;
+    stats = print(out, output::matches{ parameters.rules_filename, shared_rules, shared_sources, shared_workflow, shared_diff });
+
+    std::ios::sync_with_stdio(false);
+    std::cout << out.str();
   }
   catch (std::exception const& e) {
     std::cerr << e.what() << '\n';
     return 1;
   }
 
-  std::ios::sync_with_stdio(false);
-  std::cout << out.str();
+  auto const elapsed = std::chrono::steady_clock::now() - start;
+
+  format::print(std::cerr, "Processed {} source(s) with {} byte(s) in {} millisecond(s).\n", stats.sources, stats.bytes,
+                std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
+
   return 0;
 }
