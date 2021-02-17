@@ -22,8 +22,6 @@ namespace generator {
       if (!std::filesystem::exists(filename))
         throw std::invalid_argument{ "file not found" };
 
-      // FIXME: use mmap
-
       std::stringstream content;
       content << std::ifstream{ filename }.rdbuf();
 
