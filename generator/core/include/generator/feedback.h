@@ -34,9 +34,9 @@ namespace generator::feedback {
 
   class workflow {
   public:
-    explicit workflow(feedback::handlings handlings = {});
+    explicit workflow(feedback::handlings handlings = {}) noexcept;
 
-    auto operator[](std::string const& type) const -> handling;
+    auto operator[](std::string const& type) const noexcept -> handling;
 
   private:
     handlings handlings_;

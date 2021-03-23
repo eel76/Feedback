@@ -21,10 +21,10 @@ namespace generator::feedback {
                       response);
   }
 
-  workflow::workflow(feedback::handlings handlings) : handlings_(std::move(handlings)) {
+  workflow::workflow(feedback::handlings handlings) noexcept : handlings_(std::move(handlings)) {
   }
 
-  auto workflow::operator[](std::string const& type) const -> handling {
+  auto workflow::operator[](std::string const& type) const noexcept -> handling {
     if (auto const itr = handlings_.find(type); itr != cend(handlings_))
       return itr->second;
 

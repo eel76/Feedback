@@ -8,7 +8,7 @@ namespace generator::regex {
 
 namespace generator::text {
 
-  inline auto first_line_of(std::string_view text) -> std::string_view {
+  constexpr inline auto first_line_of(std::string_view text) noexcept -> std::string_view {
     auto const end_of_first_line = text.find_first_of('\n');
     if (end_of_first_line == std::string_view::npos)
       return text;
@@ -16,7 +16,7 @@ namespace generator::text {
     return text.substr(0, end_of_first_line);
   }
 
-  inline auto last_line_of(std::string_view text) -> std::string_view {
+  constexpr inline auto last_line_of(std::string_view text) noexcept -> std::string_view {
     auto const end_of_penultimate_line = text.find_last_of('\n');
     if (end_of_penultimate_line == std::string_view::npos)
       return text;
@@ -24,7 +24,7 @@ namespace generator::text {
     return text.substr(end_of_penultimate_line + 1);
   }
 
-  inline auto ends_with(std::string_view text, std::string_view suffix) -> bool {
+  constexpr inline auto ends_with(std::string_view text, std::string_view suffix) noexcept -> bool {
     if (text.length() < suffix.length())
       return false;
 
@@ -43,7 +43,7 @@ namespace generator::text {
 
   class forward_search {
   public:
-    explicit forward_search(std::string_view const& text)
+    explicit forward_search(std::string_view const& text) noexcept
     : processed_line_count(0), processed(text.data(), 0), current_match(text.data(), 0), remaining(text) {
     }
 
@@ -52,17 +52,17 @@ namespace generator::text {
 
     auto highlighted_text(regex::precompiled const& pattern) const -> excerpt;
 
-    auto matched_text() const -> std::string_view {
+    auto matched_text() const noexcept -> std::string_view {
       return current_match;
     }
 
     auto matched_lines() const -> std::string_view;
 
-    auto line() const -> int {
+    auto line() const noexcept -> int {
       return static_cast<int>(processed_line_count + 1);
     }
 
-    auto column() const -> int {
+    auto column() const noexcept -> int {
       return static_cast<int>(last_processed_line.length() + 1);
     }
 
