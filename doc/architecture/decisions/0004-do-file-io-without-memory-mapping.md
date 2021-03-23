@@ -8,12 +8,15 @@ Accepted
 
 ## Context
 
-The issue motivating this decision, and any context that influences or constrains the decision.
+We evaluated mio (https://github.com/mandreyel/mio) to improve overall file IO performance.
+The measured performance was not better but comparable or even worse.
+We ran into reproducible crashes for certain files.
 
 ## Decision
 
-The change that we're proposing or have agreed to implement.
+We do file IO without memory mapping.
 
 ## Consequences
 
-What becomes easier or more difficult to do and any risks introduced by the change that will need to be mitigated.
+File IO operations do not require an additional third party library.
+This decision reduces maintainment costs and improves cross platform availability.
