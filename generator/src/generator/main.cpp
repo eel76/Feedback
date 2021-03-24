@@ -52,13 +52,18 @@ namespace generator {
   }
 } // namespace generator
 
+void print(std::ostream& out, generator::output::stats stats, std::chrono::nanoseconds duration) {
+  generator::format::print(out, "Processed {} source(s) with {} byte(s) in {} millisecond(s).\n", stats.sources,
+                           stats.bytes, std::chrono::duration_cast<std::chrono::milliseconds>(duration).count());
+}
+
 int main(int argc, char* argv[]) {
   using namespace generator;
 
-  auto       stats = output::stats{};
-  auto const start = std::chrono::steady_clock::now();
+  std::ios::sync_with_stdio(false);
 
   try {
+    auto const start      = std::chrono::steady_clock::now();
     auto const parameters = cli::parse(argc, argv);
 
     auto const shared_rules    = parse_rules_async(parameters.rules_filename).share();
@@ -66,21 +71,15 @@ int main(int argc, char* argv[]) {
     auto const shared_workflow = parse_workflow_async(parameters.workflow_filename).share();
     auto const shared_diff     = parse_diff_async(parameters.diff_filename).share();
 
-    std::ostringstream out;
-    stats = print(out, output::matches{ parameters.rules_filename, shared_rules, shared_sources, shared_workflow, shared_diff });
+    auto const stats =
+    print(std::cout, output::matches{ parameters.rules_filename, shared_rules, shared_sources, shared_workflow, shared_diff });
 
-    std::ios::sync_with_stdio(false);
-    std::cout << out.str();
+    print(std::cerr, stats, std::chrono::steady_clock::now() - start);
   }
   catch (std::exception const& e) {
     std::cerr << e.what() << '\n';
     return 1;
   }
-
-  auto const elapsed = std::chrono::steady_clock::now() - start;
-
-  format::print(std::cerr, "Processed {} source(s) with {} byte(s) in {} millisecond(s).\n", stats.sources, stats.bytes,
-                std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
 
   return 0;
 }
