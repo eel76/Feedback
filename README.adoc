@@ -24,6 +24,7 @@ Distributed under the [MIT](https://opensource.org/licenses/MIT) license.
 * Straightforward usage: add new feedback rules within a couple of minutes
 * Scales well: check dozens of rules on a million lines code base within just a few seconds
 * Builtin support for an incremental developer workflow
+* Support for a full-featured git workflow, including worktrees
 
 // end::features[]
 
@@ -44,6 +45,16 @@ Distributed under the [MIT](https://opensource.org/licenses/MIT) license.
 https://kislayverma.com/platform-thinking/the-golden-rule-of-platforms/
 
 // end::principles[]
+
+== Critique
+
+// tag::critique[]
+
+* regex are not readable and composable, so while it is easy to add rules it is also hard to read/maintain them
+ it violates some basic principle of coding, i.e. it should be hard to write and easy to read.
+ it is like reading brainfuck code.
+
+// end::critique[]
 
 == Using
 
