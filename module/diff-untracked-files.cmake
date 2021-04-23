@@ -1,6 +1,6 @@
 cmake_policy (VERSION 3.15)
 
-execute_process (COMMAND "@GIT_EXECUTABLE@" "ls-files" "--others" "--exclude-standard" WORKING_DIRECTORY "@WORKING_DIRECTORY@" OUTPUT_VARIABLE sources)
+execute_process (COMMAND "@GIT_EXECUTABLE@" "ls-files" "--others" "--exclude-standard" "--exclude=build*/" "--exclude=.vs*/" WORKING_DIRECTORY "@WORKING_DIRECTORY@" OUTPUT_VARIABLE sources)
 
 STRING (REGEX REPLACE ";" "\\\\;" sources "${sources}")
 STRING (REGEX REPLACE "\n\n+" "\n" sources "${sources}")
